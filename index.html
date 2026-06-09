@@ -322,6 +322,23 @@ const HOUSE_TYPE = {
   3:['Upachaya'], 11:['Upachaya'],
 };
 
+// 凶星集合（印度）
+const MALEFICS_TRADITIONAL = ['mars','saturn','rahu','ketu'];
+const MALEFICS_MODERN      = ['uranus','neptune','pluto'];
+const MALEFICS_ALL         = [...MALEFICS_TRADITIONAL, ...MALEFICS_MODERN];
+
+// 雙守護星座（規則 1-1 補充）
+const DUAL_RULERSHIP = {
+  mercury: [2, 5],   // 雙子、處女
+  venus:   [1, 6],   // 金牛、天秤
+};
+
+// 規則 3：本命凶星弱陷對照（使用者 memo）
+const RULE3_WEAK = {
+  mars:   [6, 1, 3],   // 天秤、金牛、巨蟹
+  saturn: [3, 4, 0],   // 巨蟹、獅子、牡羊
+};
+
 // ============ 共用工具 ============
 function $(id){return document.getElementById(id)}
 function findPlanet(id){return PLANETS.find(p=>p.id===id)}
@@ -398,6 +415,181 @@ function reset(){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
+// ============ 印度凶險三規則檢查（使用者 memo 出處） ============
+// 規則 1：八宮內凶星（整宮制 Whole Sign）
+function rule1_maleficsIn8th(placements){
+  return placements.filter(p=>p.house===8 && MALEFICS_ALL.includes(p.pid));
+}
+
+// 規則 1-1：水星 / 金星的雙守護星座補充資訊
+//   五骰版沒有 Placidus 角度，做折衷：若 8 宮內有水/金、或 8 宮主是水/金，
+//   列出其雙守護星座，並標記是否該星座也有凶星（這是接近 Placidus 精神的整宮制近似）
+function rule1_1_dualRulership(asc, placements){
+  const sign8 = (asc + 7) % 12;
+  const lord8 = TRADITIONAL_RULER[sign8];
+  const findings = [];
+
+  // 判斷 8 宮裡有沒有水星/金星
+  const dualInH8 = placements.filter(p=>p.house===8 && DUAL_RULERSHIP[p.pid]);
+  dualInH8.forEach(p=>{
+    const altSigns = DUAL_RULERSHIP[p.pid].map(id=>findSign(id));
+    const altHouses = DUAL_RULERSHIP[p.pid].map(id=>houseOfSign(id, asc));
+    const maleficInAlt = placements.filter(o=>altHouses.includes(o.house) && MALEFICS_ALL.includes(o.pid));
+    findings.push({
+      planet:findPlanet(p.pid),
+      altSigns, altHouses,
+      maleficInAlt,
+    });
+  });
+
+  // 8 宮主是水星/金星時，也列出
+  if(DUAL_RULERSHIP[lord8] && !dualInH8.some(p=>p.pid===lord8)){
+    const altSigns = DUAL_RULERSHIP[lord8].map(id=>findSign(id));
+    const altHouses = DUAL_RULERSHIP[lord8].map(id=>houseOfSign(id, asc));
+    const maleficInAlt = placements.filter(o=>altHouses.includes(o.house) && MALEFICS_ALL.includes(o.pid));
+    findings.push({
+      planet:findPlanet(lord8),
+      asLord:true,
+      altSigns, altHouses,
+      maleficInAlt,
+    });
+  }
+
+  return {sign8:findSign(sign8), lord8:findPlanet(lord8), findings};
+}
+
+// 規則 2：八宮空宮 → 八宮主飛宮的同宮凶星
+function rule2_8thLordSameHouseMalefics(asc, placements){
+  const sign8 = (asc + 7) % 12;
+  const lord8 = TRADITIONAL_RULER[sign8];
+
+  // 8 宮是否空宮？（從 placements 看 — 主骰、副骰、運星都計入）
+  const occupants8 = placements.filter(p=>p.house===8);
+  if(occupants8.length>0){
+    return {applicable:false, reason:'8 宮非空宮，規則 2 不適用', occupants:occupants8};
+  }
+
+  // 8 宮主在哪一宮？只看 placements 裡有的
+  const lord8Placement = placements.find(p=>p.pid===lord8);
+  if(!lord8Placement){
+    return {applicable:false, reason:`8 宮主 ${findPlanet(lord8).zh} 未在骰子或行運中，無法判定飛宮位置`};
+  }
+
+  // 同宮凶星檢查
+  const targetHouse = lord8Placement.house;
+  const sameHouseMalefics = placements.filter(p=>
+    p.house===targetHouse && p.pid!==lord8 && MALEFICS_ALL.includes(p.pid)
+  );
+
+  return {
+    applicable:true,
+    lord8:findPlanet(lord8),
+    lord8Placement,
+    targetHouse,
+    sameHouseMalefics,
+  };
+}
+
+// 規則 3：本命凶星弱陷檢查（火星/土星在弱陷星座）
+function rule3_maleficWeakness(placements){
+  const hits = [];
+  placements.forEach(p=>{
+    const weakSigns = RULE3_WEAK[p.pid];
+    if(weakSigns && weakSigns.includes(p.sign)){
+      hits.push({
+        planet:findPlanet(p.pid),
+        sign:findSign(p.sign),
+        source:p.source,
+        house:p.house,
+      });
+    }
+  });
+  return hits;
+}
+
+// 渲染印度凶險三規則 HTML
+function renderVedicRules(asc, placements){
+  const r1 = rule1_maleficsIn8th(placements);
+  const r11 = rule1_1_dualRulership(asc, placements);
+  const r2 = rule2_8thLordSameHouseMalefics(asc, placements);
+  const r3 = rule3_maleficWeakness(placements);
+
+  // 規則 1
+  let r1HTML = `<h4>① 八宮內凶星（整宮制 Whole Sign）</h4>`;
+  if(r1.length===0){
+    r1HTML += `<p>✅ 無凶星落入八宮。</p>`;
+  }else{
+    r1HTML += `<p class="alert">⚠ 偵測到 ${r1.length} 顆凶星落入八宮：</p>`;
+    r1HTML += `<ul style="margin:4px 0 8px 16px;padding:0">`;
+    r1.forEach(p=>{
+      const planet = findPlanet(p.pid);
+      const sign = findSign(p.sign);
+      const cat = MALEFICS_TRADITIONAL.includes(p.pid)?'傳統凶星':'現代凶星';
+      r1HTML += `<li><strong>${planet.zh}</strong>（${cat}）在 ${sign.zh}，來源：${p.source}</li>`;
+    });
+    r1HTML += `</ul>`;
+  }
+
+  // 規則 1-1
+  let r11HTML = `<h4>① -1 不等宮制 + 水金雙守護（平行檢查）</h4>`;
+  r11HTML += `<p class="muted">五骰版沒有 Placidus 角度資料，此處用「水星/金星雙守護星座 → 對應宮位」的整宮制近似。完整 Placidus 等接 Swiss Ephemeris 後可用。</p>`;
+  r11HTML += `<p>八宮星座：<strong>${r11.sign8.sym} ${r11.sign8.zh}</strong> · 八宮主：<strong>${r11.lord8.zh}</strong></p>`;
+  if(r11.findings.length===0){
+    r11HTML += `<p>✅ 此盤的水星/金星與八宮無雙守護關聯，補充規則不觸發。</p>`;
+  }else{
+    r11.findings.forEach(f=>{
+      const altDesc = f.altSigns.map((s,i)=>`${s.sym}${s.zh}（落${f.altHouses[i]}宮）`).join('、');
+      r11HTML += `<p>${f.planet.zh}（${f.asLord?'八宮主':'落於八宮'}）雙守護：${altDesc}</p>`;
+      if(f.maleficInAlt.length===0){
+        r11HTML += `<p>　✅ 雙守護宮位無凶星。</p>`;
+      }else{
+        r11HTML += `<p class="alert">　⚠ 雙守護宮位內有凶星：${f.maleficInAlt.map(m=>findPlanet(m.pid).zh+'（'+m.source+'）').join('、')}</p>`;
+      }
+    });
+  }
+
+  // 規則 2
+  let r2HTML = `<h4>② 八宮空宮 → 八宮主飛宮同宮凶星</h4>`;
+  if(!r2.applicable){
+    r2HTML += `<p class="muted">不適用：${r2.reason}</p>`;
+    if(r2.occupants && r2.occupants.length){
+      r2HTML += `<p class="muted">八宮現有：${r2.occupants.map(o=>findPlanet(o.pid).zh+'（'+o.source+'）').join('、')}</p>`;
+    }
+  }else{
+    r2HTML += `<p>八宮空宮 · 八宮主 <strong>${r2.lord8.zh}</strong> 飛入第 <strong>${r2.targetHouse}</strong> 宮（來源：${r2.lord8Placement.source}）</p>`;
+    if(r2.sameHouseMalefics.length===0){
+      r2HTML += `<p>✅ ${r2.targetHouse} 宮無其他凶星同宮，吉。</p>`;
+    }else{
+      r2HTML += `<p class="alert">⚠ ${r2.targetHouse} 宮內同宮凶星：${r2.sameHouseMalefics.map(m=>findPlanet(m.pid).zh+'（'+m.source+'）').join('、')} — 八宮兇能量透過此宮顯化。</p>`;
+    }
+  }
+
+  // 規則 3
+  let r3HTML = `<h4>③ 本命凶星弱陷（火星 / 土星）</h4>`;
+  r3HTML += `<p class="muted">火星弱陷：天秤、金牛、巨蟹 · 土星弱陷：巨蟹、獅子、牡羊</p>`;
+  if(r3.length===0){
+    r3HTML += `<p>✅ 未偵測到火星 / 土星落於弱陷星座。</p>`;
+  }else{
+    r3HTML += `<p class="alert">⚠ 偵測到 ${r3.length} 個弱陷凶星：</p>`;
+    r3HTML += `<ul style="margin:4px 0 8px 16px;padding:0">`;
+    r3.forEach(h=>{
+      r3HTML += `<li><strong>${h.planet.zh}</strong> 在 ${h.sign.zh}（弱陷），落第 ${h.house} 宮，來源：${h.source}</li>`;
+    });
+    r3HTML += `</ul>`;
+  }
+
+  return `
+    <div class="card">
+      <div class="card-title">⚖ 印度凶險三規則檢查（依使用者 memo）</div>
+      <div class="judgment">
+        ${r1HTML}
+        ${r11HTML}
+        ${r2HTML}
+        ${r3HTML}
+      </div>
+    </div>`;
+}
+
 // ============ 判讀核心 ============
 function run(){
   const planet_a = $('planet_a').value;
@@ -430,6 +622,13 @@ function run(){
       transits.push({name, pid, sign:s, house:h});
     }
   });
+
+  // 集中所有有位置的行星（主骰、副骰、運星）→ 規則檢查用
+  const placements = [
+    {pid:planet_a, sign:parseInt(sign_a), house:house_a, source:'主骰'},
+    {pid:planet_b, sign:parseInt(sign_b), house:house_b, source:'副骰'},
+    ...transits.map(t=>({pid:t.pid, sign:t.sign.id, house:t.house, source:t.name})),
+  ];
 
   // ---------- 西洋判讀 ----------
   const dA_w = dignity(planet_a, parseInt(sign_a), 'western');
@@ -545,6 +744,7 @@ function run(){
       </div>
     </div>
     ${transitHTML}
+    ${renderVedicRules(asc, placements)}
     <div class="placeholder-ai">
       <div class="ai-title">🔮 深度 AI 解讀（即將開放）</div>
       <div class="ai-desc">把上述結構化結果送進 NotebookLM 的「ASTROLOGY」+「印度占星」知識庫做交叉驗證 — 需先完成 nlm login 認證</div>

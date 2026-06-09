@@ -142,6 +142,28 @@ h1{
 .placeholder-ai .ai-title{color:var(--gold);font-size:14px}
 .placeholder-ai .ai-desc{color:var(--muted);font-size:12px;margin-top:4px}
 .alert{color:#ff9999;font-size:13px}
+.btn-deep{
+  width:100%;padding:14px;
+  background:var(--bg);border:2px solid var(--gold);
+  color:var(--text);border-radius:8px;cursor:pointer;
+  font-size:14px;font-family:inherit;
+  transition:all .15s;
+}
+.btn-deep:hover{background:var(--gold);color:var(--bg)}
+.btn-deep:disabled{opacity:.6;cursor:not-allowed}
+.btn-deep.western{border-color:var(--western)}
+.btn-deep.western:hover{background:var(--western)}
+.btn-deep.vedic{border-color:var(--vedic)}
+.btn-deep.vedic:hover{background:var(--vedic)}
+.prompt-preview{
+  background:var(--bg);border-radius:6px;padding:12px;
+  font-size:11px;line-height:1.5;color:var(--muted);
+  white-space:pre-wrap;word-break:break-word;
+  max-height:340px;overflow-y:auto;
+  font-family:"Consolas","Microsoft JhengHei",monospace;
+}
+.prompt-preview.western{border-left:3px solid var(--western)}
+.prompt-preview.vedic{border-left:3px solid var(--vedic)}
 </style>
 </head>
 <body>
@@ -413,6 +435,118 @@ function reset(){
   init();
   $('output').classList.add('hidden');
   window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ============ NotebookLM 深度解讀：prompt 模板 ============
+const NOTEBOOK_URL = {
+  western: 'https://notebooklm.google.com/notebook/03b21b72-a454-4d58-8d18-8fbe312a5378',
+  vedic:   'https://notebooklm.google.com/notebook/129f5535-d742-488e-bbcf-db870ba24d6f',
+  vedic2:  'https://notebooklm.google.com/notebook/da8bc187-4c46-451c-b178-da5aa610c908',
+};
+const NOTEBOOK_NAME = {
+  western: 'Astrology-占星學',
+  vedic:   '印度占星精進班',
+  vedic2:  '印度占星學-蕭思源天象觀測站',
+};
+
+function buildPromptWestern(ctx){
+  const transitsLine = ctx.transits.length
+    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
+    : '（未填）';
+  return `# 占星骰子 · 西洋深度解讀
+
+## 骰子結果
+- 主骰：${ctx.pA.zh} ${ctx.sA.zh} 第 ${ctx.house_a} 宮
+- 副骰：${ctx.pB.zh} ${ctx.sB.zh} 第 ${ctx.house_b} 宮（整宮制推算）
+- 推算上升：${ctx.ascSign.zh} · 命主星：${ctx.pLord.zh}
+- 當前行運：${transitsLine}
+${ctx.question ? `\n## 提問\n${ctx.question}\n` : ''}
+## 請依西洋占星角度回答
+
+1. **${ctx.pA.zh}落${ctx.sA.zh}第${ctx.house_a}宮**的核心意涵 — 此能量在這個生活領域如何展現？廟旺弱陷狀態為何？
+2. **命主${ctx.pLord.zh}**的位置與此盤主題的關聯：當事人需要從哪個方向去處理？
+3. **副骰${ctx.pB.zh}${ctx.sB.zh}**（落第 ${ctx.house_b} 宮）提供什麼補充提示？跟主骰的相位互動如何？
+4. **當前行運**對此盤的當下啟動：哪幾顆運星正在引動關鍵點？是吉是凶？
+5. 針對${ctx.question ? '提問' : '此盤主題'}，給三個具體可執行的建議。
+
+請盡量引用 notebook 內的具體規則或案例。`;
+}
+
+function buildPromptVedic(ctx){
+  const transitsLine = ctx.transits.length
+    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
+    : '（未填）';
+  return `# 占星骰子 · Vedic 深度解讀
+
+## 骰子結果（整宮制 Whole Sign）
+- 主骰：${ctx.pA.zh}（${ctx.pA.vedic}）在 ${ctx.sA.zh} 第 ${ctx.house_a} 宮
+- 副骰：${ctx.pB.zh}（${ctx.pB.vedic}）在 ${ctx.sB.zh} 第 ${ctx.house_b} 宮
+- 上升 (Lagna)：${ctx.ascSign.zh} · 命主 (Lagnesh)：${ctx.pLord.zh}（${ctx.pLord.vedic}）
+- 當前行運：${transitsLine}
+${ctx.question ? `\n## 提問\n${ctx.question}\n` : ''}
+## 請依印度占星 Vedic 角度回答
+
+1. **第 ${ctx.house_a} 宮（${VEDIC_HOUSE[ctx.house_a].split('—')[0].trim()}）** 的 Bhava 屬性對主骰行星 ${ctx.pA.zh} 的影響為何？
+2. **命主${ctx.pLord.zh}**（Lagnesh）在此盤位置的判讀：當事人的人生驅動方向？
+3. 此盤是否觸發三條凶險檢查：
+   (a) 八宮內凶星（整宮制）
+   (b) 八宮空宮時宮主飛宮的同宮凶星
+   (c) 火星 / 土星弱陷（火星：天秤/金牛/巨蟹；土星：巨蟹/獅子/牡羊）
+4. **副骰${ctx.pB.zh}**位置的補強或拖累作用？
+5. 針對${ctx.question ? '提問' : '此盤主題'}，從 Vedic 觀點給三個具體可執行的建議（含適合的 Mantra / 寶石 / Remedy，如果適用）。
+
+請優先引用 notebook 內的具體規則、Dasha 系統判讀或案例。`;
+}
+
+function copyToClipboard(text, btnEl){
+  navigator.clipboard.writeText(text).then(()=>{
+    const orig = btnEl.textContent;
+    btnEl.textContent = '✓ 已複製，請開 NotebookLM 貼上';
+    btnEl.disabled = true;
+    setTimeout(()=>{
+      btnEl.textContent = orig;
+      btnEl.disabled = false;
+    }, 3000);
+  }).catch(err=>{
+    alert('複製失敗：'+err.message+'\n請手動選取下方文字。');
+  });
+}
+
+function renderAIDeepRead(ctx){
+  const promptW = buildPromptWestern(ctx);
+  const promptV = buildPromptVedic(ctx);
+  // 把 prompt 轉成 base64 存在 data attribute（避免引號跳脫問題）
+  const pwB64 = btoa(unescape(encodeURIComponent(promptW)));
+  const pvB64 = btoa(unescape(encodeURIComponent(promptV)));
+  return `
+    <div class="card">
+      <div class="card-title">🔮 深度 AI 解讀（NotebookLM 知識庫）</div>
+      <div class="muted" style="margin-bottom:12px">
+        以下按鈕會把為這次骰子量身打造的查詢詞複製到剪貼簿，並開啟對應的 NotebookLM。
+        到 NotebookLM 後直接 Ctrl+V 貼到對話框送出。
+      </div>
+      <div class="row" style="gap:12px">
+        <div>
+          <button class="btn-deep western" onclick="
+            copyToClipboard(decodeURIComponent(escape(atob('${pwB64}'))), this);
+            window.open('${NOTEBOOK_URL.western}','_blank');
+          ">📋 複製西洋查詢 → ${NOTEBOOK_NAME.western}</button>
+        </div>
+        <div>
+          <button class="btn-deep vedic" onclick="
+            copyToClipboard(decodeURIComponent(escape(atob('${pvB64}'))), this);
+            window.open('${NOTEBOOK_URL.vedic}','_blank');
+          ">📋 複製印度查詢 → ${NOTEBOOK_NAME.vedic}</button>
+        </div>
+      </div>
+      <details style="margin-top:12px">
+        <summary class="muted" style="cursor:pointer">▸ 預覽查詢內容</summary>
+        <div class="two-col" style="margin-top:8px">
+          <pre class="prompt-preview western">${promptW.replace(/</g,'&lt;')}</pre>
+          <pre class="prompt-preview vedic">${promptV.replace(/</g,'&lt;')}</pre>
+        </div>
+      </details>
+    </div>`;
 }
 
 // ============ 印度凶險三規則檢查（使用者 memo 出處） ============
@@ -745,10 +879,9 @@ function run(){
     </div>
     ${transitHTML}
     ${renderVedicRules(asc, placements)}
-    <div class="placeholder-ai">
-      <div class="ai-title">🔮 深度 AI 解讀（即將開放）</div>
-      <div class="ai-desc">把上述結構化結果送進 NotebookLM 的「ASTROLOGY」+「印度占星」知識庫做交叉驗證 — 需先完成 nlm login 認證</div>
-    </div>`;
+    ${renderAIDeepRead({
+      pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question
+    })}`;
 
   const out = $('output');
   out.classList.remove('hidden');

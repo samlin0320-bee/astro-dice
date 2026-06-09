@@ -219,13 +219,30 @@ h1{
 
   <div class="card">
     <div class="card-title">🌌 當前行運（選填，填越多判讀越精準）</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn-ghost" id="btn_load_transit" onclick="loadCurrentTransits()">🌐 帶入當前行運</button>
+      <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
+        <label style="margin:0">星曆系統：</label>
+        <select id="zodiac_system" style="width:auto;padding:6px 10px" onchange="loadCurrentTransits(true)">
+          <option value="S">恆星 Lahiri（印度）</option>
+          <option value="T">熱帶（西洋）</option>
+        </select>
+      </div>
+      <span class="muted" id="ephem_status">星曆載入中...</span>
+    </div>
     <div class="row">
-      <div class="field"><label>運行月亮 在</label><select id="t_moon"></select></div>
-      <div class="field"><label>運行太陽 在</label><select id="t_sun"></select></div>
-      <div class="field"><label>運行火星 在</label><select id="t_mars"></select></div>
-      <div class="field"><label>運行金星 在</label><select id="t_venus"></select></div>
-      <div class="field"><label>運行木星 在</label><select id="t_jupiter"></select></div>
-      <div class="field"><label>運行土星 在</label><select id="t_saturn"></select></div>
+      <div class="field"><label>☉ 太陽 在</label><select id="t_sun"></select></div>
+      <div class="field"><label>☽ 月亮 在</label><select id="t_moon"></select></div>
+      <div class="field"><label>☿ 水星 在</label><select id="t_mercury"></select></div>
+      <div class="field"><label>♀ 金星 在</label><select id="t_venus"></select></div>
+      <div class="field"><label>♂ 火星 在</label><select id="t_mars"></select></div>
+      <div class="field"><label>♃ 木星 在</label><select id="t_jupiter"></select></div>
+      <div class="field"><label>♄ 土星 在</label><select id="t_saturn"></select></div>
+      <div class="field"><label>♅ 天王星 在</label><select id="t_uranus"></select></div>
+      <div class="field"><label>♆ 海王星 在</label><select id="t_neptune"></select></div>
+      <div class="field"><label>♇ 冥王星 在</label><select id="t_pluto"></select></div>
+      <div class="field"><label>☊ 羅睺 在</label><select id="t_rahu"></select></div>
+      <div class="field"><label>☋ 計都 在</label><select id="t_ketu"></select></div>
     </div>
   </div>
 
@@ -407,6 +424,64 @@ function houseTypeTags(house){
   }).join('');
 }
 
+// ============ Ephemeris 載入與自動帶入 ============
+let EPHEM = null;
+
+async function loadEphemeris(){
+  const status = $('ephem_status');
+  try{
+    const res = await fetch('ephemeris.json?ts=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    EPHEM = await res.json();
+    const gen = new Date(EPHEM.generated_at);
+    status.textContent = `星曆已就緒（更新於 ${gen.toLocaleDateString('zh-TW')}）`;
+    status.style.color = 'var(--gold)';
+  }catch(e){
+    EPHEM = null;
+    status.textContent = '星曆未載入（' + e.message + '）— 行運仍可手動填';
+    status.style.color = 'var(--warn)';
+  }
+}
+
+function findClosestPoint(targetTimestamp){
+  if(!EPHEM || !EPHEM.points || !EPHEM.points.length) return null;
+  // 二分搜尋最近的時間點
+  let lo = 0, hi = EPHEM.points.length - 1;
+  while(lo < hi){
+    const mid = (lo + hi) >> 1;
+    if(EPHEM.points[mid].t < targetTimestamp) lo = mid + 1;
+    else hi = mid;
+  }
+  // 比較 lo 跟 lo-1 哪個更接近
+  const p1 = EPHEM.points[lo];
+  const p0 = lo>0 ? EPHEM.points[lo-1] : null;
+  if(!p0) return p1;
+  return Math.abs(p1.t - targetTimestamp) < Math.abs(p0.t - targetTimestamp) ? p1 : p0;
+}
+
+function loadCurrentTransits(silentIfNoEphem){
+  if(!EPHEM){
+    if(!silentIfNoEphem) alert('星曆尚未載入');
+    return;
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  const pt = findClosestPoint(nowSec);
+  if(!pt){ alert('找不到對應的星曆點'); return; }
+
+  const system = $('zodiac_system').value; // 'T' or 'S'
+  const signs = pt[system];
+  const order = EPHEM.planets_order; // ['sun','moon',...]
+
+  order.forEach((pid, i)=>{
+    const sel = $('t_' + pid);
+    if(sel) sel.value = signs[i];
+  });
+
+  const pointDate = new Date(pt.t * 1000);
+  const sysLabel = system==='S' ? '恆星 Lahiri' : '熱帶';
+  $('ephem_status').textContent = `已帶入 ${pointDate.toLocaleString('zh-TW',{month:'short',day:'numeric',hour:'2-digit'})} 的${sysLabel}行運`;
+}
+
 // ============ 初始化 ============
 function init(){
   const planetOpts = PLANETS.map(p=>({value:p.id, label:`${p.sym} ${p.zh}`}));
@@ -418,9 +493,11 @@ function init(){
   populateSelect('house_a',  houseOpts);
   populateSelect('planet_b', planetOpts);
   populateSelect('sign_b',   signOpts);
-  ['t_moon','t_sun','t_mars','t_venus','t_jupiter','t_saturn'].forEach(id=>{
+  ['t_sun','t_moon','t_mercury','t_venus','t_mars','t_jupiter','t_saturn',
+   't_uranus','t_neptune','t_pluto','t_rahu','t_ketu'].forEach(id=>{
     populateSelect(id, signOpts, true);
   });
+  loadEphemeris();
 
   // 預設用使用者 memo 範例：冥王星 天秤 6 宮、金星 巨蟹
   $('planet_a').value='pluto';
@@ -746,8 +823,10 @@ function run(){
 
   // 行運
   const transits = [];
-  [['t_moon','運行月亮','moon'],['t_sun','運行太陽','sun'],['t_mars','運行火星','mars'],
-   ['t_venus','運行金星','venus'],['t_jupiter','運行木星','jupiter'],['t_saturn','運行土星','saturn']]
+  [['t_sun','運行太陽','sun'],['t_moon','運行月亮','moon'],['t_mercury','運行水星','mercury'],
+   ['t_venus','運行金星','venus'],['t_mars','運行火星','mars'],['t_jupiter','運行木星','jupiter'],
+   ['t_saturn','運行土星','saturn'],['t_uranus','運行天王星','uranus'],['t_neptune','運行海王星','neptune'],
+   ['t_pluto','運行冥王星','pluto'],['t_rahu','運行羅睺','rahu'],['t_ketu','運行計都','ketu']]
    .forEach(([id,name,pid])=>{
     const v = $(id).value;
     if(v!==''){

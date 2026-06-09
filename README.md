@@ -63,10 +63,22 @@ v0.1 已實作：
 
 待辦：
 
-- [ ] NotebookLM 知識庫對接（ASTROLOGY + 印度占星）做 AI 深度解讀
-- [ ] Swiss Ephemeris 自動帶當下行運
-- [ ] 印度規則庫擴充（八宮凶星 / 空宮飛宮 / 弱陷三檢查）
+- [x] ~~NotebookLM 知識庫對接（ASTROLOGY + 印度占星）做 AI 深度解讀~~
+- [x] ~~Swiss Ephemeris 自動帶當下行運~~
+- [x] ~~印度規則庫擴充（八宮凶星 / 空宮飛宮 / 弱陷三檢查）~~
 - [ ] 圖片 / 語音輸入
+
+## 行運星曆自動更新
+
+`ephemeris.json` 涵蓋 -30 ~ +90 天、6 小時解析度、十二顆行星（含羅睺/計都）的雙系統位置（熱帶 + 恆星 Lahiri）。
+
+每天 UTC 00:00（台灣 08:00）由 GitHub Action 自動重算並 commit。手動觸發：
+
+```bash
+python tools/update_ephemeris.py
+```
+
+依賴：`pyswisseph>=2.10.0`
 
 ## 本地開啟
 

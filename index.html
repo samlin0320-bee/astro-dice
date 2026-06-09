@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>占星骰子 · 五骰判讀</title>
+<style>
+:root{
+  --bg:#1a0d2e;
+  --bg-2:#2a1545;
+  --card:#3a1f5d;
+  --gold:#d4af37;
+  --gold-soft:#b8941f;
+  --text:#f0e6d2;
+  --muted:#a89dc7;
+  --vedic:#ff9a3c;
+  --western:#9ad5ff;
+  --warn:#ff6b9d;
+  --border:#4a2d6f;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%);
+  color:var(--text);
+  min-height:100vh;
+  padding:24px;
+}
+.container{max-width:1100px;margin:0 auto}
+h1{
+  text-align:center;
+  font-weight:400;
+  font-size:28px;
+  letter-spacing:.05em;
+  margin-bottom:4px;
+}
+.subtitle{text-align:center;color:var(--muted);margin-top:0;font-size:14px}
+.tabs{display:flex;gap:8px;margin:24px 0 16px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.tab{
+  padding:8px 16px;border-radius:6px;cursor:pointer;
+  color:var(--muted);background:transparent;border:none;font-size:14px;
+}
+.tab.active{background:var(--card);color:var(--gold)}
+.tab[disabled]{opacity:.4;cursor:not-allowed}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:16px;
+}
+.card-title{
+  font-size:15px;
+  color:var(--gold);
+  margin:0 0 12px;
+  display:flex;align-items:center;gap:8px;
+}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.field select,.field input{
+  width:100%;padding:10px 12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:6px;
+  font-size:14px;
+  font-family:inherit;
+}
+.btn{
+  display:inline-block;padding:12px 32px;
+  background:linear-gradient(180deg,var(--gold) 0%,var(--gold-soft) 100%);
+  color:#1a0d2e;border:none;border-radius:8px;
+  font-size:16px;font-weight:500;cursor:pointer;
+  letter-spacing:.05em;
+}
+.btn:hover{filter:brightness(1.1)}
+.btn-ghost{background:transparent;border:1px solid var(--gold);color:var(--gold);padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;margin-left:8px}
+.center{text-align:center;margin:24px 0}
+.dice-display{
+  display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:16px 0;
+}
+.die{
+  background:var(--bg);border:2px solid var(--gold);
+  border-radius:12px;width:96px;height:96px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.die .label{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}
+.die-symbol{font-size:36px;line-height:1;color:var(--gold)}
+.die.b{border-color:var(--western)}
+.die.b .die-symbol{color:var(--western)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.col-western,.col-vedic{padding:12px 14px;border-radius:8px;background:rgba(0,0,0,.15)}
+.col-western{border-top:3px solid var(--western)}
+.col-vedic{border-top:3px solid var(--vedic)}
+.col-header{font-size:16px;font-weight:500;margin:0 0 12px}
+.col-header.western{color:var(--western)}
+.col-header.vedic{color:var(--vedic)}
+.judgment{font-size:14px;line-height:1.7}
+.judgment h4{
+  font-size:13px;color:var(--gold);margin:14px 0 4px;
+  letter-spacing:.05em;
+}
+.judgment h4:first-child{margin-top:0}
+.judgment p{margin:0 0 6px;color:var(--text)}
+.tag{
+  display:inline-block;padding:2px 8px;font-size:11px;border-radius:4px;
+  margin-right:4px;margin-bottom:2px;
+}
+.tag-exalt{background:#2d5a2d;color:#90ee90}
+.tag-fall{background:#5a2d3a;color:#ff8888}
+.tag-own{background:#5a4a2d;color:#ffd87f}
+.tag-detri{background:#5a2d4a;color:#ff99c8}
+.tag-dusthana{background:#5a2d2d;color:#ff9999}
+.tag-kendra{background:#2d4a5a;color:#90c8e0}
+.tag-trikona{background:#5a4a2d;color:#ffd87f}
+.tag-upachaya{background:#3d5a2d;color:#bcef90}
+.warn-box{
+  background:rgba(255,107,157,.1);
+  border-left:3px solid var(--warn);
+  padding:12px 16px;border-radius:4px;
+  font-size:13px;color:var(--text);
+  margin:0 0 16px;
+}
+.muted{color:var(--muted);font-size:12px}
+.hidden{display:none}
+.transit-summary{
+  background:var(--bg);border-radius:8px;padding:14px;
+  font-size:13px;line-height:1.8;
+}
+.transit-summary strong{color:var(--gold)}
+.footer{
+  text-align:center;color:var(--muted);font-size:12px;margin-top:32px;
+  padding-top:16px;border-top:1px solid var(--border);
+}
+.placeholder-ai{
+  background:linear-gradient(135deg,#3a1f5d 0%,#2a1545 100%);
+  border:1px dashed var(--gold);
+  padding:16px;border-radius:8px;text-align:center;
+}
+.placeholder-ai .ai-title{color:var(--gold);font-size:14px}
+.placeholder-ai .ai-desc{color:var(--muted);font-size:12px;margin-top:4px}
+.alert{color:#ff9999;font-size:13px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>占星骰子 · 五骰判讀</h1>
+  <p class="subtitle">西洋 × 印度雙派分流 · 含當前行運整合</p>
+
+  <div class="tabs">
+    <button class="tab active">✋ 手動輸入</button>
+    <button class="tab" disabled title="規劃中">📷 圖片輸入</button>
+    <button class="tab" disabled title="規劃中">🎤 語音輸入</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💭 問題（選填）</div>
+    <div class="field">
+      <input id="question" placeholder="例：這筆錢能不能討回來？" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🎲 主盤三骰 — 決定基準宮位</div>
+    <div class="row">
+      <div class="field">
+        <label>骰 1 · 行星 A</label>
+        <select id="planet_a"></select>
+      </div>
+      <div class="field">
+        <label>骰 2 · 星座 A</label>
+        <select id="sign_a"></select>
+      </div>
+      <div class="field">
+        <label>骰 3 · 基準宮位</label>
+        <select id="house_a"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🎲 副骰兩顆 — 相位 / 命主飛宮判讀</div>
+    <div class="muted" style="margin-bottom:12px">副骰的宮位會根據主盤推算自動代入（整宮制 Whole Sign）</div>
+    <div class="row">
+      <div class="field">
+        <label>骰 4 · 行星 B</label>
+        <select id="planet_b"></select>
+      </div>
+      <div class="field">
+        <label>骰 5 · 星座 B</label>
+        <select id="sign_b"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🌌 當前行運（選填，填越多判讀越精準）</div>
+    <div class="row">
+      <div class="field"><label>運行月亮 在</label><select id="t_moon"></select></div>
+      <div class="field"><label>運行太陽 在</label><select id="t_sun"></select></div>
+      <div class="field"><label>運行火星 在</label><select id="t_mars"></select></div>
+      <div class="field"><label>運行金星 在</label><select id="t_venus"></select></div>
+      <div class="field"><label>運行木星 在</label><select id="t_jupiter"></select></div>
+      <div class="field"><label>運行土星 在</label><select id="t_saturn"></select></div>
+    </div>
+  </div>
+
+  <div class="center">
+    <button class="btn" onclick="run()">產生判讀 →</button>
+    <button class="btn-ghost" onclick="reset()">清空</button>
+  </div>
+
+  <div id="output" class="hidden"></div>
+
+  <div class="footer">
+    占星骰子 · 五骰判讀引擎 v0.1 · 規則庫對接 NotebookLM 知識庫（ASTROLOGY + 印度占星）
+  </div>
+</div>
+
+<script>
+// ============ 資料表 ============
+const PLANETS = [
+  {id:'sun',     zh:'太陽',         sym:'☉', vedic:'Surya'},
+  {id:'moon',    zh:'月亮',         sym:'☽', vedic:'Chandra'},
+  {id:'mercury', zh:'水星',         sym:'☿', vedic:'Budha'},
+  {id:'venus',   zh:'金星',         sym:'♀', vedic:'Shukra'},
+  {id:'mars',    zh:'火星',         sym:'♂', vedic:'Mangal'},
+  {id:'jupiter', zh:'木星',         sym:'♃', vedic:'Guru'},
+  {id:'saturn',  zh:'土星',         sym:'♄', vedic:'Shani'},
+  {id:'uranus',  zh:'天王星',       sym:'♅', vedic:'(現代行星)'},
+  {id:'neptune', zh:'海王星',       sym:'♆', vedic:'(現代行星)'},
+  {id:'pluto',   zh:'冥王星',       sym:'♇', vedic:'(現代行星)'},
+  {id:'rahu',    zh:'北交點/羅睺',   sym:'☊', vedic:'Rahu'},
+  {id:'ketu',    zh:'南交點/計都',   sym:'☋', vedic:'Ketu'},
+];
+
+const SIGNS = [
+  {id:0,  zh:'牡羊座', sym:'♈', element:'火', mode:'本位'},
+  {id:1,  zh:'金牛座', sym:'♉', element:'土', mode:'固定'},
+  {id:2,  zh:'雙子座', sym:'♊', element:'風', mode:'變動'},
+  {id:3,  zh:'巨蟹座', sym:'♋', element:'水', mode:'本位'},
+  {id:4,  zh:'獅子座', sym:'♌', element:'火', mode:'固定'},
+  {id:5,  zh:'處女座', sym:'♍', element:'土', mode:'變動'},
+  {id:6,  zh:'天秤座', sym:'♎', element:'風', mode:'本位'},
+  {id:7,  zh:'天蠍座', sym:'♏', element:'水', mode:'固定'},
+  {id:8,  zh:'射手座', sym:'♐', element:'火', mode:'變動'},
+  {id:9,  zh:'摩羯座', sym:'♑', element:'土', mode:'本位'},
+  {id:10, zh:'水瓶座', sym:'♒', element:'風', mode:'固定'},
+  {id:11, zh:'雙魚座', sym:'♓', element:'水', mode:'變動'},
+];
+
+// 古典守護（西洋 + 印度共通基礎）
+const TRADITIONAL_RULER = {
+  0:'mars', 1:'venus', 2:'mercury', 3:'moon',
+  4:'sun',  5:'mercury', 6:'venus',  7:'mars',
+  8:'jupiter', 9:'saturn', 10:'saturn', 11:'jupiter',
+};
+
+// 現代守護（僅西洋）
+const MODERN_RULER = { 7:'pluto', 10:'uranus', 11:'neptune' };
+
+// 廟旺（西洋 = 印度共通）
+const EXALTATION = {
+  sun:0, moon:1, mars:9, mercury:5, jupiter:3, venus:11, saturn:6,
+  rahu:1, ketu:7
+};
+
+// 弱陷（Fall）
+const FALL = {
+  sun:6, moon:7, mars:3, mercury:11, jupiter:9, venus:5, saturn:0,
+  rahu:7, ketu:1
+};
+
+// 對沖（西洋 Detriment）
+const DETRIMENT = {
+  sun:[10], moon:[9],
+  mercury:[8,11], venus:[7,0],
+  mars:[6,1], jupiter:[2,5], saturn:[3,4],
+};
+
+// 宮位含義 — 西洋
+const WESTERN_HOUSE = [
+  '',
+  '自我、外貌、形象、生命力起點',
+  '金錢、財產、價值觀、自尊',
+  '溝通、兄弟姊妹、短程移動、學習',
+  '家庭、根源、不動產、母親',
+  '戀愛、創造、子女、娛樂、表演',
+  '健康、工作、瑣事、僕役、債務',
+  '婚姻、伴侶、合作、公開對手',
+  '共有財、性、轉化、危機、繼承',
+  '高等教育、長程旅行、哲學、宗教',
+  '事業、社會地位、父親、權威',
+  '朋友、社群、希望、組織、收穫',
+  '潛意識、隱藏敵人、犧牲、結束、修行',
+];
+
+// 宮位含義 — 印度（Bhava）
+const VEDIC_HOUSE = [
+  '',
+  'Tanu Bhava — 自我、身體、生命、外貌、Lagna',
+  'Dhana Bhava — 累積財富、家庭、言語、食物、價值',
+  'Sahaja Bhava — 兄弟姊妹、勇氣、努力、短旅、溝通',
+  'Sukha Bhava — 母親、家、安樂、學業根基、不動產',
+  'Putra Bhava — 子女、智慧、創造力、前世福德、Mantra',
+  'Ari Bhava — 敵人、債務、疾病、訴訟、僕役',
+  'Yuvati Bhava — 配偶、婚姻、合夥、公開對外',
+  'Randhra Bhava — 壽命、隱藏、突發、繼承、轉化',
+  'Dharma Bhava — 父親、宗教、運氣、高等智慧、長旅',
+  'Karma Bhava — 事業、社會地位、行動、名聲',
+  'Labha Bhava — 收入、收穫、社群、願望實現',
+  'Vyaya Bhava — 損失、隱藏支出、解脫、外國、住院',
+];
+
+// 印度宮位屬性
+const HOUSE_TYPE = {
+  1:['Kendra'], 4:['Kendra'], 7:['Kendra'], 10:['Kendra'],
+  5:['Trikona'], 9:['Trikona'],
+  6:['Dusthana','Upachaya'], 8:['Dusthana'], 12:['Dusthana'],
+  3:['Upachaya'], 11:['Upachaya'],
+};
+
+// ============ 共用工具 ============
+function $(id){return document.getElementById(id)}
+function findPlanet(id){return PLANETS.find(p=>p.id===id)}
+function findSign(id){return SIGNS[parseInt(id)]}
+
+function populateSelect(id, options, includeBlank=false){
+  const sel = $(id);
+  sel.innerHTML = '';
+  if(includeBlank){
+    const o = document.createElement('option');
+    o.value=''; o.textContent='— 未填 —';
+    sel.appendChild(o);
+  }
+  options.forEach(opt=>{
+    const o = document.createElement('option');
+    o.value = opt.value;
+    o.textContent = opt.label;
+    sel.appendChild(o);
+  });
+}
+
+function dignity(planetId, signId, system){
+  if(EXALTATION[planetId] === signId) return {cls:'tag-exalt', label:'廟旺 (Exalted)'};
+  if(FALL[planetId] === signId)       return {cls:'tag-fall',  label:'弱陷 (Fall)'};
+  const rulers = [TRADITIONAL_RULER[signId]];
+  if(system==='western' && MODERN_RULER[signId]) rulers.push(MODERN_RULER[signId]);
+  if(rulers.includes(planetId))       return {cls:'tag-own',   label:'守護 (Own Sign)'};
+  if(system==='western' && DETRIMENT[planetId] && DETRIMENT[planetId].includes(signId))
+                                       return {cls:'tag-detri', label:'對沖 (Detriment)'};
+  return null;
+}
+
+function ascSignId(signA, house){
+  return ((parseInt(signA) - (parseInt(house)-1)) % 12 + 12) % 12;
+}
+function houseOfSign(signId, ascId){
+  return ((parseInt(signId) - parseInt(ascId)) % 12 + 12) % 12 + 1;
+}
+function houseTypeTags(house){
+  const types = HOUSE_TYPE[house] || [];
+  return types.map(t=>{
+    const cls = {Dusthana:'tag-dusthana', Kendra:'tag-kendra', Trikona:'tag-trikona', Upachaya:'tag-upachaya'}[t];
+    return `<span class="tag ${cls}">${t}</span>`;
+  }).join('');
+}
+
+// ============ 初始化 ============
+function init(){
+  const planetOpts = PLANETS.map(p=>({value:p.id, label:`${p.sym} ${p.zh}`}));
+  const signOpts   = SIGNS.map(s=>({value:s.id, label:`${s.sym} ${s.zh}`}));
+  const houseOpts  = Array.from({length:12},(_,i)=>({value:i+1, label:`${i+1} 宮`}));
+
+  populateSelect('planet_a', planetOpts);
+  populateSelect('sign_a',   signOpts);
+  populateSelect('house_a',  houseOpts);
+  populateSelect('planet_b', planetOpts);
+  populateSelect('sign_b',   signOpts);
+  ['t_moon','t_sun','t_mars','t_venus','t_jupiter','t_saturn'].forEach(id=>{
+    populateSelect(id, signOpts, true);
+  });
+
+  // 預設用使用者 memo 範例：冥王星 天秤 6 宮、金星 巨蟹
+  $('planet_a').value='pluto';
+  $('sign_a').value='6';
+  $('house_a').value='6';
+  $('planet_b').value='venus';
+  $('sign_b').value='3';
+}
+
+function reset(){
+  $('question').value='';
+  init();
+  $('output').classList.add('hidden');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ============ 判讀核心 ============
+function run(){
+  const planet_a = $('planet_a').value;
+  const sign_a   = $('sign_a').value;
+  const house_a  = parseInt($('house_a').value);
+  const planet_b = $('planet_b').value;
+  const sign_b   = $('sign_b').value;
+  const question = $('question').value.trim();
+
+  const asc = ascSignId(sign_a, house_a);
+  const house_b = houseOfSign(sign_b, asc);
+
+  const pA = findPlanet(planet_a);
+  const sA = findSign(sign_a);
+  const pB = findPlanet(planet_b);
+  const sB = findSign(sign_b);
+  const ascSign = findSign(asc);
+  const lord1 = TRADITIONAL_RULER[asc];
+  const pLord = findPlanet(lord1);
+
+  // 行運
+  const transits = [];
+  [['t_moon','運行月亮','moon'],['t_sun','運行太陽','sun'],['t_mars','運行火星','mars'],
+   ['t_venus','運行金星','venus'],['t_jupiter','運行木星','jupiter'],['t_saturn','運行土星','saturn']]
+   .forEach(([id,name,pid])=>{
+    const v = $(id).value;
+    if(v!==''){
+      const s = findSign(v);
+      const h = houseOfSign(v, asc);
+      transits.push({name, pid, sign:s, house:h});
+    }
+  });
+
+  // ---------- 西洋判讀 ----------
+  const dA_w = dignity(planet_a, parseInt(sign_a), 'western');
+  const dB_w = dignity(planet_b, parseInt(sign_b), 'western');
+  let western = '';
+
+  western += `<h4>主骰：${pA.zh}落${sA.zh}第${house_a}宮</h4>`;
+  western += `<p>${dA_w?`<span class="tag ${dA_w.cls}">${dA_w.label}</span>`:''}`;
+  western += `${sA.element}象${sA.mode}星座，能量展現為「${sA.zh}風格的${pA.zh}」。</p>`;
+  western += `<p><strong>${house_a} 宮含義：</strong>${WESTERN_HOUSE[house_a]}。</p>`;
+
+  western += `<h4>副骰：${pB.zh}落${sB.zh}第${house_b}宮（推算）</h4>`;
+  western += `<p>${dB_w?`<span class="tag ${dB_w.cls}">${dB_w.label}</span>`:''}`;
+  western += `${pB.zh}在${sB.zh}，落入此盤的第 ${house_b} 宮（${WESTERN_HOUSE[house_b]}）。</p>`;
+
+  western += `<h4>上升星座 & 命主星</h4>`;
+  western += `<p>上升：<strong>${ascSign.sym} ${ascSign.zh}</strong> · 命主星：<strong>${pLord.sym} ${pLord.zh}</strong>（${ascSign.zh}守護）</p>`;
+
+  // ---------- 印度判讀 ----------
+  const dA_v = dignity(planet_a, parseInt(sign_a), 'vedic');
+  const dB_v = dignity(planet_b, parseInt(sign_b), 'vedic');
+  let vedic = '';
+
+  vedic += `<h4>主骰：${pA.zh}（${pA.vedic}）落${sA.zh} 第${house_a}宮</h4>`;
+  vedic += `<p>${dA_v?`<span class="tag ${dA_v.cls}">${dA_v.label}</span>`:''}`;
+  vedic += `${houseTypeTags(house_a)}</p>`;
+  vedic += `<p><strong>${house_a} 宮 Bhava：</strong>${VEDIC_HOUSE[house_a]}。</p>`;
+
+  if(HOUSE_TYPE[house_a] && HOUSE_TYPE[house_a].includes('Dusthana')){
+    vedic += `<p class="alert">⚠ Dusthana 凶宮（${house_a}宮），${pA.zh}落此處需檢視壓力來源；建議查 NotebookLM「印度占星」對「八宮凶星」「宮主飛宮」「行星弱陷」的具體規則。</p>`;
+  }
+
+  vedic += `<h4>副骰：${pB.zh}（${pB.vedic}）落${sB.zh} 第${house_b}宮</h4>`;
+  vedic += `<p>${dB_v?`<span class="tag ${dB_v.cls}">${dB_v.label}</span>`:''}`;
+  vedic += `${houseTypeTags(house_b)}</p>`;
+  vedic += `<p><strong>${house_b} 宮 Bhava：</strong>${VEDIC_HOUSE[house_b]}。</p>`;
+
+  vedic += `<h4>命主飛宮 (Lagnesh)</h4>`;
+  vedic += `<p>上升 (Lagna)：<strong>${ascSign.sym} ${ascSign.zh}</strong> · 命主：<strong>${pLord.sym} ${pLord.zh}（${pLord.vedic}）</strong></p>`;
+  if(pLord.id === planet_a){
+    vedic += `<p>📍 主骰 <strong>${pA.zh} 就是命主星</strong>，落第 ${house_a} 宮 → 命主飛 ${house_a} 宮，當事人需從「${VEDIC_HOUSE[house_a].split('—')[1].trim()}」面向去處理。</p>`;
+  }else if(pLord.id === planet_b){
+    vedic += `<p>📍 副骰 <strong>${pB.zh} 就是命主星</strong>，落第 ${house_b} 宮 → 命主飛 ${house_b} 宮，當事人需從「${VEDIC_HOUSE[house_b].split('—')[1].trim()}」面向去處理。</p>`;
+  }else{
+    vedic += `<p class="muted">主副骰皆非命主星，${pLord.zh} 的實際宮位需另查盤確認；可作為進階解讀的重點。</p>`;
+  }
+
+  // ---------- 行運區 ----------
+  let transitHTML = '';
+  if(transits.length){
+    let lines = '';
+    transits.forEach(t=>{
+      const types = HOUSE_TYPE[t.house] || [];
+      let flag = '';
+      if(types.includes('Dusthana'))     flag = ` <span class="tag tag-dusthana">Dusthana</span>`;
+      else if(types.includes('Kendra'))  flag = ` <span class="tag tag-kendra">Kendra</span>`;
+      else if(types.includes('Trikona')) flag = ` <span class="tag tag-trikona">Trikona</span>`;
+      lines += `<div><strong>${t.name}</strong> 於 ${t.sign.sym} ${t.sign.zh} → 落此盤第 <strong>${t.house}</strong> 宮${flag}</div>`;
+    });
+
+    let warns = '';
+    transits.forEach(t=>{
+      const tag = dignity(t.pid, t.sign.id, 'western');
+      if(tag && (tag.cls==='tag-fall' || tag.cls==='tag-detri')){
+        warns += `<p class="alert">⚠ ${t.name}在 ${t.sign.zh}（${tag.label}），對應領域的壓力會放大。</p>`;
+      }
+    });
+
+    transitHTML = `
+      <div class="card">
+        <div class="card-title">🌌 行運疊加</div>
+        <div class="transit-summary">${lines}</div>
+        ${warns}
+      </div>`;
+  }
+
+  // ---------- 渲染 ----------
+  const dice = `
+    <div class="dice-display">
+      <div class="die"><span class="die-symbol">${pA.sym}</span><span class="label">${pA.zh}</span></div>
+      <div class="die"><span class="die-symbol">${sA.sym}</span><span class="label">${sA.zh}</span></div>
+      <div class="die"><span class="die-symbol">${house_a}</span><span class="label">第 ${house_a} 宮</span></div>
+      <div class="die b"><span class="die-symbol">${pB.sym}</span><span class="label">${pB.zh}</span></div>
+      <div class="die b"><span class="die-symbol">${sB.sym}</span><span class="label">${sB.zh}<br>(第 ${house_b} 宮)</span></div>
+    </div>`;
+
+  const warnHTML = `
+    <div class="warn-box">
+      <strong>⚠ 閱讀提醒：</strong>印度占星的宮位意義與西洋占星不同，請分開閱讀。例：第 6 宮在印度是 Ari Bhava（敵人/債務/疾病/訴訟，Dusthana 凶宮）；在西洋是健康/工作/僕役/瑣事 — 兩套不可互通套用。
+    </div>`;
+
+  const questionHTML = question ? `<div class="card"><div class="card-title">💭 你的提問</div><p>${question}</p></div>` : '';
+
+  const html = `
+    ${questionHTML}
+    <div class="card">
+      <div class="card-title">🎲 你投出了</div>
+      ${dice}
+      <p class="muted" style="text-align:center;margin:0">推算上升 ${ascSign.sym} ${ascSign.zh} · 命主星 ${pLord.sym} ${pLord.zh}</p>
+    </div>
+    ${warnHTML}
+    <div class="card">
+      <div class="card-title">📖 雙派判讀</div>
+      <div class="two-col">
+        <div class="col-western">
+          <div class="col-header western">【西洋觀點 Western】</div>
+          <div class="judgment">${western}</div>
+        </div>
+        <div class="col-vedic">
+          <div class="col-header vedic">【印度觀點 Vedic】</div>
+          <div class="judgment">${vedic}</div>
+        </div>
+      </div>
+    </div>
+    ${transitHTML}
+    <div class="placeholder-ai">
+      <div class="ai-title">🔮 深度 AI 解讀（即將開放）</div>
+      <div class="ai-desc">把上述結構化結果送進 NotebookLM 的「ASTROLOGY」+「印度占星」知識庫做交叉驗證 — 需先完成 nlm login 認證</div>
+    </div>`;
+
+  const out = $('output');
+  out.classList.remove('hidden');
+  out.innerHTML = html;
+  out.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+init();
+</script>
+</body>
+</html>

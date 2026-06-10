@@ -172,9 +172,42 @@ h1{
   <p class="subtitle">西洋 × 印度雙派分流 · 含當前行運整合</p>
 
   <div class="tabs">
-    <button class="tab active">✋ 手動輸入</button>
-    <button class="tab" disabled title="規劃中">📷 圖片輸入</button>
-    <button class="tab" disabled title="規劃中">🎤 語音輸入</button>
+    <button class="tab active" data-tab="manual" onclick="switchTab('manual')">✋ 手動輸入</button>
+    <button class="tab" data-tab="image" onclick="switchTab('image')">📷 圖片輸入</button>
+    <button class="tab" data-tab="voice" onclick="switchTab('voice')">🎤 語音輸入</button>
+  </div>
+
+  <!-- 圖片輸入面板 -->
+  <div id="panel_image" class="card hidden">
+    <div class="card-title">📷 圖片辨識（Claude Vision）</div>
+    <div class="muted" style="margin-bottom:8px">
+      支援三種圖片：實體骰子照片、APP 截圖、表格截圖。辨識後會自動填入下方手動欄位，您可以再微調。
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <label>Anthropic API Key（僅存瀏覽器 localStorage，不會上傳）</label>
+      <input id="api_key" type="password" placeholder="sk-ant-..." />
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <label>上傳圖片（支援拖曳、貼上、點擊）</label>
+      <div id="drop_zone" style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer">
+        <input id="file_input" type="file" accept="image/*" style="display:none" />
+        <div id="drop_hint" class="muted">點此選擇 / 拖曳 / Ctrl+V 貼上圖片</div>
+        <img id="preview" style="max-width:100%;max-height:240px;display:none;margin-top:8px" />
+      </div>
+    </div>
+    <button class="btn" onclick="recognizeImage()">🔍 辨識骰子</button>
+    <div id="img_result" class="muted" style="margin-top:8px"></div>
+  </div>
+
+  <!-- 語音輸入面板 -->
+  <div id="panel_voice" class="card hidden">
+    <div class="card-title">🎤 語音輸入（Web Speech API）</div>
+    <div class="muted" style="margin-bottom:8px">
+      說「冥王星天秤六宮，金星巨蟹」，系統會自動解析並填入欄位。<br>
+      支援格式：「<行星><星座><數字>宮，<行星><星座>」
+    </div>
+    <button class="btn" id="btn_voice" onclick="toggleVoice()">🎤 開始說話</button>
+    <div id="voice_result" class="muted" style="margin-top:8px"></div>
   </div>
 
   <div class="card">
@@ -424,6 +457,285 @@ function houseTypeTags(house){
   }).join('');
 }
 
+// ============ Tab 切換 ============
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  $('panel_image').classList.toggle('hidden', tab !== 'image');
+  $('panel_voice').classList.toggle('hidden', tab !== 'voice');
+}
+
+// ============ 圖片辨識（Claude Vision） ============
+const PLANET_ALIASES = {
+  '太陽':'sun','日':'sun','日輪':'sun',
+  '月亮':'moon','月':'moon',
+  '水星':'mercury','水':'mercury',
+  '金星':'venus','金':'venus','維納斯':'venus',
+  '火星':'mars','火':'mars',
+  '木星':'jupiter','木':'jupiter',
+  '土星':'saturn','土':'saturn',
+  '天王星':'uranus','天王':'uranus',
+  '海王星':'neptune','海王':'neptune',
+  '冥王星':'pluto','冥王':'pluto',
+  '北交點':'rahu','羅睺':'rahu','龍頭':'rahu',
+  '南交點':'ketu','計都':'ketu','龍尾':'ketu',
+};
+const SIGN_ALIASES = {
+  '牡羊座':0,'白羊座':0,'牡羊':0,'白羊':0,
+  '金牛座':1,'金牛':1,
+  '雙子座':2,'雙子':2,
+  '巨蟹座':3,'巨蟹':3,
+  '獅子座':4,'獅子':4,
+  '處女座':5,'處女':5,
+  '天秤座':6,'天平座':6,'天秤':6,'天平':6,
+  '天蠍座':7,'天蝎座':7,'天蠍':7,'天蝎':7,
+  '射手座':8,'人馬座':8,'射手':8,
+  '摩羯座':9,'魔羯座':9,'山羊座':9,'摩羯':9,'魔羯':9,
+  '水瓶座':10,'寶瓶座':10,'水瓶':10,'寶瓶':10,
+  '雙魚座':11,'雙魚':11,
+};
+
+function setupImageInput(){
+  const dz = $('drop_zone');
+  const fi = $('file_input');
+  const prev = $('preview');
+  const hint = $('drop_hint');
+  // 載入 API key
+  const saved = localStorage.getItem('anthropic_api_key');
+  if(saved) $('api_key').value = saved;
+  $('api_key').addEventListener('change', e=>{
+    localStorage.setItem('anthropic_api_key', e.target.value);
+  });
+
+  dz.addEventListener('click', ()=>fi.click());
+  fi.addEventListener('change', e=>handleFile(e.target.files[0]));
+  dz.addEventListener('dragover', e=>{e.preventDefault();dz.style.borderColor='var(--gold)'});
+  dz.addEventListener('dragleave', e=>{dz.style.borderColor='var(--border)'});
+  dz.addEventListener('drop', e=>{
+    e.preventDefault();
+    dz.style.borderColor='var(--border)';
+    handleFile(e.dataTransfer.files[0]);
+  });
+  // Ctrl+V 貼上
+  document.addEventListener('paste', e=>{
+    if(!$('panel_image').classList.contains('hidden')){
+      const item = [...e.clipboardData.items].find(i=>i.type.startsWith('image/'));
+      if(item) handleFile(item.getAsFile());
+    }
+  });
+
+  function handleFile(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      prev.src = ev.target.result;
+      prev.style.display = 'block';
+      hint.style.display = 'none';
+      window._imageDataUrl = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function recognizeImage(){
+  const key = $('api_key').value.trim();
+  if(!key){ alert('請先填 Anthropic API key'); return; }
+  if(!window._imageDataUrl){ alert('請先選擇圖片'); return; }
+
+  const result = $('img_result');
+  result.textContent = '辨識中...';
+  result.style.color = 'var(--muted)';
+
+  // 取出 base64
+  const m = window._imageDataUrl.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+  if(!m){ result.textContent = '圖片格式錯誤'; return; }
+  const mediaType = m[1];
+  const b64 = m[2];
+
+  const prompt = `你是占星骰子辨識助手。仔細看這張圖片，找出五顆占星骰子的結果。
+
+占星骰子有三種：
+- 行星骰：12 個符號（太陽 ☉、月亮 ☽、水星 ☿、金星 ♀、火星 ♂、木星 ♃、土星 ♄、天王星 ♅、海王星 ♆、冥王星 ♇、羅睺 ☊ 北交點、計都 ☋ 南交點）
+- 星座骰：12 個符號（牡羊 ♈、金牛 ♉、雙子 ♊、巨蟹 ♋、獅子 ♌、處女 ♍、天秤 ♎、天蠍 ♏、射手 ♐、摩羯 ♑、水瓶 ♒、雙魚 ♓）
+- 宮位骰：阿拉伯數字 1-12
+
+如果是骰子照片，可能五顆都看得到。如果是 APP 截圖或表格截圖，找畫面中標示的「行星 + 星座 + 宮位」組合。
+
+主盤需要 3 顆：行星 A、星座 A、宮位
+副骰 2 顆：行星 B、星座 B（如果圖片中只有 3 顆，副骰留空）
+
+只回 JSON（不要前後文字、不要 markdown code block）：
+{"main_planet":"<id>","main_sign":<0-11>,"main_house":<1-12>,"sub_planet":"<id>","sub_sign":<0-11>,"confidence":<0-1>,"notes":"<繁中說明你看到什麼>"}
+
+行星 id：sun, moon, mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto, rahu, ketu
+星座 index：0=牡羊, 1=金牛, 2=雙子, 3=巨蟹, 4=獅子, 5=處女, 6=天秤, 7=天蠍, 8=射手, 9=摩羯, 10=水瓶, 11=雙魚
+
+如果副骰看不到，把 sub_planet 和 sub_sign 設為 null。`;
+
+  try{
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: [
+            {type: 'image', source: {type: 'base64', media_type: mediaType, data: b64}},
+            {type: 'text', text: prompt}
+          ]
+        }]
+      })
+    });
+    if(!res.ok){
+      const err = await res.text();
+      throw new Error('API ' + res.status + ': ' + err.slice(0,200));
+    }
+    const data = await res.json();
+    const text = data.content[0].text.trim();
+    let parsed;
+    try{
+      parsed = JSON.parse(text);
+    }catch(e){
+      // 試著從 markdown code block 抓
+      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]+?\})\s*```/);
+      if(codeMatch) parsed = JSON.parse(codeMatch[1]);
+      else throw new Error('回傳非 JSON: ' + text.slice(0,100));
+    }
+    applyRecognition(parsed);
+    result.innerHTML = `✓ 辨識成功（confidence ${(parsed.confidence*100|0)}%）：${parsed.notes||''}`;
+    result.style.color = '#90ee90';
+    setTimeout(()=>switchTab('manual'), 1500);
+  }catch(e){
+    result.textContent = '❌ 辨識失敗：' + e.message;
+    result.style.color = 'var(--warn)';
+  }
+}
+
+function applyRecognition(r){
+  if(r.main_planet) $('planet_a').value = r.main_planet;
+  if(r.main_sign != null) $('sign_a').value = r.main_sign;
+  if(r.main_house != null) $('house_a').value = r.main_house;
+  if(r.sub_planet) $('planet_b').value = r.sub_planet;
+  if(r.sub_sign != null) $('sign_b').value = r.sub_sign;
+}
+
+// ============ 語音辨識（Web Speech API） ============
+let recognition = null;
+let voiceActive = false;
+
+function setupVoice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    $('btn_voice').disabled = true;
+    $('voice_result').textContent = '⚠ 瀏覽器不支援 Web Speech API。請改用 Chrome / Edge。';
+    return;
+  }
+  recognition = new SR();
+  recognition.lang = 'cmn-Hant-TW';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = ev=>{
+    const text = ev.results[0][0].transcript;
+    $('voice_result').textContent = '聽到：「' + text + '」 → 解析中...';
+    parseVoice(text);
+  };
+  recognition.onerror = ev=>{
+    $('voice_result').textContent = '❌ 錯誤：' + ev.error;
+    $('btn_voice').textContent = '🎤 開始說話';
+    voiceActive = false;
+  };
+  recognition.onend = ()=>{
+    $('btn_voice').textContent = '🎤 開始說話';
+    voiceActive = false;
+  };
+}
+
+function toggleVoice(){
+  if(!recognition) return;
+  if(voiceActive){
+    recognition.stop();
+  }else{
+    $('btn_voice').textContent = '⏹ 停止錄音';
+    $('voice_result').textContent = '請開始說話...';
+    voiceActive = true;
+    recognition.start();
+  }
+}
+
+function parseVoice(text){
+  // 把所有空白和標點清乾淨
+  const clean = text.replace(/[，。、,.\s]+/g,'');
+  const result = {};
+  const used = [];
+
+  // 找所有行星 + 星座出現位置
+  const findAll = (alias)=>{
+    const hits = [];
+    for(const [word, id] of Object.entries(alias)){
+      let pos = clean.indexOf(word);
+      while(pos !== -1){
+        // 避開短詞被長詞包含的情況
+        const conflict = used.some(u=>pos < u.end && pos+word.length > u.start);
+        if(!conflict) hits.push({word, id, start:pos, end:pos+word.length});
+        pos = clean.indexOf(word, pos+1);
+      }
+    }
+    return hits;
+  };
+
+  // 為了避免短詞先匹配（例如「金」吃掉「金星」），用字數倒序
+  const sortedPlanets = Object.entries(PLANET_ALIASES).sort((a,b)=>b[0].length-a[0].length);
+  const sortedSigns = Object.entries(SIGN_ALIASES).sort((a,b)=>b[0].length-a[0].length);
+  const planetMap = Object.fromEntries(sortedPlanets);
+  const signMap = Object.fromEntries(sortedSigns);
+
+  const planets = findAll(planetMap).sort((a,b)=>a.start-b.start);
+  planets.forEach(p=>used.push(p));
+  const signs = findAll(signMap).sort((a,b)=>a.start-b.start);
+  signs.forEach(s=>used.push(s));
+
+  // 找宮位數字
+  const houseMatch = clean.match(/([一二三四五六七八九十]+|\d+)宮/);
+  let house = null;
+  if(houseMatch){
+    const num = houseMatch[1];
+    const zhMap = {一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,十:10,十一:11,十二:12};
+    if(zhMap[num]) house = zhMap[num];
+    else house = parseInt(num);
+  }
+
+  // 主骰 = 第一個行星 + 第一個星座 + 宮位
+  // 副骰 = 第二個行星 + 第二個星座
+  const r = {
+    main_planet: planets[0]?.id,
+    main_sign: signs[0]?.id,
+    main_house: house,
+    sub_planet: planets[1]?.id,
+    sub_sign: signs[1]?.id,
+  };
+
+  if(!r.main_planet || r.main_sign==null || !r.main_house){
+    $('voice_result').innerHTML = '⚠ 解析失敗 — 沒抓到完整的主盤三要素。請說「冥王星天秤六宮，金星巨蟹」這種格式。';
+    return;
+  }
+
+  applyRecognition(r);
+  const noteParts = [`主骰：${planets[0].word} ${signs[0].word} ${house}宮`];
+  if(r.sub_planet && r.sub_sign!=null){
+    noteParts.push(`副骰：${planets[1].word} ${signs[1].word}`);
+  }
+  $('voice_result').innerHTML = '✓ ' + noteParts.join('、') + '（已填入手動欄位）';
+  setTimeout(()=>switchTab('manual'), 1500);
+}
+
 // ============ Ephemeris 載入與自動帶入 ============
 let EPHEM = null;
 
@@ -498,6 +810,8 @@ function init(){
     populateSelect(id, signOpts, true);
   });
   loadEphemeris();
+  setupImageInput();
+  setupVoice();
 
   // 預設用使用者 memo 範例：冥王星 天秤 6 宮、金星 巨蟹
   $('planet_a').value='pluto';

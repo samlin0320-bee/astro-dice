@@ -164,6 +164,30 @@ h1{
 }
 .prompt-preview.western{border-left:3px solid var(--western)}
 .prompt-preview.vedic{border-left:3px solid var(--vedic)}
+table.house-chart, table.flying-houses, table.aspect-table{
+  width:100%;border-collapse:collapse;font-size:13px;
+}
+table.house-chart th, table.flying-houses th, table.aspect-table th{
+  background:var(--bg);color:var(--gold);
+  padding:8px 10px;text-align:left;
+  border-bottom:2px solid var(--border);
+  font-weight:500;font-size:12px;
+  position:sticky;top:0;
+}
+table.house-chart td, table.flying-houses td, table.aspect-table td{
+  padding:6px 10px;border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:hover{
+  background:rgba(212,175,55,.05);
+}
+.dot-main{color:var(--gold)}
+.dot-sub{color:var(--western)}
+.dot-transit{color:var(--muted)}
+.house-row-dusthana{background:rgba(255,107,157,.08)}
+.house-row-kendra{background:rgba(154,213,255,.06)}
+.house-row-trikona{background:rgba(212,175,55,.06)}
+.house-row-asc{box-shadow:inset 3px 0 0 var(--gold)}
 </style>
 </head>
 <body>
@@ -235,10 +259,15 @@ h1{
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">🎲 副骰兩顆 — 相位 / 命主飛宮判讀</div>
+  <div class="card" id="card_subdie">
+    <div class="card-title" style="display:flex;align-items:center;gap:8px">
+      🎲 副骰兩顆 — 相位 / 命主飛宮判讀
+      <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
+        <input type="checkbox" id="use_subdie" checked onchange="toggleSubdie()"> 啟用副骰
+      </label>
+    </div>
     <div class="muted" style="margin-bottom:12px">副骰的宮位會根據主盤推算自動代入（整宮制 Whole Sign）</div>
-    <div class="row">
+    <div class="row" id="subdie_fields">
       <div class="field">
         <label>骰 4 · 行星 B</label>
         <select id="planet_b"></select>
@@ -455,6 +484,13 @@ function houseTypeTags(house){
     const cls = {Dusthana:'tag-dusthana', Kendra:'tag-kendra', Trikona:'tag-trikona', Upachaya:'tag-upachaya'}[t];
     return `<span class="tag ${cls}">${t}</span>`;
   }).join('');
+}
+
+// ============ 副骰開關 ============
+function toggleSubdie(){
+  const on = $('use_subdie').checked;
+  $('subdie_fields').style.opacity = on ? '1' : '.35';
+  $('subdie_fields').style.pointerEvents = on ? 'auto' : 'none';
 }
 
 // ============ Tab 切換 ============
@@ -844,21 +880,31 @@ function buildPromptWestern(ctx){
   const transitsLine = ctx.transits.length
     ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
     : '（未填）';
+  const subdieLine = ctx.useSubdie
+    ? `- 副骰：${ctx.pB.zh} ${ctx.sB.zh} 第 ${ctx.house_b} 宮（整宮制推算）\n`
+    : '';
+  const aspectsBlock = ctx.aspectsText && ctx.aspectsText.length
+    ? `\n## 全相位摘要（整宮制）\n${ctx.aspectsText.map(a=>'- '+a).join('\n')}\n`
+    : '';
+  const questionBlock = ctx.question
+    ? `## ❓ 核心提問（請優先針對這個問題回答，不要泛泛而談）\n> ${ctx.question}\n\n`
+    : '';
+  const subdieQ = ctx.useSubdie
+    ? `3. **副骰${ctx.pB.zh}${ctx.sB.zh}**（落第 ${ctx.house_b} 宮）提供什麼補充提示？跟主骰的相位互動如何？\n`
+    : '';
   return `# 占星骰子 · 西洋深度解讀
 
-## 骰子結果
+${questionBlock}## 骰子結果
 - 主骰：${ctx.pA.zh} ${ctx.sA.zh} 第 ${ctx.house_a} 宮
-- 副骰：${ctx.pB.zh} ${ctx.sB.zh} 第 ${ctx.house_b} 宮（整宮制推算）
-- 推算上升：${ctx.ascSign.zh} · 命主星：${ctx.pLord.zh}
+${subdieLine}- 推算上升：${ctx.ascSign.zh} · 命主星：${ctx.pLord.zh}
 - 當前行運：${transitsLine}
-${ctx.question ? `\n## 提問\n${ctx.question}\n` : ''}
-## 請依西洋占星角度回答
+${aspectsBlock}
+## 請依西洋占星角度回答${ctx.question ? `（圍繞「${ctx.question}」這個核心問題）` : ''}
 
 1. **${ctx.pA.zh}落${ctx.sA.zh}第${ctx.house_a}宮**的核心意涵 — 此能量在這個生活領域如何展現？廟旺弱陷狀態為何？
-2. **命主${ctx.pLord.zh}**的位置與此盤主題的關聯：當事人需要從哪個方向去處理？
-3. **副骰${ctx.pB.zh}${ctx.sB.zh}**（落第 ${ctx.house_b} 宮）提供什麼補充提示？跟主骰的相位互動如何？
-4. **當前行運**對此盤的當下啟動：哪幾顆運星正在引動關鍵點？是吉是凶？
-5. 針對${ctx.question ? '提問' : '此盤主題'}，給三個具體可執行的建議。
+2. **命主${ctx.pLord.zh}**的位置與${ctx.question ? '提問主題' : '此盤主題'}的關聯：當事人需要從哪個方向去處理？
+${subdieQ}${ctx.useSubdie ? '4' : '3'}. **當前行運 + 上述相位摘要**對此盤的當下啟動：哪幾組吉相位可以借力？哪幾組凶相位需要避免？
+${ctx.useSubdie ? '5' : '4'}. 針對${ctx.question ? `「${ctx.question}」這個問題` : '此盤主題'}，給三個具體可執行的建議。
 
 請盡量引用 notebook 內的具體規則或案例。`;
 }
@@ -867,15 +913,26 @@ function buildPromptVedic(ctx){
   const transitsLine = ctx.transits.length
     ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
     : '（未填）';
+  const subdieLine = ctx.useSubdie
+    ? `- 副骰：${ctx.pB.zh}（${ctx.pB.vedic}）在 ${ctx.sB.zh} 第 ${ctx.house_b} 宮\n`
+    : '';
+  const aspectsBlock = ctx.aspectsText && ctx.aspectsText.length
+    ? `\n## 全相位摘要（整宮制）\n${ctx.aspectsText.map(a=>'- '+a).join('\n')}\n`
+    : '';
+  const questionBlock = ctx.question
+    ? `## ❓ 核心提問（請優先針對這個問題回答，不要泛泛而談）\n> ${ctx.question}\n\n`
+    : '';
+  const subdieQ = ctx.useSubdie
+    ? `4. **副骰${ctx.pB.zh}**位置的補強或拖累作用？\n`
+    : '';
   return `# 占星骰子 · Vedic 深度解讀
 
-## 骰子結果（整宮制 Whole Sign）
+${questionBlock}## 骰子結果（整宮制 Whole Sign）
 - 主骰：${ctx.pA.zh}（${ctx.pA.vedic}）在 ${ctx.sA.zh} 第 ${ctx.house_a} 宮
-- 副骰：${ctx.pB.zh}（${ctx.pB.vedic}）在 ${ctx.sB.zh} 第 ${ctx.house_b} 宮
-- 上升 (Lagna)：${ctx.ascSign.zh} · 命主 (Lagnesh)：${ctx.pLord.zh}（${ctx.pLord.vedic}）
+${subdieLine}- 上升 (Lagna)：${ctx.ascSign.zh} · 命主 (Lagnesh)：${ctx.pLord.zh}（${ctx.pLord.vedic}）
 - 當前行運：${transitsLine}
-${ctx.question ? `\n## 提問\n${ctx.question}\n` : ''}
-## 請依印度占星 Vedic 角度回答
+${aspectsBlock}
+## 請依印度占星 Vedic 角度回答${ctx.question ? `（圍繞「${ctx.question}」這個核心問題）` : ''}
 
 1. **第 ${ctx.house_a} 宮（${VEDIC_HOUSE[ctx.house_a].split('—')[0].trim()}）** 的 Bhava 屬性對主骰行星 ${ctx.pA.zh} 的影響為何？
 2. **命主${ctx.pLord.zh}**（Lagnesh）在此盤位置的判讀：當事人的人生驅動方向？
@@ -883,8 +940,7 @@ ${ctx.question ? `\n## 提問\n${ctx.question}\n` : ''}
    (a) 八宮內凶星（整宮制）
    (b) 八宮空宮時宮主飛宮的同宮凶星
    (c) 火星 / 土星弱陷（火星：天秤/金牛/巨蟹；土星：巨蟹/獅子/牡羊）
-4. **副骰${ctx.pB.zh}**位置的補強或拖累作用？
-5. 針對${ctx.question ? '提問' : '此盤主題'}，從 Vedic 觀點給三個具體可執行的建議（含適合的 Mantra / 寶石 / Remedy，如果適用）。
+${subdieQ}${ctx.useSubdie ? '5' : '4'}. 針對${ctx.question ? `「${ctx.question}」這個問題` : '此盤主題'}，從 Vedic 觀點給三個具體可執行的建議（含適合的 Mantra / 寶石 / Remedy，如果適用）。
 
 請優先引用 notebook 內的具體規則、Dasha 系統判讀或案例。`;
 }
@@ -1115,6 +1171,216 @@ function renderVedicRules(asc, placements){
     </div>`;
 }
 
+// ============ 12 宮位排列表 + 五星飛兩宮 + 全相位分類 ============
+
+const HOUSE_NOTE = {
+  6: '危險小人',
+  8: '潛在風險',
+  12: '失落 / 開支',
+};
+
+function houseChartHTML(asc, placements){
+  let rows = '';
+  for(let h=1; h<=12; h++){
+    const signId = (asc + h - 1) % 12;
+    const sign = SIGNS[signId];
+    const lords = [TRADITIONAL_RULER[signId]];
+    if(MODERN_RULER[signId]) lords.push(MODERN_RULER[signId]);
+
+    const here = placements.filter(p=>p.house===h);
+    const types = HOUSE_TYPE[h] || [];
+
+    let rowCls = '';
+    if(types.includes('Dusthana')) rowCls = 'house-row-dusthana';
+    else if(types.includes('Kendra')) rowCls = 'house-row-kendra';
+    else if(types.includes('Trikona')) rowCls = 'house-row-trikona';
+    if(h===1) rowCls += ' house-row-asc';
+
+    let bhavaTag = '';
+    if(types.includes('Dusthana')) bhavaTag += `<span class="tag tag-dusthana">Dusthana</span>`;
+    if(types.includes('Kendra')) bhavaTag += `<span class="tag tag-kendra">Kendra</span>`;
+    if(types.includes('Trikona')) bhavaTag += `<span class="tag tag-trikona">Trikona</span>`;
+    if(types.includes('Upachaya')) bhavaTag += `<span class="tag tag-upachaya">Upachaya</span>`;
+
+    const note = HOUSE_NOTE[h] ? `<span class="alert">${HOUSE_NOTE[h]}</span>` : '';
+
+    const planetsCell = here.length ? here.map(p=>{
+      const pl = findPlanet(p.pid);
+      const cls = p.source==='主骰' ? 'dot-main' :
+                  p.source==='副骰' ? 'dot-sub' : 'dot-transit';
+      return `<span class="${cls}" title="${p.source}">${pl.sym}${pl.zh}</span>`;
+    }).join('、') : '<span class="muted">—</span>';
+
+    const lordsStr = lords.map(l=>findPlanet(l)).map(p=>`${p.sym}${p.zh}`).join('、');
+
+    rows += `
+      <tr class="${rowCls}">
+        <td><strong>${h}</strong></td>
+        <td>${sign.sym}${sign.zh}</td>
+        <td><span class="muted">${sign.mode}</span></td>
+        <td>${lordsStr}</td>
+        <td>${planetsCell}</td>
+        <td>${bhavaTag}${note}</td>
+      </tr>`;
+  }
+
+  return `
+    <div class="card">
+      <div class="card-title">📊 12 宮位排列（主骰 + 副骰 + 行運 全疊一張表）</div>
+      <div class="muted" style="margin-bottom:12px">
+        <span class="dot-main">●</span> 主骰　<span class="dot-sub">●</span> 副骰　<span class="dot-transit">●</span> 運行星
+        命宮（第 1 宮）以金邊標示。Dusthana 紅、Kendra 藍、Trikona 金。
+      </div>
+      <div style="overflow-x:auto">
+        <table class="house-chart">
+          <thead>
+            <tr><th>宮位</th><th>星座</th><th>模式</th><th>宮主星</th><th>此宮行星</th><th>備註</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function flyingHousesHTML(asc){
+  const dual = ['mars','venus','mercury','jupiter','saturn'];
+  const ruled = {};
+  for(let s=0; s<12; s++){
+    const r = TRADITIONAL_RULER[s];
+    (ruled[r] = ruled[r] || []).push(s);
+  }
+  let rows = '';
+  dual.forEach(pid=>{
+    const p = findPlanet(pid);
+    const signs = ruled[pid] || [];
+    const cells = signs.map(sId=>{
+      const sn = findSign(sId);
+      const hs = houseOfSign(sId, asc);
+      return `<strong>第 ${hs} 宮</strong>（${sn.sym}${sn.zh}）`;
+    }).join(' ／ ');
+    rows += `<tr><td><strong>${p.sym} ${p.zh}</strong></td><td>${cells}</td></tr>`;
+  });
+  return `
+    <div class="card">
+      <div class="card-title">🔭 五星飛兩宮（火金水木土）</div>
+      <div class="muted" style="margin-bottom:12px">這五顆傳統行星各守護兩個星座，看它們飛到哪兩個宮是飛宮判讀的核心。</div>
+      <div style="overflow-x:auto">
+        <table class="flying-houses">
+          <thead><tr><th>行星</th><th>飛兩宮</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+const ASPECT_TABLE = {
+  0:  {name:'合相 Conjunction (同宮)', cls:'neutral'},
+  2:  {name:'六合 Sextile (3 宮)',      cls:'kichi'},
+  3:  {name:'四分 Square (4 宮)',       cls:'kyo'},
+  4:  {name:'三分 Trine (5 宮)',        cls:'kichi'},
+  5:  {name:'補十二 Quincunx (6 宮)',   cls:'kyo'},
+  6:  {name:'對沖 Opposition (7 宮)',   cls:'kyo'},
+  7:  {name:'補十二 Quincunx (8 宮)',   cls:'kyo'},
+  8:  {name:'三分 Trine (9 宮)',        cls:'kichi'},
+  9:  {name:'四分 Square (10 宮)',      cls:'kyo'},
+  10: {name:'六合 Sextile (11 宮)',     cls:'kichi'},
+};
+
+// 印度特殊相位：火星(4/8)、木星(5/9)、土星(3/10)
+const VEDIC_SPECIAL = {
+  mars:    [{d:3, label:'火星 4 宮特殊相位'}, {d:7, label:'火星 8 宮特殊相位'}],
+  jupiter: [{d:4, label:'木星 5 宮特殊相位'}, {d:8, label:'木星 9 宮特殊相位'}],
+  saturn:  [{d:2, label:'土星 3 宮特殊相位'}, {d:9, label:'土星 10 宮特殊相位'}],
+};
+
+function aspectsHTML(placements){
+  const aspects = [];
+  for(let i=0; i<placements.length; i++){
+    for(let j=i+1; j<placements.length; j++){
+      const a = placements[i], b = placements[j];
+      const distAB = ((b.sign - a.sign) % 12 + 12) % 12;
+      const distBA = ((a.sign - b.sign) % 12 + 12) % 12;
+      const info = ASPECT_TABLE[distAB];
+
+      const aSpecial = (VEDIC_SPECIAL[a.pid] || []).find(x=>x.d===distAB);
+      const bSpecial = (VEDIC_SPECIAL[b.pid] || []).find(x=>x.d===distBA);
+      const vedicNotes = [];
+      if(aSpecial) vedicNotes.push(aSpecial.label);
+      if(bSpecial) vedicNotes.push(bSpecial.label);
+
+      if(!info && !vedicNotes.length) continue; // 鄰宮 1/11 無相位，且非印度特殊
+
+      aspects.push({a, b, distAB, info, vedicNotes});
+    }
+  }
+
+  const groups = {kichi:[], kyo:[], neutral:[], special:[]};
+  aspects.forEach(asp=>{
+    if(!asp.info && asp.vedicNotes.length){
+      groups.special.push(asp);
+    }else if(asp.info){
+      groups[asp.info.cls].push(asp);
+    }
+  });
+
+  const renderRow = asp=>{
+    const pa = findPlanet(asp.a.pid);
+    const pb = findPlanet(asp.b.pid);
+    return `<tr>
+      <td><span class="muted">${asp.a.source}</span> ${pa.sym}${pa.zh}</td>
+      <td>${asp.info ? asp.info.name : '<span class="muted">無西洋相位</span>'}</td>
+      <td><span class="muted">${asp.b.source}</span> ${pb.sym}${pb.zh}</td>
+      <td>${asp.vedicNotes.length ? '<span class="tag tag-trikona">'+asp.vedicNotes.join(' · ')+'</span>' : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  };
+
+  let html = `
+    <div class="card">
+      <div class="card-title">⚔ 全相位吉凶分類（整宮制 + 印度特殊相位）</div>
+      <div class="muted" style="margin-bottom:12px">
+        共 ${aspects.length} 組有效相位（鄰宮 2 宮 / 12 宮無相位除外）。<br>
+        西洋整宮制 + 印度特殊相位（火 4/8、木 5/9、土 3/10）並列。
+      </div>`;
+
+  if(groups.kichi.length){
+    html += `<h4 style="color:#90ee90;margin:12px 0 6px">✓ 吉相位 · ${groups.kichi.length} 組</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.kichi.map(renderRow).join('')}</tbody></table>`;
+  }
+  if(groups.kyo.length){
+    html += `<h4 style="color:#ff9999;margin:12px 0 6px">✗ 凶相位 · ${groups.kyo.length} 組</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.kyo.map(renderRow).join('')}</tbody></table>`;
+  }
+  if(groups.neutral.length){
+    html += `<h4 class="muted" style="margin:12px 0 6px">○ 合相中性 · ${groups.neutral.length} 組（看具體行星組合）</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.neutral.map(renderRow).join('')}</tbody></table>`;
+  }
+  if(groups.special.length){
+    html += `<h4 style="color:var(--vedic);margin:12px 0 6px">▲ 印度特殊相位（西洋無相位但 Vedic 有）· ${groups.special.length} 組</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.special.map(renderRow).join('')}</tbody></table>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function aspectsSummaryText(placements){
+  // 給 prompt 用的精簡文字版
+  const aspects = [];
+  for(let i=0; i<placements.length; i++){
+    for(let j=i+1; j<placements.length; j++){
+      const a = placements[i], b = placements[j];
+      const distAB = ((b.sign - a.sign) % 12 + 12) % 12;
+      const info = ASPECT_TABLE[distAB];
+      if(!info || info.cls==='neutral') continue;
+      const pa = findPlanet(a.pid).zh;
+      const pb = findPlanet(b.pid).zh;
+      const flag = info.cls==='kichi' ? '吉' : '凶';
+      aspects.push(`${pa}(${a.source}) ${info.name.split(' ')[0]} ${pb}(${b.source}) [${flag}]`);
+    }
+  }
+  return aspects;
+}
+
 // ============ 判讀核心 ============
 function run(){
   const planet_a = $('planet_a').value;
@@ -1123,14 +1389,15 @@ function run(){
   const planet_b = $('planet_b').value;
   const sign_b   = $('sign_b').value;
   const question = $('question').value.trim();
+  const useSubdie = $('use_subdie').checked;
 
   const asc = ascSignId(sign_a, house_a);
-  const house_b = houseOfSign(sign_b, asc);
+  const house_b = useSubdie ? houseOfSign(sign_b, asc) : null;
 
   const pA = findPlanet(planet_a);
   const sA = findSign(sign_a);
-  const pB = findPlanet(planet_b);
-  const sB = findSign(sign_b);
+  const pB = useSubdie ? findPlanet(planet_b) : null;
+  const sB = useSubdie ? findSign(sign_b) : null;
   const ascSign = findSign(asc);
   const lord1 = TRADITIONAL_RULER[asc];
   const pLord = findPlanet(lord1);
@@ -1150,16 +1417,15 @@ function run(){
     }
   });
 
-  // 集中所有有位置的行星（主骰、副骰、運星）→ 規則檢查用
+  // 集中所有有位置的行星 → 規則檢查、宮位表、相位用
   const placements = [
     {pid:planet_a, sign:parseInt(sign_a), house:house_a, source:'主骰'},
-    {pid:planet_b, sign:parseInt(sign_b), house:house_b, source:'副骰'},
+    ...(useSubdie ? [{pid:planet_b, sign:parseInt(sign_b), house:house_b, source:'副骰'}] : []),
     ...transits.map(t=>({pid:t.pid, sign:t.sign.id, house:t.house, source:t.name})),
   ];
 
   // ---------- 西洋判讀 ----------
   const dA_w = dignity(planet_a, parseInt(sign_a), 'western');
-  const dB_w = dignity(planet_b, parseInt(sign_b), 'western');
   let western = '';
 
   western += `<h4>主骰：${pA.zh}落${sA.zh}第${house_a}宮</h4>`;
@@ -1167,16 +1433,18 @@ function run(){
   western += `${sA.element}象${sA.mode}星座，能量展現為「${sA.zh}風格的${pA.zh}」。</p>`;
   western += `<p><strong>${house_a} 宮含義：</strong>${WESTERN_HOUSE[house_a]}。</p>`;
 
-  western += `<h4>副骰：${pB.zh}落${sB.zh}第${house_b}宮（推算）</h4>`;
-  western += `<p>${dB_w?`<span class="tag ${dB_w.cls}">${dB_w.label}</span>`:''}`;
-  western += `${pB.zh}在${sB.zh}，落入此盤的第 ${house_b} 宮（${WESTERN_HOUSE[house_b]}）。</p>`;
+  if(useSubdie){
+    const dB_w = dignity(planet_b, parseInt(sign_b), 'western');
+    western += `<h4>副骰：${pB.zh}落${sB.zh}第${house_b}宮（推算）</h4>`;
+    western += `<p>${dB_w?`<span class="tag ${dB_w.cls}">${dB_w.label}</span>`:''}`;
+    western += `${pB.zh}在${sB.zh}，落入此盤的第 ${house_b} 宮（${WESTERN_HOUSE[house_b]}）。</p>`;
+  }
 
   western += `<h4>上升星座 & 命主星</h4>`;
   western += `<p>上升：<strong>${ascSign.sym} ${ascSign.zh}</strong> · 命主星：<strong>${pLord.sym} ${pLord.zh}</strong>（${ascSign.zh}守護）</p>`;
 
   // ---------- 印度判讀 ----------
   const dA_v = dignity(planet_a, parseInt(sign_a), 'vedic');
-  const dB_v = dignity(planet_b, parseInt(sign_b), 'vedic');
   let vedic = '';
 
   vedic += `<h4>主骰：${pA.zh}（${pA.vedic}）落${sA.zh} 第${house_a}宮</h4>`;
@@ -1188,58 +1456,34 @@ function run(){
     vedic += `<p class="alert">⚠ Dusthana 凶宮（${house_a}宮），${pA.zh}落此處需檢視壓力來源；建議查 NotebookLM「印度占星」對「八宮凶星」「宮主飛宮」「行星弱陷」的具體規則。</p>`;
   }
 
-  vedic += `<h4>副骰：${pB.zh}（${pB.vedic}）落${sB.zh} 第${house_b}宮</h4>`;
-  vedic += `<p>${dB_v?`<span class="tag ${dB_v.cls}">${dB_v.label}</span>`:''}`;
-  vedic += `${houseTypeTags(house_b)}</p>`;
-  vedic += `<p><strong>${house_b} 宮 Bhava：</strong>${VEDIC_HOUSE[house_b]}。</p>`;
+  if(useSubdie){
+    const dB_v = dignity(planet_b, parseInt(sign_b), 'vedic');
+    vedic += `<h4>副骰：${pB.zh}（${pB.vedic}）落${sB.zh} 第${house_b}宮</h4>`;
+    vedic += `<p>${dB_v?`<span class="tag ${dB_v.cls}">${dB_v.label}</span>`:''}`;
+    vedic += `${houseTypeTags(house_b)}</p>`;
+    vedic += `<p><strong>${house_b} 宮 Bhava：</strong>${VEDIC_HOUSE[house_b]}。</p>`;
+  }
 
   vedic += `<h4>命主飛宮 (Lagnesh)</h4>`;
   vedic += `<p>上升 (Lagna)：<strong>${ascSign.sym} ${ascSign.zh}</strong> · 命主：<strong>${pLord.sym} ${pLord.zh}（${pLord.vedic}）</strong></p>`;
   if(pLord.id === planet_a){
     vedic += `<p>📍 主骰 <strong>${pA.zh} 就是命主星</strong>，落第 ${house_a} 宮 → 命主飛 ${house_a} 宮，當事人需從「${VEDIC_HOUSE[house_a].split('—')[1].trim()}」面向去處理。</p>`;
-  }else if(pLord.id === planet_b){
+  }else if(useSubdie && pLord.id === planet_b){
     vedic += `<p>📍 副骰 <strong>${pB.zh} 就是命主星</strong>，落第 ${house_b} 宮 → 命主飛 ${house_b} 宮，當事人需從「${VEDIC_HOUSE[house_b].split('—')[1].trim()}」面向去處理。</p>`;
   }else{
-    vedic += `<p class="muted">主副骰皆非命主星，${pLord.zh} 的實際宮位需另查盤確認；可作為進階解讀的重點。</p>`;
-  }
-
-  // ---------- 行運區 ----------
-  let transitHTML = '';
-  if(transits.length){
-    let lines = '';
-    transits.forEach(t=>{
-      const types = HOUSE_TYPE[t.house] || [];
-      let flag = '';
-      if(types.includes('Dusthana'))     flag = ` <span class="tag tag-dusthana">Dusthana</span>`;
-      else if(types.includes('Kendra'))  flag = ` <span class="tag tag-kendra">Kendra</span>`;
-      else if(types.includes('Trikona')) flag = ` <span class="tag tag-trikona">Trikona</span>`;
-      lines += `<div><strong>${t.name}</strong> 於 ${t.sign.sym} ${t.sign.zh} → 落此盤第 <strong>${t.house}</strong> 宮${flag}</div>`;
-    });
-
-    let warns = '';
-    transits.forEach(t=>{
-      const tag = dignity(t.pid, t.sign.id, 'western');
-      if(tag && (tag.cls==='tag-fall' || tag.cls==='tag-detri')){
-        warns += `<p class="alert">⚠ ${t.name}在 ${t.sign.zh}（${tag.label}），對應領域的壓力會放大。</p>`;
-      }
-    });
-
-    transitHTML = `
-      <div class="card">
-        <div class="card-title">🌌 行運疊加</div>
-        <div class="transit-summary">${lines}</div>
-        ${warns}
-      </div>`;
+    vedic += `<p class="muted">${useSubdie?'主副骰':'主骰'}皆非命主星，${pLord.zh} 的實際宮位需另查盤確認；可作為進階解讀的重點。</p>`;
   }
 
   // ---------- 渲染 ----------
+  const subdiceDice = useSubdie ? `
+      <div class="die b"><span class="die-symbol">${pB.sym}</span><span class="label">${pB.zh}</span></div>
+      <div class="die b"><span class="die-symbol">${sB.sym}</span><span class="label">${sB.zh}<br>(第 ${house_b} 宮)</span></div>` : '';
   const dice = `
     <div class="dice-display">
       <div class="die"><span class="die-symbol">${pA.sym}</span><span class="label">${pA.zh}</span></div>
       <div class="die"><span class="die-symbol">${sA.sym}</span><span class="label">${sA.zh}</span></div>
       <div class="die"><span class="die-symbol">${house_a}</span><span class="label">第 ${house_a} 宮</span></div>
-      <div class="die b"><span class="die-symbol">${pB.sym}</span><span class="label">${pB.zh}</span></div>
-      <div class="die b"><span class="die-symbol">${sB.sym}</span><span class="label">${sB.zh}<br>(第 ${house_b} 宮)</span></div>
+      ${subdiceDice}
     </div>`;
 
   const warnHTML = `
@@ -1270,10 +1514,13 @@ function run(){
         </div>
       </div>
     </div>
-    ${transitHTML}
+    ${houseChartHTML(asc, placements)}
+    ${flyingHousesHTML(asc)}
+    ${aspectsHTML(placements)}
     ${renderVedicRules(asc, placements)}
     ${renderAIDeepRead({
-      pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question
+      pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question,
+      useSubdie, placements, aspectsText: aspectsSummaryText(placements)
     })}`;
 
   const out = $('output');

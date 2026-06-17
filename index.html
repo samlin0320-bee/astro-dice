@@ -282,7 +282,12 @@ table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:
   <div class="card">
     <div class="card-title">🌌 當前行運（選填，填越多判讀越精準）</div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
-      <button class="btn-ghost" id="btn_load_transit" onclick="loadCurrentTransits()">🌐 帶入當前行運</button>
+      <button class="btn-ghost" onclick="loadCurrentTransits()">🌐 帶入行運</button>
+      <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
+        <label style="margin:0">日期：</label>
+        <input id="transit_date" type="datetime-local" style="width:auto;padding:6px 10px" />
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="resetTransitDate()" title="改回現在">🕒 現在</button>
+      </div>
       <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
         <label style="margin:0">星曆系統：</label>
         <select id="zodiac_system" style="width:auto;padding:6px 10px" onchange="loadCurrentTransits(true)">
@@ -774,6 +779,12 @@ function parseVoice(text){
 
 // ============ Ephemeris 載入與自動帶入 ============
 let EPHEM = null;
+let EPHEM_RANGE = null;  // {firstSec, lastSec, firstDate, lastDate}
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toLocalInputValue(d){
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
 
 async function loadEphemeris(){
   const status = $('ephem_status');
@@ -781,9 +792,18 @@ async function loadEphemeris(){
     const res = await fetch('ephemeris.json?ts=' + Date.now(), {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP ' + res.status);
     EPHEM = await res.json();
-    const gen = new Date(EPHEM.generated_at);
-    status.textContent = `星曆已就緒（更新於 ${gen.toLocaleDateString('zh-TW')}）`;
+    const firstSec = EPHEM.points[0].t;
+    const lastSec = EPHEM.points[EPHEM.points.length - 1].t;
+    EPHEM_RANGE = {
+      firstSec, lastSec,
+      firstDate: new Date(firstSec * 1000),
+      lastDate: new Date(lastSec * 1000),
+    };
+    const fmt = d => `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
+    status.textContent = `星曆範圍：${fmt(EPHEM_RANGE.firstDate)} ~ ${fmt(EPHEM_RANGE.lastDate)}`;
     status.style.color = 'var(--gold)';
+    // 預設日期輸入框 = 現在
+    resetTransitDate();
   }catch(e){
     EPHEM = null;
     status.textContent = '星曆未載入（' + e.message + '）— 行運仍可手動填';
@@ -807,18 +827,33 @@ function findClosestPoint(targetTimestamp){
   return Math.abs(p1.t - targetTimestamp) < Math.abs(p0.t - targetTimestamp) ? p1 : p0;
 }
 
+function resetTransitDate(){
+  $('transit_date').value = toLocalInputValue(new Date());
+}
+
+function getSelectedTransitTimestamp(){
+  const v = $('transit_date').value;
+  if(!v) return Math.floor(Date.now() / 1000);
+  // datetime-local 是本地時間
+  return Math.floor(new Date(v).getTime() / 1000);
+}
+
 function loadCurrentTransits(silentIfNoEphem){
   if(!EPHEM){
     if(!silentIfNoEphem) alert('星曆尚未載入');
     return;
   }
-  const nowSec = Math.floor(Date.now() / 1000);
-  const pt = findClosestPoint(nowSec);
+  const targetSec = getSelectedTransitTimestamp();
+  if(EPHEM_RANGE && (targetSec < EPHEM_RANGE.firstSec || targetSec > EPHEM_RANGE.lastSec)){
+    $('ephem_status').innerHTML = `<span class="alert">⚠ 該日期超出星曆範圍（${EPHEM_RANGE.firstDate.toLocaleDateString('zh-TW')} ~ ${EPHEM_RANGE.lastDate.toLocaleDateString('zh-TW')}），請改日期或更新 ephemeris.json</span>`;
+    return;
+  }
+  const pt = findClosestPoint(targetSec);
   if(!pt){ alert('找不到對應的星曆點'); return; }
 
   const system = $('zodiac_system').value; // 'T' or 'S'
   const signs = pt[system];
-  const order = EPHEM.planets_order; // ['sun','moon',...]
+  const order = EPHEM.planets_order;
 
   order.forEach((pid, i)=>{
     const sel = $('t_' + pid);
@@ -827,7 +862,9 @@ function loadCurrentTransits(silentIfNoEphem){
 
   const pointDate = new Date(pt.t * 1000);
   const sysLabel = system==='S' ? '恆星 Lahiri' : '熱帶';
-  $('ephem_status').textContent = `已帶入 ${pointDate.toLocaleString('zh-TW',{month:'short',day:'numeric',hour:'2-digit'})} 的${sysLabel}行運`;
+  const isNow = Math.abs(targetSec - Math.floor(Date.now()/1000)) < 60*60*6;
+  const dateLabel = pointDate.toLocaleString('zh-TW',{year:'numeric',month:'short',day:'numeric',hour:'2-digit'});
+  $('ephem_status').innerHTML = `<span style="color:var(--gold)">✓ 已帶入 ${dateLabel}（${sysLabel}${isNow?'，最接近現在':''}）</span>`;
 }
 
 // ============ 初始化 ============
@@ -897,6 +934,7 @@ function buildPromptWestern(ctx){
 ${questionBlock}## 骰子結果
 - 主骰：${ctx.pA.zh} ${ctx.sA.zh} 第 ${ctx.house_a} 宮
 ${subdieLine}- 推算上升：${ctx.ascSign.zh} · 命主星：${ctx.pLord.zh}
+- 行運日期：${ctx.transitDateLabel || '現在'}
 - 當前行運：${transitsLine}
 ${aspectsBlock}
 ## 請依西洋占星角度回答${ctx.question ? `（圍繞「${ctx.question}」這個核心問題）` : ''}
@@ -930,6 +968,7 @@ function buildPromptVedic(ctx){
 ${questionBlock}## 骰子結果（整宮制 Whole Sign）
 - 主骰：${ctx.pA.zh}（${ctx.pA.vedic}）在 ${ctx.sA.zh} 第 ${ctx.house_a} 宮
 ${subdieLine}- 上升 (Lagna)：${ctx.ascSign.zh} · 命主 (Lagnesh)：${ctx.pLord.zh}（${ctx.pLord.vedic}）
+- 行運日期：${ctx.transitDateLabel || '現在'}
 - 當前行運：${transitsLine}
 ${aspectsBlock}
 ## 請依印度占星 Vedic 角度回答${ctx.question ? `（圍繞「${ctx.question}」這個核心問題）` : ''}
@@ -1417,6 +1456,11 @@ function run(){
     }
   });
 
+  // 行運日期（讓 AI / 顯示知道是看哪天的行運）
+  const transitDateVal = $('transit_date').value;
+  const transitDate = transitDateVal ? new Date(transitDateVal) : new Date();
+  const transitDateLabel = transitDate.toLocaleString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+
   // 集中所有有位置的行星 → 規則檢查、宮位表、相位用
   const placements = [
     {pid:planet_a, sign:parseInt(sign_a), house:house_a, source:'主骰'},
@@ -1498,7 +1542,10 @@ function run(){
     <div class="card">
       <div class="card-title">🎲 你投出了</div>
       ${dice}
-      <p class="muted" style="text-align:center;margin:0">推算上升 ${ascSign.sym} ${ascSign.zh} · 命主星 ${pLord.sym} ${pLord.zh}</p>
+      <p class="muted" style="text-align:center;margin:0">
+        推算上升 ${ascSign.sym} ${ascSign.zh} · 命主星 ${pLord.sym} ${pLord.zh}
+        ${transits.length ? ` · 行運日期 <strong style="color:var(--gold)">${transitDateLabel}</strong>` : ''}
+      </p>
     </div>
     ${warnHTML}
     <div class="card">
@@ -1520,7 +1567,8 @@ function run(){
     ${renderVedicRules(asc, placements)}
     ${renderAIDeepRead({
       pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question,
-      useSubdie, placements, aspectsText: aspectsSummaryText(placements)
+      useSubdie, placements, aspectsText: aspectsSummaryText(placements),
+      transitDateLabel
     })}`;
 
   const out = $('output');

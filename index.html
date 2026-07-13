@@ -134,6 +134,9 @@ h1{
   text-align:center;color:var(--muted);font-size:12px;margin-top:32px;
   padding-top:16px;border-top:1px solid var(--border);
 }
+.backnav{display:flex;justify-content:center;gap:16px;margin-bottom:12px;font-size:13px}
+.backnav a{color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:16px;padding:4px 14px;transition:color .2s,border-color .2s}
+.backnav a:hover{color:var(--gold);border-color:var(--gold)}
 .placeholder-ai{
   background:linear-gradient(135deg,#3a1f5d 0%,#2a1545 100%);
   border:1px dashed var(--gold);
@@ -192,6 +195,10 @@ table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:
 </head>
 <body>
 <div class="container">
+  <nav class="backnav">
+    <a href="https://questions.3minstest.com/">← 返回測驗中心</a>
+    <a href="https://rightone.3minstest.com/">← 返回工具網</a>
+  </nav>
   <h1>占星骰子 · 五骰判讀</h1>
   <p class="subtitle">西洋 × 印度雙派分流 · 含當前行運整合</p>
 
@@ -321,7 +328,9 @@ table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:
   <div id="output" class="hidden"></div>
 
   <div class="footer">
-    占星骰子 · 五骰判讀引擎 v0.1 · 規則庫對接 NotebookLM 知識庫（ASTROLOGY + 印度占星）
+    占星骰子 · 五骰判讀引擎 v0.1 · 規則庫對接 NotebookLM 知識庫（ASTROLOGY + 印度占星）<br>
+    <a href="https://questions.3minstest.com/" style="color:var(--muted)">返回測驗中心</a> ·
+    <a href="https://rightone.3minstest.com/" style="color:var(--muted)">返回工具網</a>
   </div>
 </div>
 

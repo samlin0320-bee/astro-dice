@@ -340,8 +340,8 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
       支援三種圖片：實體骰子照片、APP 截圖、表格截圖。辨識後會自動填入下方手動欄位，您可以再微調。
     </div>
     <div class="field" style="margin-bottom:8px">
-      <label>Anthropic API Key（僅存瀏覽器 localStorage，不會上傳）</label>
-      <input id="api_key" type="password" placeholder="sk-ant-..." />
+      <label>Gemini API Key（僅存瀏覽器 localStorage，不會上傳。到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">Google AI Studio</a> 免費建立）</label>
+      <input id="api_key" type="password" placeholder="貼上你的 AIza... 開頭 Gemini key" />
     </div>
     <div class="field" style="margin-bottom:8px">
       <label>上傳圖片（支援拖曳、貼上、點擊）</label>
@@ -377,7 +377,12 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
   <div class="card">
     <div class="card-title">💭 問題（選填）</div>
     <div class="field">
-      <input id="question" placeholder="例：這筆錢能不能討回來？" />
+      <div style="display:flex;gap:8px;align-items:stretch">
+        <input id="question" placeholder="例：這筆錢能不能討回來？" style="flex:1" />
+        <button type="button" class="btn-ghost" id="btn_q_voice" style="margin-left:0;white-space:nowrap"
+                onclick="toggleQuestionVoice()" title="用語音輸入問題（Chrome / Edge 支援）">🎤 語音</button>
+      </div>
+      <div id="q_voice_status" class="muted" style="margin-top:6px;min-height:1em"></div>
     </div>
   </div>
 
@@ -663,7 +668,10 @@ function switchTab(tab){
   $('panel_voice').classList.toggle('hidden', tab !== 'voice');
 }
 
-// ============ 圖片辨識（Claude Vision） ============
+// ============ 圖片辨識（Google Gemini Vision） ============
+// 內建預設 Key 位置（Sam 尚未提供有效 key，訪客暫時需自填）
+const DEFAULT_GEMINI_KEY = '';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const PLANET_ALIASES = {
   '太陽':'sun','日':'sun','日輪':'sun',
   '月亮':'moon','月':'moon',
@@ -699,10 +707,10 @@ function setupImageInput(){
   const prev = $('preview');
   const hint = $('drop_hint');
   // 載入 API key
-  const saved = localStorage.getItem('anthropic_api_key');
+  const saved = localStorage.getItem('gemini_api_key');
   if(saved) $('api_key').value = saved;
   $('api_key').addEventListener('change', e=>{
-    localStorage.setItem('anthropic_api_key', e.target.value);
+    localStorage.setItem('gemini_api_key', e.target.value);
   });
 
   dz.addEventListener('click', ()=>fi.click());
@@ -736,15 +744,16 @@ function setupImageInput(){
 }
 
 async function recognizeImage(){
-  const key = $('api_key').value.trim();
-  if(!key){ alert('請先填 Anthropic API key'); return; }
+  const userKey = $('api_key').value.trim();
+  const key = userKey || DEFAULT_GEMINI_KEY;
+  const usingDefault = !userKey && !!DEFAULT_GEMINI_KEY;
+  if(!key){ alert('請先填 Gemini API Key（Google AI Studio 可免費建立）'); return; }
   if(!window._imageDataUrl){ alert('請先選擇圖片'); return; }
 
   const result = $('img_result');
-  result.textContent = '辨識中...';
+  result.textContent = usingDefault ? '辨識中（使用內建 Key）...' : '辨識中（使用你的 Key）...';
   result.style.color = 'var(--muted)';
 
-  // 取出 base64
   const m = window._imageDataUrl.match(/^data:(image\/[a-z]+);base64,(.+)$/);
   if(!m){ result.textContent = '圖片格式錯誤'; return; }
   const mediaType = m[1];
@@ -771,47 +780,56 @@ async function recognizeImage(){
 如果副骰看不到，把 sub_planet 和 sub_sign 設為 null。`;
 
   try{
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 600,
-        messages: [{
+        contents: [{
           role: 'user',
-          content: [
-            {type: 'image', source: {type: 'base64', media_type: mediaType, data: b64}},
-            {type: 'text', text: prompt}
-          ]
-        }]
-      })
+          parts: [
+            {inline_data: {mime_type: mediaType, data: b64}},
+            {text: prompt},
+          ],
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: 800,
+        },
+      }),
     });
     if(!res.ok){
       const err = await res.text();
-      throw new Error('API ' + res.status + ': ' + err.slice(0,200));
+      throw new Error('Gemini API ' + res.status + ': ' + err.slice(0,240));
     }
     const data = await res.json();
-    const text = data.content[0].text.trim();
+    const cand = data.candidates && data.candidates[0];
+    if(!cand) throw new Error('Gemini 回傳無 candidate：' + JSON.stringify(data).slice(0,200));
+    if(cand.finishReason && cand.finishReason !== 'STOP' && cand.finishReason !== 'MAX_TOKENS'){
+      throw new Error('Gemini 結束原因異常（' + cand.finishReason + '）— 可能被安全過濾或配額用完');
+    }
+    const text = ((cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text) || '').trim();
+    if(!text) throw new Error('Gemini 回傳空文字');
     let parsed;
     try{
       parsed = JSON.parse(text);
     }catch(e){
-      // 試著從 markdown code block 抓
-      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]+?\})\s*```/);
+      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]+?\})\s*```/) || text.match(/(\{[\s\S]+\})/);
       if(codeMatch) parsed = JSON.parse(codeMatch[1]);
-      else throw new Error('回傳非 JSON: ' + text.slice(0,100));
+      else throw new Error('回傳非 JSON：' + text.slice(0,120));
     }
     applyRecognition(parsed);
-    result.innerHTML = `✓ 辨識成功（confidence ${(parsed.confidence*100|0)}%）：${parsed.notes||''}`;
+    const conf = (parsed.confidence != null) ? (parsed.confidence * 100 | 0) + '%' : '—';
+    result.innerHTML = `✓ 辨識成功（confidence ${conf}）：${parsed.notes || ''}`;
     result.style.color = '#90ee90';
     setTimeout(()=>switchTab('manual'), 1500);
   }catch(e){
-    result.textContent = '❌ 辨識失敗：' + e.message;
+    let msg = e.message;
+    if(usingDefault && /API 429|quota|RESOURCE_EXHAUSTED/i.test(msg)){
+      msg += '\n（內建 Key 今日額度可能用完，請在欄位貼上自己的 Gemini Key）';
+    }
+    result.textContent = '❌ 辨識失敗：' + msg;
     result.style.color = 'var(--warn)';
   }
 }
@@ -862,6 +880,73 @@ function setupVoice(){
     $('btn_voice').textContent = '🎤 開始說話';
     voiceActive = false;
   };
+}
+
+// ============ 問題欄位語音輸入（獨立於下方骰子語音辨識） ============
+let questionRecognition = null;
+let questionVoiceActive = false;
+
+function ensureQuestionRecognition(){
+  if(questionRecognition) return questionRecognition;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return null;
+  const r = new SR();
+  r.lang = 'zh-TW';
+  r.continuous = false;
+  r.interimResults = true;
+  let finalText = '';
+  r.onresult = ev=>{
+    let interim = '';
+    for(let i = ev.resultIndex; i < ev.results.length; i++){
+      const t = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) finalText += t; else interim += t;
+    }
+    const preview = (finalText + interim).trim();
+    if(preview){
+      $('question').value = preview;
+      $('q_voice_status').textContent = '聽到：' + preview;
+    }
+  };
+  r.onerror = ev=>{
+    const errMsgs = {
+      'not-allowed': '❌ 麥克風權限被拒。點網址列 🔒 → 允許麥克風。',
+      'service-not-allowed': '❌ 瀏覽器封鎖語音服務，請改用 Chrome / Edge。',
+      'audio-capture': '❌ 找不到麥克風。',
+      'no-speech': '⚠ 沒聽到聲音，請靠近麥克風再說一次。',
+      'network': '❌ 語音服務連線失敗（需連 Google 語音伺服器）。',
+      'aborted': '⚠ 已取消。',
+    };
+    $('q_voice_status').textContent = errMsgs[ev.error] || ('❌ 錯誤：' + ev.error);
+    $('btn_q_voice').textContent = '🎤 語音';
+    questionVoiceActive = false;
+  };
+  r.onend = ()=>{
+    $('btn_q_voice').textContent = '🎤 語音';
+    questionVoiceActive = false;
+    if(($('question').value || '').trim()){
+      $('q_voice_status').textContent = '✓ ' + $('question').value;
+    }
+  };
+  questionRecognition = r;
+  return r;
+}
+
+function toggleQuestionVoice(){
+  const r = ensureQuestionRecognition();
+  if(!r){
+    $('q_voice_status').textContent = '⚠ 這個瀏覽器不支援語音辨識，請改用 Chrome / Edge，或直接打字輸入。';
+    return;
+  }
+  if(questionVoiceActive){
+    r.stop();
+  }else{
+    $('btn_q_voice').textContent = '⏹ 停止';
+    $('q_voice_status').textContent = '請說出你的問題...';
+    // 若欄位有內容，語音會 append（保留使用者已打的字）
+    questionVoiceActive = true;
+    try{ r.start(); }
+    catch(e){ $('q_voice_status').textContent = '❌ 啟動失敗：' + e.message; questionVoiceActive = false; $('btn_q_voice').textContent = '🎤 語音'; }
+  }
 }
 
 function toggleVoice(){

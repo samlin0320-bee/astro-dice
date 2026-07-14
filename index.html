@@ -315,6 +315,43 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
 
 /* Bhava 標籤內的分隔點更淡 */
 .tag{white-space:nowrap;}
+
+/* ================ 🔮 AI 白話短解卡片（仿測測 App 樣式，純新增） ================ */
+.ai-quick-card{
+  background:linear-gradient(135deg, rgba(154,213,255,.08) 0%, rgba(212,175,55,.06) 100%);
+  border:1px solid rgba(154,213,255,.25);
+  border-radius:14px;
+  padding:16px 20px;
+  margin-bottom:16px;
+}
+.ai-quick-header{
+  display:flex;align-items:center;gap:10px;margin-bottom:12px;
+}
+.ai-quick-header .icon{
+  font-size:24px;
+  filter:drop-shadow(0 2px 4px rgba(154,213,255,.35));
+}
+.ai-quick-header .title{font-size:15px;font-weight:600;color:var(--gold);letter-spacing:.02em;}
+.ai-quick-header .sub{font-size:11px;color:var(--muted);margin-left:auto;}
+.ai-quick-btn{
+  width:100%;padding:12px;border-radius:10px;cursor:pointer;font-size:14px;
+  background:rgba(154,213,255,.12);border:1px dashed rgba(154,213,255,.4);color:var(--western);
+  font-family:inherit;transition:all .2s;
+}
+.ai-quick-btn:hover:not(:disabled){background:rgba(154,213,255,.22);border-style:solid;}
+.ai-quick-btn:disabled{opacity:.5;cursor:default;}
+.ai-quick-answer{
+  font-size:15px;line-height:1.8;letter-spacing:.02em;
+  background-image:linear-gradient(180deg, transparent 62%, rgba(154,213,255,.22) 62%);
+  padding:2px 4px;color:var(--text);white-space:pre-wrap;
+}
+.ai-quick-hint{color:var(--muted);font-size:11px;margin-top:8px;text-align:right;}
+html[data-theme="light"] .ai-quick-card{
+  background:linear-gradient(135deg, #eaf5ff 0%, #fdf6e3 100%);
+  border-color:#bbd8f0;
+}
+html[data-theme="light"] .ai-quick-btn{color:#0f4c85;background:rgba(15,76,133,.06);border-color:#8fbde0;}
+html[data-theme="light"] .ai-quick-answer{background-image:linear-gradient(180deg, transparent 62%, #cfeaff 62%);}
 </style>
 </head>
 <body>
@@ -1342,6 +1379,112 @@ function copyToClipboard(text, btnEl){
   });
 }
 
+// ============ 🔮 AI 白話短解（仿測測 App，1-3 句話直答，純新增） ============
+function renderAIQuickRead(ctx){
+  const payload = {
+    pA: ctx.pA.id, sA: ctx.sA.id, house_a: ctx.house_a,
+    pB: ctx.useSubdie && ctx.pB ? ctx.pB.id : null,
+    sB: ctx.useSubdie && ctx.sB ? ctx.sB.id : null,
+    house_b: ctx.useSubdie ? ctx.house_b : null,
+    asc: ctx.ascSign ? ctx.ascSign.id : null,
+    lord: ctx.pLord ? ctx.pLord.id : null,
+    question: ctx.question || '',
+    transitDate: ctx.transitDateLabel || '',
+    transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house})),
+  };
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  return `
+    <div class="ai-quick-card">
+      <div class="ai-quick-header">
+        <span class="icon">🔮</span>
+        <span class="title">AI 白話短解</span>
+        <span class="sub">1-3 句直答（Gemini）</span>
+      </div>
+      <div id="ai_quick_body">
+        <button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${b64}">
+          👉 點此請 AI 用白話一句話回答
+        </button>
+      </div>
+    </div>`;
+}
+
+async function runAIQuick(btn){
+  const body = document.getElementById('ai_quick_body');
+  const userKey = ($('api_key') && $('api_key').value.trim()) || '';
+  const savedKey = localStorage.getItem('gemini_api_key') || '';
+  const key = userKey || savedKey || DEFAULT_GEMINI_KEY;
+  if(!key){
+    body.innerHTML = `<div class="muted" style="color:var(--warn)">⚠ 需要 Gemini API Key，請切到「📷 圖片輸入」分頁填入（或到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">AI Studio</a> 免費建立）</div>`;
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '🤖 Gemini 思考中...';
+  let payload;
+  try{ payload = JSON.parse(decodeURIComponent(escape(atob(btn.dataset.ctx)))); }
+  catch(e){ body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ context 解析失敗</div>`; return; }
+
+  const pName = id => (PLANETS.find(p=>p.id===id)||{}).zh || id;
+  const sName = id => (id!=null ? SIGNS[id].zh : '—');
+  const subLine = payload.pB && payload.sB!=null
+    ? `副骰：${pName(payload.pB)} 在 ${sName(payload.sB)}（第 ${payload.house_b} 宮）`
+    : '副骰：未啟用';
+  const transitLine = (payload.transits && payload.transits.length)
+    ? `當前行運（${payload.transitDate}）：${payload.transits.map(t=>`${t.name}${t.sign}(${t.house}宮)`).join('、')}`
+    : '未帶入行運';
+
+  const prompt = `你是資深占星師，用親切、白話、口語的繁體中文回答占星骰子的問題（不要用「客戶」「命主」這種術語），像朋友聊天一樣。
+
+【擲出的骰子】
+主盤：${pName(payload.pA)} 在 ${sName(payload.sA)}（第 ${payload.house_a} 宮）
+${subLine}
+推算上升：${sName(payload.asc)} · 命主星：${pName(payload.lord)}
+${transitLine}
+
+【問題】
+${payload.question || '（未特別提問，泛泛看今天/近期整體）'}
+
+【回答要求】
+1. 只寫 1-3 句白話中文，直接針對問題給出建議或觀察
+2. 不要條列、不要 markdown、不要加標點以外的符號
+3. 語氣自然親切，像諮商或朋友解卡，不要專業術語堆疊
+4. 若問題涉及決策，直接給傾向（適合/不適合/建議如何），不要模糊兩可
+5. 若問題像「今天適合待在家嗎」這類日常，直接白話回答，最多 40-60 字`;
+
+  try{
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+    // 純文字 call（沿用 GEMINI_MODELS fallback 精神但這邊只用一次呼叫，簡單）
+    let text = '', usedModel = '';
+    for(const model of GEMINI_MODELS){
+      const u = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+      const res = await fetch(u, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{role:'user', parts:[{text: prompt}]}],
+          generationConfig:{temperature:0.75, maxOutputTokens:400, thinkingConfig:{thinkingBudget:0}}
+        })
+      });
+      if(res.status===503 || res.status===429 || res.status===404) continue;
+      if(!res.ok){ throw new Error('Gemini ' + res.status + ': ' + (await res.text()).slice(0,180)); }
+      const d = await res.json();
+      const c = d.candidates && d.candidates[0];
+      if(!c) continue;
+      const t = ((c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text) || '').trim();
+      if(!t) continue;
+      text = t; usedModel = model; break;
+    }
+    if(!text) throw new Error('所有 Gemini model 都無回應');
+    body.innerHTML = `
+      <div class="ai-quick-answer">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div class="ai-quick-hint">${usedModel} · <a href="#" onclick="event.preventDefault();this.closest('.ai-quick-card').querySelector('#ai_quick_body').innerHTML=arguments[0]||''" style="color:var(--muted)">重新生成</a></div>`;
+    // 重新生成鏈接需要重灌按鈕
+    const regen = body.querySelector('.ai-quick-hint a');
+    regen.onclick = (ev)=>{ ev.preventDefault(); body.innerHTML = `<button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">👉 再問一次</button>`; };
+  }catch(e){
+    body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ ${e.message}</div>
+      <button class="ai-quick-btn" style="margin-top:8px" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">重試</button>`;
+  }
+}
+
 function renderAIDeepRead(ctx){
   const promptW = buildPromptWestern(ctx);
   const promptV = buildPromptVedic(ctx);
@@ -1943,6 +2086,7 @@ function run(){
         ${transits.length ? ` · 行運日期 <strong style="color:var(--gold)">${transitDateLabel}</strong>` : ''}
       </p>
     </div>
+    ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel})}
     ${warnHTML}
     <div class="card">
       <div class="card-title">📖 雙派判讀</div>

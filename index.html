@@ -239,6 +239,14 @@ table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:
     </div>
     <button class="btn" id="btn_voice" onclick="toggleVoice()">🎤 開始說話</button>
     <div id="voice_result" class="muted" style="margin-top:8px"></div>
+    <div class="field" style="margin-top:16px">
+      <label>🎤 語音不能用？直接打字也可以（格式同語音指令）</label>
+      <div style="display:flex;gap:8px">
+        <input id="voice_text" placeholder="例：冥王星天秤六宮，金星巨蟹" style="flex:1"
+               onkeydown="if(event.key==='Enter')parseVoice(this.value)" />
+        <button class="btn" style="white-space:nowrap" onclick="parseVoice($('voice_text').value)">解析</button>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -326,6 +334,19 @@ table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:
   </div>
 
   <div id="output" class="hidden"></div>
+
+  <!-- ============ 多功能輸出平台（純新增） ============ -->
+  <div id="export_hub" class="card hidden">
+    <div class="card-title">📤 多功能輸出</div>
+    <div class="muted" style="margin-bottom:12px">把這次的判讀結果帶走：複製、下載、列印成 PDF，或分享給朋友。</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="btn-ghost" style="margin-left:0" onclick="exportCopy(this)">📋 複製全文</button>
+      <button class="btn-ghost" style="margin-left:0" onclick="exportDownload('md')">⬇️ 下載 Markdown</button>
+      <button class="btn-ghost" style="margin-left:0" onclick="exportDownload('txt')">⬇️ 下載純文字</button>
+      <button class="btn-ghost" style="margin-left:0" onclick="window.print()">🖨️ 列印 / 存 PDF</button>
+      <button class="btn-ghost" style="margin-left:0" id="btn_share" onclick="exportShare()">📱 分享</button>
+    </div>
+  </div>
 
   <div class="footer">
     占星骰子 · 五骰判讀引擎 v0.1 · 規則庫對接 NotebookLM 知識庫（ASTROLOGY + 印度占星）<br>
@@ -690,7 +711,7 @@ function setupVoice(){
     return;
   }
   recognition = new SR();
-  recognition.lang = 'cmn-Hant-TW';
+  recognition.lang = 'zh-TW';
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.onresult = ev=>{
@@ -699,7 +720,16 @@ function setupVoice(){
     parseVoice(text);
   };
   recognition.onerror = ev=>{
-    $('voice_result').textContent = '❌ 錯誤：' + ev.error;
+    const errMsgs = {
+      'not-allowed': '❌ 麥克風權限被拒。請點網址列左邊的 🔒 圖示 → 把「麥克風」改為允許，再重試。',
+      'service-not-allowed': '❌ 瀏覽器封鎖了語音服務。請改用 Chrome 並允許麥克風，或改用下方打字輸入。',
+      'audio-capture': '❌ 找不到麥克風。請確認麥克風已接上、沒被其他程式佔用。',
+      'no-speech': '⚠ 沒有聽到聲音。請再按一次「開始說話」，並靠近麥克風說話。',
+      'network': '❌ 語音服務連線失敗（此功能需連到 Google 語音伺服器）。請確認網路，或改用下方打字輸入。',
+      'language-not-supported': '❌ 這個瀏覽器的語音服務不支援中文。請改用 Chrome，或改用下方打字輸入。',
+      'aborted': '⚠ 錄音已取消。',
+    };
+    $('voice_result').textContent = errMsgs[ev.error] || ('❌ 錯誤：' + ev.error + '（可改用下方打字輸入）');
     $('btn_voice').textContent = '🎤 開始說話';
     voiceActive = false;
   };
@@ -1588,6 +1618,105 @@ function run(){
 }
 
 init();
+</script>
+
+<!-- ============ 多功能輸出平台：樣式與腳本（純新增區塊） ============ -->
+<style>
+@media print{
+  :root{--bg:#fff;--card:#fff;--text:#000;--muted:#555;--border:#bbb;--gold:#7a5c00;--gold-soft:#7a5c00;--western:#0f4c75;--vedic:#8a3e00;--warn:#a3003c}
+  body{background:#fff}
+  .backnav,.tabs,#panel_image,#panel_voice,.center,.footer,#export_hub,.container>.card{display:none!important}
+  #output{display:block!important}
+  #output .card{display:block;box-shadow:none;border:1px solid #ccc;page-break-inside:avoid}
+  #output button,#output details{display:none!important}
+}
+</style>
+<script>
+// 顯示/隱藏輸出卡：跟著判讀結果連動
+(function(){
+  const outEl = document.getElementById('output');
+  const hubEl = document.getElementById('export_hub');
+  if(!outEl || !hubEl) return;
+  const syncHub = ()=>{
+    const visible = !outEl.classList.contains('hidden') && outEl.innerHTML.trim() !== '';
+    hubEl.classList.toggle('hidden', !visible);
+  };
+  new MutationObserver(syncHub).observe(outEl, {attributes:true, attributeFilter:['class'], childList:true});
+  syncHub();
+  if(!navigator.share){ const b = document.getElementById('btn_share'); if(b) b.style.display = 'none'; }
+})();
+
+// 匯出用：取判讀結果純文字（跳過 NotebookLM 深度解讀按鈕卡）
+function exportPlainText(){
+  const parts = [];
+  document.querySelectorAll('#output > *').forEach(el=>{
+    if(el.querySelector && el.querySelector('.btn-deep')) return;
+    const t = (el.innerText || '').trim();
+    if(t) parts.push(t);
+  });
+  return '🎲 占星骰子 · 五骰判讀結果\n來源：https://dices.3minstest.com/\n\n' + parts.join('\n\n──────────\n\n');
+}
+
+// 匯出用：轉 Markdown（表格自動轉 MD 表格）
+function exportMarkdown(){
+  const lines = ['# 🎲 占星骰子 · 五骰判讀結果', '',
+    '> 來源：https://dices.3minstest.com/ · ' + new Date().toLocaleString('zh-TW'), ''];
+  document.querySelectorAll('#output > *').forEach(el=>{
+    if(el.querySelector && el.querySelector('.btn-deep')) return;
+    const titleEl = el.querySelector ? el.querySelector('.card-title') : null;
+    const title = titleEl ? titleEl.innerText.trim() : '';
+    let text = (el.innerText || '');
+    if(title) text = text.replace(title, '').trim();
+    if(title){ lines.push('## ' + title, ''); }
+    let inTable = false;
+    text.split('\n').forEach(raw=>{
+      const ln = raw.replace(/ /g, ' ');
+      if(ln.includes('\t')){
+        const cells = ln.split('\t').map(s=>s.trim().replace(/\|/g, '／'));
+        lines.push('| ' + cells.join(' | ') + ' |');
+        if(!inTable){ lines.push('| ' + cells.map(()=>'---').join(' | ') + ' |'); inTable = true; }
+      }else{
+        inTable = false;
+        lines.push(ln.trim());
+      }
+    });
+    lines.push('');
+  });
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function exportDownload(fmt){
+  const d = new Date();
+  const p2 = n=>String(n).padStart(2, '0');
+  const ts = `${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`;
+  const content = (fmt === 'md') ? exportMarkdown() : exportPlainText();
+  const blob = new Blob([(fmt === 'txt' ? '﻿' : '') + content],
+    {type: fmt === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `占星骰子判讀_${ts}.${fmt}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+
+function exportCopy(btn){
+  navigator.clipboard.writeText(exportPlainText()).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✓ 已複製';
+    btn.disabled = true;
+    setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 2000);
+  }).catch(err=>alert('複製失敗：' + err.message));
+}
+
+async function exportShare(){
+  try{
+    await navigator.share({
+      title: '占星骰子判讀結果',
+      text: exportPlainText().slice(0, 4000),
+      url: 'https://dices.3minstest.com/',
+    });
+  }catch(e){ /* 使用者取消分享時不需要報錯 */ }
+}
 </script>
 </body>
 </html>

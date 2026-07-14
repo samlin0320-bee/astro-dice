@@ -449,7 +449,7 @@ html[data-theme="light"] .ai-quick-answer{background-image:linear-gradient(180de
     <div class="card-title" style="display:flex;align-items:center;gap:8px">
       🎲 副骰兩顆 — 相位 / 命主飛宮判讀
       <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
-        <input type="checkbox" id="use_subdie" checked onchange="toggleSubdie()"> 啟用副骰
+        <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
       </label>
     </div>
     <div class="muted" style="margin-bottom:12px">副骰的宮位會根據主盤推算自動代入（整宮制 Whole Sign）</div>
@@ -1273,6 +1273,7 @@ function init(){
   $('house_a').value='6';
   $('planet_b').value='venus';
   $('sign_b').value='3';
+  toggleSubdie();  // 副骰預設關閉 → 讓副骰欄位一開始就變灰
 }
 
 function reset(){

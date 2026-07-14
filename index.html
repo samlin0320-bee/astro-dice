@@ -377,10 +377,14 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
   <div class="card">
     <div class="card-title">💭 問題（選填）</div>
     <div class="field">
-      <div style="display:flex;gap:8px;align-items:stretch">
-        <input id="question" placeholder="例：這筆錢能不能討回來？" style="flex:1" />
+      <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">
+        <input id="question" placeholder="例:這筆錢能不能討回來?" style="flex:1;min-width:200px" />
         <button type="button" class="btn-ghost" id="btn_q_voice" style="margin-left:0;white-space:nowrap"
-                onclick="toggleQuestionVoice()" title="用語音輸入問題（Chrome / Edge 支援）">🎤 語音</button>
+                onclick="toggleQuestionVoice()" title="用語音輸入問題(Chrome / Edge 支援)">🎤 語音</button>
+        <button type="button" class="btn-ghost" id="btn_q_image" style="margin-left:0;white-space:nowrap"
+                onclick="pickQuestionImage()" title="拍/上傳含問題文字的圖片,Gemini 讀出文字填入">📷 圖片</button>
+        <input type="file" id="q_image_file" accept="image/*" style="display:none"
+               onchange="handleQuestionImage(this.files[0])" />
       </div>
       <div id="q_voice_status" class="muted" style="margin-top:6px;min-height:1em"></div>
     </div>
@@ -929,6 +933,77 @@ function ensureQuestionRecognition(){
   };
   questionRecognition = r;
   return r;
+}
+
+// ============ 問題欄位圖片辨識(Gemini 讀圖中的文字) ============
+function pickQuestionImage(){ $('q_image_file').click(); }
+
+async function handleQuestionImage(file){
+  if(!file) return;
+  const status = $('q_voice_status');
+  const userKey = ($('api_key') && $('api_key').value.trim()) || '';
+  const key = userKey || DEFAULT_GEMINI_KEY;
+  if(!key){
+    status.textContent = '⚠ 需要 Gemini API Key,請切到「📷 圖片輸入」分頁貼上 Key(或到 Google AI Studio 免費建立)';
+    status.style.color = 'var(--warn)';
+    return;
+  }
+  if(!/^image\//.test(file.type)){
+    status.textContent = '⚠ 請選擇圖片檔';
+    status.style.color = 'var(--warn)';
+    return;
+  }
+  status.textContent = '🔍 讀取圖片中...';
+  status.style.color = 'var(--muted)';
+  try{
+    const dataUrl = await new Promise((resolve, reject)=>{
+      const r = new FileReader();
+      r.onload = ()=>resolve(r.result);
+      r.onerror = ()=>reject(new Error('讀檔失敗'));
+      r.readAsDataURL(file);
+    });
+    const m = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+    if(!m) throw new Error('圖片格式無法解析');
+    const mediaType = m[1], b64 = m[2];
+    status.textContent = '🤖 Gemini 辨識中...';
+    const prompt = '請把這張圖片裡的問題文字(可能是手寫、印刷、對話截圖)完整讀出來,原文照抄(繁體中文即用繁中,不要翻譯)。只回文字本身,不要加任何前後說明、不要 markdown、不要引號。如果圖片裡沒有問題文字,回「(無問題文字)」。';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            {inline_data: {mime_type: mediaType, data: b64}},
+            {text: prompt},
+          ],
+        }],
+        generationConfig: {temperature: 0.1, maxOutputTokens: 400},
+      }),
+    });
+    if(!res.ok){
+      const err = await res.text();
+      throw new Error('Gemini ' + res.status + ': ' + err.slice(0, 200));
+    }
+    const data = await res.json();
+    const cand = data.candidates && data.candidates[0];
+    if(!cand) throw new Error('Gemini 無回應候選');
+    const text = ((cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text) || '').trim();
+    if(!text || text === '(無問題文字)'){
+      status.textContent = '⚠ 圖片中找不到問題文字';
+      status.style.color = 'var(--warn)';
+      return;
+    }
+    $('question').value = text;
+    status.textContent = '✓ 已辨識並填入:' + text.slice(0, 60) + (text.length > 60 ? '...' : '');
+    status.style.color = '#90ee90';
+  }catch(e){
+    status.textContent = '❌ 辨識失敗:' + e.message;
+    status.style.color = 'var(--warn)';
+  }finally{
+    $('q_image_file').value = '';  // 允許重選同一個檔案
+  }
 }
 
 function toggleQuestionVoice(){

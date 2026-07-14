@@ -191,9 +191,124 @@ table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:
 .house-row-kendra{background:rgba(154,213,255,.06)}
 .house-row-trikona{background:rgba(212,175,55,.06)}
 .house-row-asc{box-shadow:inset 3px 0 0 var(--gold)}
+
+/* ================ 12 宮位表：亮/暗雙主題 + 象位/宮性/凶宮/行星強調 ================ */
+/* 亮主題（切換按鈕觸發） */
+html[data-theme="light"]{
+  --bg:#f5f1e8;
+  --bg-2:#ffffff;
+  --card:#ffffff;
+  --gold:#8a6a15;
+  --gold-soft:#6a4f00;
+  --text:#1c1a15;
+  --muted:#6b6674;
+  --border:#d6cfc0;
+  --western:#0f4c85;
+  --vedic:#b04a08;
+  --warn:#a3003c;
+}
+html[data-theme="light"] body{
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%);
+}
+html[data-theme="light"] .card{
+  background:var(--card);
+  border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+}
+html[data-theme="light"] .field select,
+html[data-theme="light"] .field input,
+html[data-theme="light"] input,
+html[data-theme="light"] select{
+  background:#ffffff;color:var(--text);border:1px solid var(--border);
+}
+html[data-theme="light"] .tag-exalt{background:#d6ecd6;color:#256b25}
+html[data-theme="light"] .tag-fall{background:#f2d6dc;color:#a3003c}
+html[data-theme="light"] .tag-own{background:#f2e6c2;color:#8a6a15}
+html[data-theme="light"] .tag-detri{background:#f2d6e5;color:#a03060}
+html[data-theme="light"] .tag-dusthana{background:#f7d6d6;color:#a3003c}
+html[data-theme="light"] .tag-kendra{background:#d6e4f2;color:#1a5a99}
+html[data-theme="light"] .tag-trikona{background:#f2e6c2;color:#8a6a15}
+html[data-theme="light"] .tag-upachaya{background:#dcecc9;color:#4d6b1a}
+
+/* 主題切換按鈕 */
+.theme-toggle{
+  position:fixed;top:16px;right:16px;z-index:100;
+  background:transparent;border:1px solid var(--gold);color:var(--gold);
+  border-radius:20px;padding:6px 14px;cursor:pointer;font-size:13px;font-family:inherit;
+  transition:background .2s,color .2s;
+}
+.theme-toggle:hover{background:var(--gold);color:var(--bg)}
+
+/* 12 宮位表：同象位同背景色（火/土/風/水）— 用左側 4px 色條 + 極淡橫向底 */
+table.house-chart tr.elem-fire  td{background:linear-gradient(90deg,rgba(255,110,60,.12) 0%,transparent 60%);}
+table.house-chart tr.elem-earth td{background:linear-gradient(90deg,rgba(140,190,90,.11) 0%,transparent 60%);}
+table.house-chart tr.elem-air   td{background:linear-gradient(90deg,rgba(130,190,240,.11) 0%,transparent 60%);}
+table.house-chart tr.elem-water td{background:linear-gradient(90deg,rgba(180,130,220,.12) 0%,transparent 60%);}
+html[data-theme="light"] table.house-chart tr.elem-fire  td{background:linear-gradient(90deg,rgba(255,110,60,.20) 0%,transparent 60%);}
+html[data-theme="light"] table.house-chart tr.elem-earth td{background:linear-gradient(90deg,rgba(120,175,80,.20) 0%,transparent 60%);}
+html[data-theme="light"] table.house-chart tr.elem-air   td{background:linear-gradient(90deg,rgba(90,160,220,.22) 0%,transparent 60%);}
+html[data-theme="light"] table.house-chart tr.elem-water td{background:linear-gradient(90deg,rgba(160,110,210,.22) 0%,transparent 60%);}
+
+/* 象位左側色條 */
+table.house-chart tr.elem-fire  td:first-child{box-shadow:inset 4px 0 0 #ff6e3c;}
+table.house-chart tr.elem-earth td:first-child{box-shadow:inset 4px 0 0 #7ec44b;}
+table.house-chart tr.elem-air   td:first-child{box-shadow:inset 4px 0 0 #6ab8f0;}
+table.house-chart tr.elem-water td:first-child{box-shadow:inset 4px 0 0 #b47fdc;}
+table.house-chart tr.house-row-asc.elem-fire  td:first-child{box-shadow:inset 4px 0 0 #ff6e3c, inset 8px 0 0 var(--gold);}
+table.house-chart tr.house-row-asc.elem-earth td:first-child{box-shadow:inset 4px 0 0 #7ec44b, inset 8px 0 0 var(--gold);}
+table.house-chart tr.house-row-asc.elem-air   td:first-child{box-shadow:inset 4px 0 0 #6ab8f0, inset 8px 0 0 var(--gold);}
+table.house-chart tr.house-row-asc.elem-water td:first-child{box-shadow:inset 4px 0 0 #b47fdc, inset 8px 0 0 var(--gold);}
+
+/* 6/8/12 宮 Dusthana 淡淺紅（覆蓋象位色，用 !important） */
+table.house-chart tr.dush-house td{
+  background:rgba(255,95,95,.20) !important;
+}
+html[data-theme="light"] table.house-chart tr.dush-house td{
+  background:rgba(255,110,110,.22) !important;
+}
+table.house-chart tr.dush-house td:first-child{
+  box-shadow:inset 4px 0 0 #ff5a5a !important;
+}
+table.house-chart tr.dush-house.house-row-asc td:first-child{
+  box-shadow:inset 4px 0 0 #ff5a5a, inset 8px 0 0 var(--gold) !important;
+}
+
+/* 始/續/果宮 標籤 */
+.quality-tag{
+  display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;
+  font-weight:600;letter-spacing:.05em;white-space:nowrap;
+}
+.q-angular{background:rgba(212,175,55,.22);color:#e6c14e;border:1px solid rgba(212,175,55,.55);}
+.q-succedent{background:rgba(154,213,255,.20);color:#9ad5ff;border:1px solid rgba(154,213,255,.45);}
+.q-cadent{background:rgba(200,200,200,.14);color:#c8c8c8;border:1px solid rgba(200,200,200,.35);}
+html[data-theme="light"] .q-angular{background:rgba(212,175,55,.22);color:#7a5c00;border-color:rgba(122,92,0,.55);}
+html[data-theme="light"] .q-succedent{background:rgba(70,140,200,.16);color:#0f4c85;border-color:rgba(15,76,133,.45);}
+html[data-theme="light"] .q-cadent{background:rgba(110,110,110,.14);color:#4a4a4a;border-color:rgba(74,74,74,.35);}
+
+/* 火星/冥王星/牡羊/天蠍 — 紅色強調；土星/摩羯/水瓶 — 亮橘色 */
+.pl-mars,.pl-pluto,.sign-aries,.sign-scorpio{
+  color:#ff5a5a !important;font-weight:600;
+  text-shadow:0 0 3px rgba(255,90,90,.35);
+}
+.pl-saturn,.sign-capricorn,.sign-aquarius{
+  color:#ffab3a !important;font-weight:600;
+  text-shadow:0 0 3px rgba(255,171,58,.35);
+}
+html[data-theme="light"] .pl-mars,
+html[data-theme="light"] .pl-pluto,
+html[data-theme="light"] .sign-aries,
+html[data-theme="light"] .sign-scorpio{
+  color:#c21212 !important;text-shadow:none;
+}
+html[data-theme="light"] .pl-saturn,
+html[data-theme="light"] .sign-capricorn,
+html[data-theme="light"] .sign-aquarius{
+  color:#b04a08 !important;text-shadow:none;
+}
 </style>
 </head>
 <body>
+<button class="theme-toggle" id="theme_toggle" onclick="toggleTheme()" title="切換亮/暗畫面">🌗 亮/暗</button>
 <div class="container">
   <nav class="backnav">
     <a href="https://questions.3minstest.com/">← 返回測驗中心</a>
@@ -1258,6 +1373,18 @@ const HOUSE_NOTE = {
   12: '失落 / 開支',
 };
 
+// 四象位（同象位同色）+ 始/續/果宮 對應
+const ELEMENT_CLASS = {'火':'elem-fire','土':'elem-earth','風':'elem-air','水':'elem-water'};
+// 始宮（angular）= 1,4,7,10 ； 續宮（succedent）= 2,5,8,11 ； 果宮（cadent）= 3,6,9,12
+function houseQuality(h){
+  if([1,4,7,10].includes(h)) return {cls:'q-angular',   zh:'始宮'};
+  if([2,5,8,11].includes(h)) return {cls:'q-succedent', zh:'續宮'};
+  return {cls:'q-cadent', zh:'果宮'};
+}
+// 火星/冥王星/牡羊/天蠍 → 紅色強調；土星/摩羯/水瓶 → 亮橘
+const PLANET_EMPH_CLASS = {mars:'pl-mars', pluto:'pl-pluto', saturn:'pl-saturn'};
+const SIGN_EMPH_CLASS   = {0:'sign-aries', 7:'sign-scorpio', 9:'sign-capricorn', 10:'sign-aquarius'};
+
 function houseChartHTML(asc, placements){
   let rows = '';
   for(let h=1; h<=12; h++){
@@ -1268,11 +1395,16 @@ function houseChartHTML(asc, placements){
 
     const here = placements.filter(p=>p.house===h);
     const types = HOUSE_TYPE[h] || [];
+    const isDush = types.includes('Dusthana');
+    const quality = houseQuality(h);
+    const elemCls = ELEMENT_CLASS[sign.element] || '';
 
-    let rowCls = '';
-    if(types.includes('Dusthana')) rowCls = 'house-row-dusthana';
-    else if(types.includes('Kendra')) rowCls = 'house-row-kendra';
-    else if(types.includes('Trikona')) rowCls = 'house-row-trikona';
+    let rowCls = elemCls;
+    if(isDush) rowCls += ' dush-house';
+    // 保留原始 Kendra/Trikona 標記給既有的 hover / 相容性
+    if(types.includes('Dusthana')) rowCls += ' house-row-dusthana';
+    else if(types.includes('Kendra')) rowCls += ' house-row-kendra';
+    else if(types.includes('Trikona')) rowCls += ' house-row-trikona';
     if(h===1) rowCls += ' house-row-asc';
 
     let bhavaTag = '';
@@ -1283,20 +1415,31 @@ function houseChartHTML(asc, placements){
 
     const note = HOUSE_NOTE[h] ? `<span class="alert">${HOUSE_NOTE[h]}</span>` : '';
 
+    const signCls = SIGN_EMPH_CLASS[signId] || '';
+    const signHTML = signCls
+      ? `<span class="${signCls}">${sign.sym}${sign.zh}</span>`
+      : `${sign.sym}${sign.zh}`;
+
     const planetsCell = here.length ? here.map(p=>{
       const pl = findPlanet(p.pid);
-      const cls = p.source==='主骰' ? 'dot-main' :
+      const src = p.source==='主骰' ? 'dot-main' :
                   p.source==='副骰' ? 'dot-sub' : 'dot-transit';
-      return `<span class="${cls}" title="${p.source}">${pl.sym}${pl.zh}</span>`;
+      const emph = PLANET_EMPH_CLASS[p.pid] || '';
+      return `<span class="${src} ${emph}" title="${p.source}">${pl.sym}${pl.zh}</span>`;
     }).join('、') : '<span class="muted">—</span>';
 
-    const lordsStr = lords.map(l=>findPlanet(l)).map(p=>`${p.sym}${p.zh}`).join('、');
+    const lordsStr = lords.map(l=>{
+      const p = findPlanet(l);
+      const emph = PLANET_EMPH_CLASS[l] || '';
+      return emph ? `<span class="${emph}">${p.sym}${p.zh}</span>` : `${p.sym}${p.zh}`;
+    }).join('、');
 
     rows += `
       <tr class="${rowCls}">
         <td><strong>${h}</strong></td>
-        <td>${sign.sym}${sign.zh}</td>
-        <td><span class="muted">${sign.mode}</span></td>
+        <td><span class="quality-tag ${quality.cls}">${quality.zh}</span></td>
+        <td>${signHTML}</td>
+        <td><span class="muted">${sign.element}·${sign.mode}</span></td>
         <td>${lordsStr}</td>
         <td>${planetsCell}</td>
         <td>${bhavaTag}${note}</td>
@@ -1306,14 +1449,19 @@ function houseChartHTML(asc, placements){
   return `
     <div class="card">
       <div class="card-title">📊 12 宮位排列（主骰 + 副骰 + 行運 全疊一張表）</div>
-      <div class="muted" style="margin-bottom:12px">
-        <span class="dot-main">●</span> 主骰　<span class="dot-sub">●</span> 副骰　<span class="dot-transit">●</span> 運行星
-        命宮（第 1 宮）以金邊標示。Dusthana 紅、Kendra 藍、Trikona 金。
+      <div class="muted" style="margin-bottom:12px;line-height:1.8">
+        <span class="dot-main">●</span> 主骰　<span class="dot-sub">●</span> 副骰　<span class="dot-transit">●</span> 運行星<br>
+        <span class="quality-tag q-angular">始宮</span> 1/4/7/10
+        <span class="quality-tag q-succedent">續宮</span> 2/5/8/11
+        <span class="quality-tag q-cadent">果宮</span> 3/6/9/12
+        <span style="color:#ff5a5a">■</span> 6/8/12 凶宮（Dusthana）
+        <span style="color:#ff5a5a">紅字</span> 火/冥/牡/蠍
+        <span style="color:#ffab3a">橘字</span> 土/摩/瓶
       </div>
       <div style="overflow-x:auto">
         <table class="house-chart">
           <thead>
-            <tr><th>宮位</th><th>星座</th><th>模式</th><th>宮主星</th><th>此宮行星</th><th>備註</th></tr>
+            <tr><th>宮位</th><th>宮性</th><th>星座</th><th>象·模式</th><th>宮主星</th><th>此宮(運)行星</th><th>備註</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -1707,6 +1855,27 @@ function exportCopy(btn){
     setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 2000);
   }).catch(err=>alert('複製失敗：' + err.message));
 }
+
+// 主題切換（記在 localStorage）
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+}
+function applyTheme(mode){
+  if(mode === 'light'){
+    document.documentElement.setAttribute('data-theme', 'light');
+    const btn = document.getElementById('theme_toggle');
+    if(btn) btn.textContent = '🌙 切暗畫面';
+  }else{
+    document.documentElement.removeAttribute('data-theme');
+    const btn = document.getElementById('theme_toggle');
+    if(btn) btn.textContent = '☀️ 切亮畫面';
+  }
+  try{ localStorage.setItem('astrodice_theme', mode); }catch(e){}
+}
+// 進站時套用記住的主題（未設 = 預設暗）
+applyTheme(localStorage.getItem('astrodice_theme') || 'dark');
 
 async function exportShare(){
   try{

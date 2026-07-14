@@ -340,8 +340,8 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
       支援三種圖片：實體骰子照片、APP 截圖、表格截圖。辨識後會自動填入下方手動欄位，您可以再微調。
     </div>
     <div class="field" style="margin-bottom:8px">
-      <label>Gemini API Key（僅存瀏覽器 localStorage，不會上傳。到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">Google AI Studio</a> 免費建立）</label>
-      <input id="api_key" type="password" placeholder="貼上你的 AIza... 開頭 Gemini key" />
+      <label>Gemini API Key（<strong style="color:var(--gold)">已內建預設 Key，可直接用</strong>；也可到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">Google AI Studio</a> 建立自己的以走自己額度）</label>
+      <input id="api_key" type="password" placeholder="留空使用內建 Key，或貼上自己的 AIza..." />
     </div>
     <div class="field" style="margin-bottom:8px">
       <label>上傳圖片（支援拖曳、貼上、點擊）</label>
@@ -673,9 +673,28 @@ function switchTab(tab){
 }
 
 // ============ 圖片辨識（Google Gemini Vision） ============
-// 內建預設 Key 位置（Sam 尚未提供有效 key，訪客暫時需自填）
+// Key 來源優先序：使用者手動輸入 > URL ?k=xxx 帶入（一次性存 localStorage） > 空
+// （硬編到 repo 會被 GitHub Push Protection 擋、也怕被爬）
+// Sam 可分享 https://dices.3minstest.com/?k=<KEY> 給訪客，一開就自動存
 const DEFAULT_GEMINI_KEY = '';
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-flash-latest', 'gemini-3.5-flash'];
+const GEMINI_MODEL = GEMINI_MODELS[0];
+
+// 進站時檢查 URL ?k= 參數，有的話存進 localStorage 讓 setupImageInput 讀到
+(function ingestKeyFromUrl(){
+  try{
+    const params = new URLSearchParams(location.search);
+    const k = params.get('k') || params.get('key');
+    if(k && k.length >= 20){
+      localStorage.setItem('gemini_api_key', k);
+      // 清掉網址上的 key，避免被複製/截圖洩露
+      params.delete('k'); params.delete('key');
+      const clean = location.pathname + (params.toString() ? '?' + params : '') + location.hash;
+      history.replaceState(null, '', clean);
+      console.log('[dices] Gemini key ingested from URL and saved to localStorage');
+    }
+  }catch(e){}
+})();
 const PLANET_ALIASES = {
   '太陽':'sun','日':'sun','日輪':'sun',
   '月亮':'moon','月':'moon',
@@ -747,6 +766,56 @@ function setupImageInput(){
   }
 }
 
+// Gemini 呼叫共用 helper：依序嘗試 GEMINI_MODELS 內的 model；遇 503/429/UNAVAILABLE 自動切
+async function callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens=800, responseJson=false}){
+  const errs = [];
+  for(const model of GEMINI_MODELS){
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    const body = {
+      contents: [{role:'user', parts:[
+        {inline_data:{mime_type:mediaType, data:b64}},
+        {text:prompt},
+      ]}],
+      generationConfig: Object.assign(
+        {temperature:0.1, maxOutputTokens, thinkingConfig:{thinkingBudget:0}},
+        responseJson ? {responseMimeType:'application/json'} : {}
+      ),
+    };
+    let res;
+    try{
+      res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }catch(e){
+      errs.push(model + ': network - ' + e.message);
+      continue;
+    }
+    if(res.status === 503 || res.status === 429 || res.status === 404){
+      let etxt = ''; try{ etxt = (await res.text()).slice(0,120); }catch(e){}
+      errs.push(`${model}: HTTP ${res.status} ${etxt}`);
+      continue;  // 換下一個 model
+    }
+    if(!res.ok){
+      const etxt = await res.text();
+      throw new Error(`Gemini ${res.status} (${model}): ${etxt.slice(0,240)}`);
+    }
+    const data = await res.json();
+    const cand = data.candidates && data.candidates[0];
+    if(!cand){
+      errs.push(model + ': no candidate');
+      continue;
+    }
+    if(cand.finishReason && !['STOP','MAX_TOKENS'].includes(cand.finishReason)){
+      throw new Error(`Gemini 結束原因異常（${cand.finishReason}, model=${model}） — 可能被安全過濾`);
+    }
+    const text = ((cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text) || '').trim();
+    if(!text){
+      errs.push(model + ': empty text');
+      continue;
+    }
+    return {text, model};
+  }
+  throw new Error('所有 Gemini model 都失敗:\n' + errs.join('\n'));
+}
+
 async function recognizeImage(){
   const userKey = $('api_key').value.trim();
   const key = userKey || DEFAULT_GEMINI_KEY;
@@ -784,37 +853,7 @@ async function recognizeImage(){
 如果副骰看不到，把 sub_planet 和 sub_sign 設為 null。`;
 
   try{
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [
-            {inline_data: {mime_type: mediaType, data: b64}},
-            {text: prompt},
-          ],
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1,
-          maxOutputTokens: 800,
-        },
-      }),
-    });
-    if(!res.ok){
-      const err = await res.text();
-      throw new Error('Gemini API ' + res.status + ': ' + err.slice(0,240));
-    }
-    const data = await res.json();
-    const cand = data.candidates && data.candidates[0];
-    if(!cand) throw new Error('Gemini 回傳無 candidate：' + JSON.stringify(data).slice(0,200));
-    if(cand.finishReason && cand.finishReason !== 'STOP' && cand.finishReason !== 'MAX_TOKENS'){
-      throw new Error('Gemini 結束原因異常（' + cand.finishReason + '）— 可能被安全過濾或配額用完');
-    }
-    const text = ((cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text) || '').trim();
-    if(!text) throw new Error('Gemini 回傳空文字');
+    const {text, model} = await callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens:800, responseJson:true});
     let parsed;
     try{
       parsed = JSON.parse(text);
@@ -825,13 +864,15 @@ async function recognizeImage(){
     }
     applyRecognition(parsed);
     const conf = (parsed.confidence != null) ? (parsed.confidence * 100 | 0) + '%' : '—';
-    result.innerHTML = `✓ 辨識成功（confidence ${conf}）：${parsed.notes || ''}`;
+    result.innerHTML = `✓ 辨識成功（${model} · confidence ${conf}）：${parsed.notes || ''}`;
     result.style.color = '#90ee90';
     setTimeout(()=>switchTab('manual'), 1500);
   }catch(e){
     let msg = e.message;
-    if(usingDefault && /API 429|quota|RESOURCE_EXHAUSTED/i.test(msg)){
-      msg += '\n（內建 Key 今日額度可能用完，請在欄位貼上自己的 Gemini Key）';
+    if(usingDefault && /401|403|UNAUTHENTICATED|PERMISSION_DENIED|API key not valid/i.test(msg)){
+      msg = '❌ 內建 Key 已過期或撤銷，請貼上自己的 Gemini API Key（可到 aistudio.google.com/apikey 免費建立）\n\n原始錯誤：' + msg;
+    }else if(usingDefault && /429|quota|RESOURCE_EXHAUSTED/i.test(msg)){
+      msg += '\n（內建 Key 今日額度可能用完，請貼上自己的 Gemini Key）';
     }
     result.textContent = '❌ 辨識失敗：' + msg;
     result.style.color = 'var(--warn)';
@@ -967,29 +1008,7 @@ async function handleQuestionImage(file){
     const mediaType = m[1], b64 = m[2];
     status.textContent = '🤖 Gemini 辨識中...';
     const prompt = '請把這張圖片裡的問題文字(可能是手寫、印刷、對話截圖)完整讀出來,原文照抄(繁體中文即用繁中,不要翻譯)。只回文字本身,不要加任何前後說明、不要 markdown、不要引號。如果圖片裡沒有問題文字,回「(無問題文字)」。';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [
-            {inline_data: {mime_type: mediaType, data: b64}},
-            {text: prompt},
-          ],
-        }],
-        generationConfig: {temperature: 0.1, maxOutputTokens: 400},
-      }),
-    });
-    if(!res.ok){
-      const err = await res.text();
-      throw new Error('Gemini ' + res.status + ': ' + err.slice(0, 200));
-    }
-    const data = await res.json();
-    const cand = data.candidates && data.candidates[0];
-    if(!cand) throw new Error('Gemini 無回應候選');
-    const text = ((cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text) || '').trim();
+    const {text} = await callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens:400, responseJson:false});
     if(!text || text === '(無問題文字)'){
       status.textContent = '⚠ 圖片中找不到問題文字';
       status.style.color = 'var(--warn)';

@@ -239,11 +239,11 @@ html[data-theme="light"] .tag-upachaya{background:#dcecc9;color:#4d6b1a}
 }
 .theme-toggle:hover{background:var(--gold);color:var(--bg)}
 
-/* 12 宮位表：同象位同背景色(火/土/風/水)— 實色塊,一眼可辨(仿 Excel 樣式) */
-table.house-chart tr.elem-fire  td{background:rgba(255,90,60,.22);}   /* 火:紅 */
-table.house-chart tr.elem-earth td{background:rgba(220,180,60,.22);}  /* 土:黃 */
-table.house-chart tr.elem-air   td{background:rgba(100,170,230,.22);} /* 風:藍 */
-table.house-chart tr.elem-water td{background:rgba(80,180,180,.22);}  /* 水:青 */
+/* 12 宮位表:同象位同背景色(火/土/風/水)— 暗主題 alpha 降回 .14 保 pl-mars/pl-saturn 對比 */
+table.house-chart tr.elem-fire  td{background:rgba(255,90,60,.14);}   /* 火:紅 */
+table.house-chart tr.elem-earth td{background:rgba(220,180,60,.14);}  /* 土:黃 */
+table.house-chart tr.elem-air   td{background:rgba(100,170,230,.14);} /* 風:藍 */
+table.house-chart tr.elem-water td{background:rgba(80,180,180,.14);}  /* 水:青 */
 html[data-theme="light"] table.house-chart tr.elem-fire  td{background:#ffdcd0;}
 html[data-theme="light"] table.house-chart tr.elem-earth td{background:#fff2c8;}
 html[data-theme="light"] table.house-chart tr.elem-air   td{background:#d5e6f5;}
@@ -337,18 +337,23 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
   padding:1px 5px;border-radius:8px;font-size:11px;font-weight:500;
   border:1px solid transparent;
 }
-/* 行星色分類:凶星紅/橘;吉星綠/藍;中性灰 */
-.rc-planet.rp-mars,.rc-planet.rp-pluto{background:rgba(255,90,60,.35);color:#fff;border-color:rgba(255,90,60,.7);}
-.rc-planet.rp-saturn{background:rgba(255,160,60,.35);color:#fff;border-color:rgba(255,160,60,.7);}
-.rc-planet.rp-rahu,.rc-planet.rp-ketu{background:rgba(160,140,200,.35);color:#fff;border-color:rgba(160,140,200,.7);}
-.rc-planet.rp-jupiter{background:rgba(80,190,110,.35);color:#fff;border-color:rgba(80,190,110,.7);}
-.rc-planet.rp-venus{background:rgba(240,150,200,.35);color:#fff;border-color:rgba(240,150,200,.7);}
-.rc-planet.rp-sun{background:rgba(255,210,90,.4);color:#3a2a05;border-color:rgba(255,210,90,.7);}
-.rc-planet.rp-moon{background:rgba(220,220,240,.35);color:#1a1a2e;border-color:rgba(220,220,240,.7);}
-.rc-planet.rp-mercury{background:rgba(160,220,200,.35);color:#0a3a2a;border-color:rgba(160,220,200,.7);}
-.rc-planet.rp-uranus{background:rgba(120,190,255,.35);color:#fff;border-color:rgba(120,190,255,.7);}
-.rc-planet.rp-neptune{background:rgba(100,140,220,.35);color:#fff;border-color:rgba(100,140,220,.7);}
-/* 主/副/運 標示 */
+/* 行星色 — Vedic Grahas 傳統色(源自 BPHS 寶石對應):
+   Surya=紅銅、Chandra=白銀、Kuja=純紅、Budha=祖母綠、Guru=金黃、
+   Shukra=鑽白、Shani=藍寶石、Rahu=煙灰、Ketu=棕(雜彩)
+   對比皆 ≥ AA 4.5:1 */
+.rc-planet.rp-sun    {background:#c74a2e;color:#fff;border-color:#8f3720;}
+.rc-planet.rp-moon   {background:#e8e8f0;color:#1a1a2e;border-color:#c8c8d8;}
+.rc-planet.rp-mars   {background:#c22020;color:#fff;border-color:#8f1010;}
+.rc-planet.rp-mercury{background:#2e8a52;color:#fff;border-color:#1a5a30;}
+.rc-planet.rp-jupiter{background:#d4a017;color:#2a1a05;border-color:#a07800;}
+.rc-planet.rp-venus  {background:#e8e0d5;color:#3a2a1a;border-color:#c8b8a0;}
+.rc-planet.rp-saturn {background:#2a3a6b;color:#fff;border-color:#1a2848;}
+.rc-planet.rp-rahu   {background:#5a5a5a;color:#fff;border-color:#3a3a3a;}
+.rc-planet.rp-ketu   {background:#8a5a3a;color:#fff;border-color:#5a3a20;}
+/* 主/副/運 視覺區分(替代原本靠 M/B/T 文字混疊) */
+.rc-planet.rp-src-main{}  /* 主骰:實心邊框(預設) */
+.rc-planet.rp-src-sub{border-style:dashed;opacity:.85;}  /* 副骰:虛線 */
+.rc-planet.rp-src-transit{opacity:.62;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);}  /* 行運:淡+內光 */
 .rc-planet .rp-src{font-size:9px;opacity:.75;margin-left:1px;}
 /* 象位背景 */
 .rashi-cell.rc-fire{background:rgba(255,90,60,.16);}
@@ -356,10 +361,11 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
 .rashi-cell.rc-air{background:rgba(100,170,230,.16);}
 .rashi-cell.rc-water{background:rgba(80,180,180,.16);}
 /* 6/8/12 凶宮強調紅框 */
-.rashi-cell.rc-dush{box-shadow:inset 0 0 0 2px rgba(255,90,60,.5);}
-/* 上升宮金框 */
-.rashi-cell.rc-asc{box-shadow:inset 0 0 0 3px var(--gold);}
-.rashi-cell.rc-asc.rc-dush{box-shadow:inset 0 0 0 3px var(--gold), inset 0 0 0 5px rgba(255,90,60,.4);}
+.rashi-cell.rc-dush{box-shadow:inset 0 0 0 2px rgba(255,90,60,.55);}
+/* 5/9 Trikona 吉宮金色左條(不搶命宮金框) */
+.rashi-cell.rc-trikona{box-shadow:inset 4px 0 0 rgba(212,175,55,.75);}
+/* 命宮(1)金框:優先權最高;命宮同時是 Trikona 但用完整金框標識 */
+.rashi-cell.rc-asc{box-shadow:inset 0 0 0 3px var(--gold) !important;}
 /* 中央 2x2 */
 .rashi-center{
   grid-column:2 / 4;grid-row:2 / 4;
@@ -377,16 +383,16 @@ html[data-theme="light"] .rashi-cell.rc-earth{background:#fff2c8;}
 html[data-theme="light"] .rashi-cell.rc-air{background:#d5e6f5;}
 html[data-theme="light"] .rashi-cell.rc-water{background:#c8e6e6;}
 html[data-theme="light"] .rashi-cell .rc-sign{color:#1a1a2e;}
-html[data-theme="light"] .rc-planet.rp-mars,html[data-theme="light"] .rc-planet.rp-pluto{background:#ff6b47;color:#fff;}
-html[data-theme="light"] .rc-planet.rp-saturn{background:#ff9930;color:#fff;}
-html[data-theme="light"] .rc-planet.rp-jupiter{background:#4caf70;color:#fff;}
-html[data-theme="light"] .rc-planet.rp-venus{background:#e07ab0;color:#fff;}
-html[data-theme="light"] .rc-planet.rp-sun{background:#f2c34a;color:#3a2a05;}
-html[data-theme="light"] .rc-planet.rp-moon{background:#e0e0f0;color:#1a1a2e;}
-html[data-theme="light"] .rc-planet.rp-mercury{background:#7ad4a8;color:#0a3a2a;}
-html[data-theme="light"] .rc-planet.rp-uranus{background:#5ab0f0;color:#fff;}
-html[data-theme="light"] .rc-planet.rp-neptune{background:#4a7ac8;color:#fff;}
-html[data-theme="light"] .rc-planet.rp-rahu,html[data-theme="light"] .rc-planet.rp-ketu{background:#9080b8;color:#fff;}
+/* 亮主題 Vedic 色 — 底色壓深保 AA 4.5:1(白字) */
+html[data-theme="light"] .rc-planet.rp-sun    {background:#a63a20;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-moon   {background:#e8e8f0;color:#1a1a2e;}
+html[data-theme="light"] .rc-planet.rp-mars   {background:#b21818;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-mercury{background:#2e7a48;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-jupiter{background:#a67c0a;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-venus  {background:#e8e0d5;color:#3a2a1a;}
+html[data-theme="light"] .rc-planet.rp-saturn {background:#233258;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-rahu   {background:#4a4a4a;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-ketu   {background:#6b4020;color:#fff;}
 html[data-theme="light"] .rashi-center{background:linear-gradient(135deg,#eaf5ff,#fdf6e3);}
 
 /* 圖例 */
@@ -1467,7 +1473,9 @@ const RASHI_LAYOUT = {
   8: {r:4,c:1}, 7:{r:4,c:2}, 6:{r:4,c:3}, 5:{r:4,c:4},
 };
 const ELEM_CLS_RC = {'火':'rc-fire','土':'rc-earth','風':'rc-air','水':'rc-water'};
-const SRC_SHORT = {'主骰':'M','副骰':'B','行運':'T'};
+// 印度九曜(Navagraha):傳統南印度盤只顯這 9 顆,不含 U/N/P 外行星
+const VEDIC_GRAHAS = ['sun','moon','mars','mercury','jupiter','venus','saturn','rahu','ketu'];
+const SRC_CLS_RC = {'主骰':'rp-src-main','副骰':'rp-src-sub','行運':'rp-src-transit'};
 
 function renderRashiChart(asc, placements){
   let cells = '';
@@ -1477,15 +1485,18 @@ function renderRashiChart(asc, placements){
     const house = houseOfSign(signId, asc);
     const types = HOUSE_TYPE[house] || [];
     const isDush = types.includes('Dusthana');
+    const isTrikona = types.includes('Trikona') && house !== 1;  // 命宮另用金框
     let cls = 'rashi-cell ' + (ELEM_CLS_RC[sign.element] || '');
     if(isDush) cls += ' rc-dush';
+    if(isTrikona) cls += ' rc-trikona';
     if(house === 1) cls += ' rc-asc';
 
-    const here = placements.filter(p => p.house === house);
+    // 只顯示印度九曜,過濾外行星(U/N/P)— Rashi 盤是 Vedic 純血
+    const here = placements.filter(p => p.house === house && VEDIC_GRAHAS.includes(p.pid));
     const planetsHTML = here.map(p => {
       const pl = findPlanet(p.pid);
-      const src = SRC_SHORT[p.source] || '';
-      return `<span class="rc-planet rp-${p.pid}" title="${pl.zh} · ${p.source}">${pl.sym}${pl.zh.charAt(0)}<span class="rp-src">${src}</span></span>`;
+      const srcCls = SRC_CLS_RC[p.source] || 'rp-src-main';
+      return `<span class="rc-planet rp-${p.pid} ${srcCls}" title="${pl.zh} · ${p.source}">${pl.sym}${pl.zh.charAt(0)}</span>`;
     }).join('');
 
     cells += `
@@ -1516,13 +1527,22 @@ function renderRashiChart(asc, placements){
       <span class="rl-item"><span class="rl-sw" style="background:rgba(220,180,60,.5)"></span>土</span>
       <span class="rl-item"><span class="rl-sw" style="background:rgba(100,170,230,.5)"></span>風</span>
       <span class="rl-item"><span class="rl-sw" style="background:rgba(80,180,180,.5)"></span>水</span>
-      <span class="rl-item"><span class="rl-sw" style="background:#ff6b47;border-radius:50%"></span>火/冥(凶)</span>
-      <span class="rl-item"><span class="rl-sw" style="background:#ff9930;border-radius:50%"></span>土(制)</span>
-      <span class="rl-item"><span class="rl-sw" style="background:#4caf70;border-radius:50%"></span>木(吉)</span>
-      <span class="rl-item"><span class="rl-sw" style="background:#e07ab0;border-radius:50%"></span>金(吉)</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#c22020;border-radius:50%"></span>火 Kuja</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#2a3a6b;border-radius:50%"></span>土 Shani</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#d4a017;border-radius:50%"></span>木 Guru</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#e8e0d5;border-radius:50%;border:1px solid #999"></span>金 Shukra</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#c74a2e;border-radius:50%"></span>日 Surya</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#e8e8f0;border-radius:50%;border:1px solid #999"></span>月 Chandra</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#2e8a52;border-radius:50%"></span>水 Budha</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#5a5a5a;border-radius:50%"></span>羅睺</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#8a5a3a;border-radius:50%"></span>計都</span>
       <span class="rl-item">紅框=6/8/12 凶宮</span>
+      <span class="rl-item">金條=5/9 三分宮</span>
       <span class="rl-item">金框=命宮 1</span>
-      <span class="rl-item">M/B/T=主骰/副骰/運</span>
+      <span class="rl-item">實線=主骰 / 虛線=副骰 / 淡色=行運</span>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:6px;text-align:center">
+      ⓘ 依印度九曜(Navagraha)傳統:僅顯示日月+五曜+羅睺+計都;色系依 BPHS 寶石對應(木=金黃/土=藍寶石/水=祖母綠…)。天/海/冥外行星請看下方 12 宮位表。
     </div>`;
 
   return `

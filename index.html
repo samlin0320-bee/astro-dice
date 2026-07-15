@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>占星骰子 · 五骰判讀</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --bg:#1a0d2e;
@@ -316,6 +317,69 @@ html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
 /* Bhava 標籤內的分隔點更淡 */
 .tag{white-space:nowrap;}
 
+/* ================ 使用者狀態列 + 歷史紀錄面板(純新增) ================ */
+.user-bar{
+  position:fixed;top:14px;right:120px;z-index:90;
+  display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+}
+.user-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 11px;border-radius:14px;
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  font-size:12px;font-family:inherit;cursor:pointer;transition:all .2s;
+}
+.user-chip:hover{border-color:var(--gold);color:var(--gold);}
+.user-chip.active{background:var(--gold);color:var(--bg);border-color:var(--gold);}
+.user-chip img{width:18px;height:18px;border-radius:50%;}
+.user-chip .avatar{
+  width:18px;height:18px;border-radius:50%;background:var(--gold);color:var(--bg);
+  display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;
+}
+.user-chip .badge{
+  background:var(--vedic);color:var(--bg);padding:1px 6px;border-radius:8px;
+  font-size:10px;font-weight:600;margin-left:3px;
+}
+html[data-theme="light"] .user-chip{background:#fff;}
+
+/* 歷史面板 */
+.history-panel{
+  position:fixed;top:52px;right:14px;width:min(360px,92vw);
+  max-height:min(70vh,600px);overflow-y:auto;
+  background:var(--card);border:1px solid var(--gold);border-radius:12px;
+  padding:14px;z-index:95;box-shadow:0 8px 24px rgba(0,0,0,.5);
+  display:none;
+}
+.history-panel.open{display:block;}
+.history-panel h3{margin:0 0 10px;font-size:14px;color:var(--gold);font-weight:600;}
+.history-panel .hp-close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:16px;}
+.history-item{padding:8px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;line-height:1.5;position:relative;}
+.history-item:hover{background:rgba(212,175,55,.08);border-radius:6px;}
+.history-item .hi-time{color:var(--muted);font-size:11px;}
+.history-item .hi-dice{color:var(--gold);font-weight:500;margin-top:2px;}
+.history-item .hi-q{color:var(--muted);font-size:11px;margin-top:2px;font-style:italic;}
+.history-item .hi-del{position:absolute;top:6px;right:8px;color:var(--muted);cursor:pointer;font-size:12px;opacity:0;transition:opacity .2s;}
+.history-item:hover .hi-del{opacity:1;}
+.history-item .hi-del:hover{color:var(--warn);}
+.history-empty{color:var(--muted);text-align:center;padding:20px;font-size:12px;}
+
+/* Google 登入按鈕(GSI 自動注入,這裡準備容器) */
+.gsi-container{display:inline-block;}
+.gsi-container button{cursor:pointer;}
+
+/* ================ 12 宮位意義卡片(純新增) ================ */
+.house-meanings-card table{width:100%;border-collapse:collapse;font-size:12px;}
+.house-meanings-card th,.house-meanings-card td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;text-align:left;}
+.house-meanings-card th{background:rgba(212,175,55,.10);color:var(--gold);font-weight:600;position:sticky;top:0;}
+.house-meanings-card .hm-num{font-weight:700;color:var(--gold);width:36px;}
+.house-meanings-card .hm-title{color:var(--western);font-weight:600;font-size:13px;margin-bottom:3px;}
+.house-meanings-card .hm-desc{color:var(--text);line-height:1.6;}
+.house-meanings-card .hm-vedic-title{color:var(--vedic);font-weight:600;font-size:12px;}
+.house-meanings-card tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+html[data-theme="light"] .house-meanings-card tr:nth-child(even) td{background:rgba(0,0,0,.02);}
+.house-meanings-card details{margin:0;}
+.house-meanings-card summary{cursor:pointer;padding:8px 0;color:var(--gold);font-weight:600;font-size:13px;}
+.house-meanings-card .hm-source{color:var(--muted);font-size:11px;margin-top:8px;text-align:right;}
+
 /* ================ 南印度方格盤(Rashi Chart 4x4)，純新增 ================ */
 .rashi-wrap{display:flex;justify-content:center;margin:8px 0;}
 .rashi-chart{
@@ -440,6 +504,13 @@ html[data-theme="light"] .ai-quick-answer{background-image:linear-gradient(180de
 </head>
 <body>
 <button class="theme-toggle" id="theme_toggle" onclick="toggleTheme()" title="切換亮/暗畫面">🌗 亮/暗</button>
+<div class="user-bar" id="user_bar">
+  <button class="user-chip" onclick="toggleHistory()" title="歷史紀錄">📜 <span id="history_count">0</span></button>
+  <div id="user_chip_container">
+    <button class="user-chip" onclick="promptGoogleSignIn()" title="以 Gmail 登入(尚需設定 OAuth Client)">🔐 Gmail 登入</button>
+  </div>
+</div>
+<div class="history-panel" id="history_panel"></div>
 <div class="container">
   <nav class="backnav">
     <a href="https://questions.3minstest.com/">← 返回測驗中心</a>
@@ -687,6 +758,28 @@ const WESTERN_HOUSE = [
   '事業、社會地位、父親、權威',
   '朋友、社群、希望、組織、收穫',
   '潛意識、隱藏敵人、犧牲、結束、修行',
+];
+
+// 12 宮位主題(Sam 老師版,來源:Notion 占星課二階 20231015-14 解宮位星座基本認知)
+const WESTERN_HOUSE_TITLES = [
+  '', '本性、驅動', '資源、籌碼', '轉機、交流', '內在需求、安全',
+  '快樂、展現光芒', '耗損、病因', '缺乏、互補', '隱藏、潛能',
+  '探索世界、升級進化', '克服關卡、成就', '未知邊緣、改變超越', '遺忘忽略、復原補償',
+];
+const WESTERN_HOUSE_DESC = [
+  '',
+  '人生驅動與開啟模式,面對命運的特徵,前進與決定方式,是最基本的人格特徵。',
+  '1 用 2 來做籌碼,2 可以讓 1 得到益處,幫 1 維持,增加人生的成果。1 必須用 2 的方式,才能得到享受與資源。',
+  '1 透過 3 接觸世界,了解外界的訊息。3 可以讓 1 增加通路與交流,得到轉機,學習到知識與方法,透過 3 的媒介與串連,加快 1 人生的進展。',
+  '1 對 4 容易感到匱乏,需要 4 得滿足,4 使 1 累積厚底內涵,得到呵護與滿足。4 也容易讓 1 封閉自囚與陷落,成為 1 的包袱與拖累。',
+  '5 可以讓 1 活旺,得到力量,創造新生命。1 用 5 得到快樂,5 是 1 的快樂來源。5 是 1 的熱愛,1 用 5 的模式得到名聲。',
+  '6 會讓 1 耗損與疲累,6 是 1 的附屬特徵與勞動的模式,1 需要用 6 的秩序來完成使命,6 可以讓 1 專精,得到技能。',
+  '7 可以反射出 1 的缺失。1 必須跟 7 妥協,讓 1 修正與調整,進而得到認同,1 才容易與對立面 7 結合與合作。',
+  '1 深鎖 8 的秘密與禁忌,8 會使 1 感到誘惑,8 容易使 1 進入危險,造成虧欠減損,使 1 感到恐懼。1 克服 8 的恐懼與執念,可以得到潛藏在深處的巨大寶藏。',
+  '9 是 1 的升級,可以讓 1 得到自信與樂觀,讓 1 開放,擴大自我的發展,9 讓 1 得到指引與方向,給予 1 助力,讓 1 得到智慧,提升層次。',
+  '10 是 1 必須克服的人生課題,1 必須經過 10 的歷練,才能夠成功,得到經驗而成熟,10 讓 1 建立功業,攀爬到人生的高峰。',
+  '1 透過 11 改變自我,得到自我超越的機會。11 是 1 的叛逆面,會使 1 脫離人生核心主舞台,1 經由 11 與陌生層面結合,形成群體關係。',
+  '12 容易讓 1 感覺迷網不切實際而想逃避。1 需要 12 來復原,從 12 得到救贖。12 是 1 的結尾與歸屬,1 需要回歸 12 才能感覺放空與放下一切。12 是 1 的因果,同時孕育了 1 的新生。',
 ];
 
 // 宮位含義 — 印度（Bhava）
@@ -1358,6 +1451,9 @@ function init(){
   $('planet_b').value='venus';
   $('sign_b').value='3';
   toggleSubdie();  // 副骰預設關閉 → 讓副骰欄位一開始就變灰
+  updateHistoryCount();
+  updateUserUI();
+  initGoogleSignIn();
 }
 
 function reset(){
@@ -2263,7 +2359,11 @@ function run(){
       </p>
     </div>
     ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel})}
+    <div class="center" style="margin:0 0 12px">
+      <button class="btn-ghost" onclick="saveCurrentRecord(this)" title="把這次擲骰結果存到瀏覽器,可從右上「📜」查看歷史">💾 儲存這次結果</button>
+    </div>
     ${renderRashiChart(asc, placements)}
+    ${renderHouseMeanings()}
     ${warnHTML}
     <div class="card">
       <div class="card-title">📖 雙派判讀</div>
@@ -2383,6 +2483,209 @@ function exportCopy(btn){
     btn.disabled = true;
     setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 2000);
   }).catch(err=>alert('複製失敗：' + err.message));
+}
+
+// ================ 使用者身分 + 歷史紀錄(localStorage) + Gmail 登入 ================
+const USER_KEY = 'dices_user';
+const RECORDS_KEY = 'dices_records_v1';
+// GCP OAuth 2.0 Client ID(Web application)。Sam 到 https://console.cloud.google.com/apis/credentials
+// 建 Web OAuth Client → Authorized origins 加 https://dices.3minstest.com → 填在這裡或走 URL ?gid=<CID>
+let GOOGLE_CLIENT_ID = '';
+(function ingestGoogleClientId(){
+  try{
+    const p = new URLSearchParams(location.search);
+    const gid = p.get('gid') || p.get('google_client_id');
+    if(gid){
+      localStorage.setItem('google_client_id', gid);
+      p.delete('gid'); p.delete('google_client_id');
+      const clean = location.pathname + (p.toString() ? '?' + p : '') + location.hash;
+      history.replaceState(null, '', clean);
+    }
+    GOOGLE_CLIENT_ID = localStorage.getItem('google_client_id') || '';
+  }catch(e){}
+})();
+
+function getUser(){ try{ return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }catch(e){ return null; } }
+function getRecords(){ try{ return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); }catch(e){ return []; } }
+
+function saveCurrentRecord(btn){
+  const u = getUser();
+  const rec = {
+    id: 'r_' + Date.now().toString(36),
+    ts: new Date().toISOString(),
+    user: u ? u.email : '(local)',
+    q: $('question').value,
+    pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
+    useSubdie: $('use_subdie').checked,
+    pB: $('planet_b').value, sB: $('sign_b').value,
+    transitDate: ($('transit_date') && $('transit_date').value) || '',
+  };
+  const all = getRecords();
+  all.unshift(rec);
+  if(all.length > 200) all.pop();
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  updateHistoryCount();
+  if(btn){ btn.textContent = '✓ 已儲存'; btn.disabled = true;
+    setTimeout(()=>{ btn.textContent = '💾 儲存這次結果'; btn.disabled = false; }, 2500); }
+}
+
+function updateHistoryCount(){
+  const c = document.getElementById('history_count');
+  if(c) c.textContent = getRecords().length;
+}
+
+function toggleHistory(){
+  const panel = document.getElementById('history_panel');
+  if(!panel) return;
+  const willOpen = !panel.classList.contains('open');
+  panel.classList.toggle('open', willOpen);
+  if(willOpen) renderHistory();
+}
+
+function renderHistory(){
+  const panel = document.getElementById('history_panel');
+  if(!panel) return;
+  const all = getRecords();
+  let inner = `<span class="hp-close" onclick="toggleHistory()">✕</span><h3>📜 歷史紀錄（${all.length}）</h3>`;
+  if(all.length === 0){
+    inner += `<div class="history-empty">還沒有紀錄。<br>擲骰後按「💾 儲存這次結果」開始</div>`;
+  }else{
+    inner += all.map(r => {
+      const pA = (PLANETS.find(p=>p.id===r.pA)||{}).zh || r.pA;
+      const sA = (SIGNS[r.sA]||{}).zh || r.sA;
+      const subLine = r.useSubdie ? (' · 副骰 ' + ((PLANETS.find(p=>p.id===r.pB)||{}).zh || r.pB) + '+' + ((SIGNS[r.sB]||{}).zh || '')) : '';
+      const dt = new Date(r.ts);
+      const dtStr = dt.getFullYear() + '/' + (dt.getMonth()+1) + '/' + dt.getDate() + ' ' + dt.getHours() + ':' + String(dt.getMinutes()).padStart(2,'0');
+      return `<div class="history-item" onclick="restoreRecord('${r.id}')">
+        <span class="hi-del" onclick="event.stopPropagation();deleteRecord('${r.id}')" title="刪除">✕</span>
+        <div class="hi-time">${dtStr}${r.user !== '(local)' ? ' · ' + r.user : ''}</div>
+        <div class="hi-dice">${pA} · ${sA} · ${r.houseA} 宮${subLine}</div>
+        ${r.q ? `<div class="hi-q">Q: ${r.q}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  panel.innerHTML = inner;
+}
+
+function restoreRecord(id){
+  const r = getRecords().find(x => x.id === id);
+  if(!r) return;
+  $('question').value = r.q || '';
+  $('planet_a').value = r.pA;
+  $('sign_a').value = r.sA;
+  $('house_a').value = r.houseA;
+  $('use_subdie').checked = !!r.useSubdie;
+  toggleSubdie();
+  if(r.useSubdie){ $('planet_b').value = r.pB; $('sign_b').value = r.sB; }
+  toggleHistory();
+  run();
+}
+
+function deleteRecord(id){
+  const all = getRecords().filter(r => r.id !== id);
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  updateHistoryCount();
+  renderHistory();
+}
+
+// Google 登入(GSI credential 流程)
+window.handleGoogleSignIn = function(response){
+  try{
+    const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    const user = { email: payload.email, name: payload.name, picture: payload.picture };
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    updateUserUI();
+    alert('✓ 已登入 ' + user.email + '\n（紀錄將標註你的 email，仍存在此瀏覽器 localStorage）');
+  }catch(e){ alert('登入解析失敗：' + e.message); }
+};
+
+function updateUserUI(){
+  const container = document.getElementById('user_chip_container');
+  if(!container) return;
+  const user = getUser();
+  if(user){
+    const initial = (user.name || user.email).charAt(0).toUpperCase();
+    const avatar = user.picture
+      ? `<img src="${user.picture}" alt="${initial}" onerror="this.outerHTML='<span class=avatar>${initial}</span>'"/>`
+      : `<span class="avatar">${initial}</span>`;
+    container.innerHTML = `<span class="user-chip active" title="${user.email}">${avatar}${user.email.split('@')[0]}<span onclick="signOut()" style="margin-left:6px;cursor:pointer;opacity:.7" title="登出">✕</span></span>`;
+  }else{
+    container.innerHTML = `<button class="user-chip" onclick="promptGoogleSignIn()" title="以 Gmail 登入">🔐 Gmail 登入</button>`;
+  }
+}
+
+function signOut(){
+  localStorage.removeItem(USER_KEY);
+  if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+  updateUserUI();
+}
+
+function promptGoogleSignIn(){
+  if(!GOOGLE_CLIENT_ID){
+    alert('Gmail 登入尚未設定 OAuth Client。\n\n請 Sam 到 https://console.cloud.google.com/apis/credentials\n建立「Web application」OAuth Client ID → Authorized JavaScript origins 加\nhttps://dices.3minstest.com\n然後把 client_id 用 ?gid=<CLIENT_ID> 參數帶進網址。\n\n（不影響儲存紀錄功能，紀錄仍存本機）');
+    return;
+  }
+  if(!window.google || !google.accounts || !google.accounts.id){
+    alert('Google Identity Services 尚未載入,請稍後再試。');
+    return;
+  }
+  google.accounts.id.prompt();
+}
+
+function initGoogleSignIn(){
+  if(!GOOGLE_CLIENT_ID) return;
+  if(typeof google === 'undefined' || !google.accounts || !google.accounts.id){
+    setTimeout(initGoogleSignIn, 500);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: window.handleGoogleSignIn,
+    auto_select: false,
+  });
+}
+
+// ================ 12 宮位意義卡片(西洋 vs 印度對照) ================
+function renderHouseMeanings(){
+  let rows = '';
+  for(let h=1; h<=12; h++){
+    const wt = WESTERN_HOUSE_TITLES[h] || '';
+    const wd = WESTERN_HOUSE_DESC[h] || '';
+    const wsimple = WESTERN_HOUSE[h] || '';
+    const v = VEDIC_HOUSE[h] || '';
+    // 從 vedic 分出 Bhava 名稱 + 描述
+    const vm = v.match(/^(\S+ Bhava) — (.+)$/);
+    const vTitle = vm ? vm[1] : '';
+    const vDesc = vm ? vm[2] : v;
+    rows += `<tr>
+      <td class="hm-num">${h}</td>
+      <td>
+        <div class="hm-title">${wt}</div>
+        <div class="hm-desc">${wd}</div>
+        <div class="muted" style="font-size:11px;margin-top:4px">關鍵詞:${wsimple}</div>
+      </td>
+      <td>
+        ${vTitle ? `<div class="hm-vedic-title">${vTitle}</div>` : ''}
+        <div class="hm-desc">${vDesc}</div>
+      </td>
+    </tr>`;
+  }
+  return `
+    <div class="card house-meanings-card">
+      <details>
+        <summary>📚 12 宮位意義完整對照（西洋 vs 印度）— 點此展開</summary>
+        <div style="overflow-x:auto;margin-top:8px">
+          <table>
+            <thead><tr><th style="width:36px">宮</th><th style="width:50%">西洋（Sam 老師版）</th><th>印度（Bhava）</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="hm-source">
+          西洋源:<a href="https://app.notion.com/p/ec30afe18884417baaba6038fe2eedb5" target="_blank" style="color:var(--muted)">Notion「占星課二階 20231015-14 解宮位星座基本認知」</a>
+          · 印度源:Brihat Parashara Hora Shastra Bhava 體系
+        </div>
+      </details>
+    </div>`;
 }
 
 // 主題切換（記在 localStorage）

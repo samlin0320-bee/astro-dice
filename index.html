@@ -521,6 +521,32 @@ html[data-theme="light"] .ai-side-vedic  {background:linear-gradient(135deg, #ff
 html[data-theme="light"] .ai-side-western .ai-side-title{color:#0f4c85;}
 html[data-theme="light"] .ai-side-vedic   .ai-side-title{color:#b04a08;}
 html[data-theme="light"] .ai-block-text{background-image:linear-gradient(180deg, transparent 65%, #fbecc0 65%);}
+
+/* ============ 議題選項(勾選 + 自填) ============ */
+.topic-picker{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+.tp-title{font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:.03em;}
+.tp-title strong{color:var(--gold);}
+.tp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.tp-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 11px;border-radius:14px;
+  background:var(--card);border:1px solid var(--border);
+  font-size:12px;color:var(--text);cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;
+  user-select:none;line-height:1;
+}
+.tp-chip:hover{border-color:var(--gold);}
+.tp-chip input{position:absolute;opacity:0;pointer-events:none;}
+.tp-chip.checked{
+  background:rgba(212,175,55,.22);border-color:var(--gold);color:var(--gold);
+  font-weight:600;
+}
+html[data-theme="light"] .tp-chip{background:#fff;}
+html[data-theme="light"] .tp-chip.checked{background:#fdf3d8;color:#7a5c00;}
+#topic_custom{width:100%;padding:8px 12px;background:var(--card);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
+html[data-theme="light"] #topic_custom{background:#fff;}
+.tp-hint{font-size:11px;color:var(--muted);margin-top:6px;}
 </style>
 </head>
 <body>
@@ -600,6 +626,25 @@ html[data-theme="light"] .ai-block-text{background-image:linear-gradient(180deg,
                onchange="handleQuestionImage(this.files[0])" />
       </div>
       <div id="q_voice_status" class="muted" style="margin-top:6px;min-height:1em"></div>
+      <div class="topic-picker">
+        <div class="tp-title">🏷 <strong>特殊議題</strong>（選填,多選；點按鈕勾選/取消）</div>
+        <div class="tp-chips" id="topic_chips">
+          <label class="tp-chip"><input type="checkbox" value="愛情 / 感情 / 婚姻"><span>💕 愛情</span></label>
+          <label class="tp-chip"><input type="checkbox" value="事業 / 工作 / 職涯"><span>💼 事業</span></label>
+          <label class="tp-chip"><input type="checkbox" value="財運 / 金錢 / 投資"><span>💰 財運</span></label>
+          <label class="tp-chip"><input type="checkbox" value="健康 / 疾病 / 身體"><span>🏥 健康</span></label>
+          <label class="tp-chip"><input type="checkbox" value="家庭 / 父母 / 不動產"><span>🏠 家庭</span></label>
+          <label class="tp-chip"><input type="checkbox" value="子女 / 創作 / 戀愛"><span>👶 子女</span></label>
+          <label class="tp-chip"><input type="checkbox" value="學業 / 考試 / 短程學習"><span>📚 學業</span></label>
+          <label class="tp-chip"><input type="checkbox" value="遷移 / 長旅 / 出國 / 宗教"><span>✈️ 遷移</span></label>
+          <label class="tp-chip"><input type="checkbox" value="訴訟 / 敵人 / 債務"><span>⚔️ 訴訟</span></label>
+          <label class="tp-chip"><input type="checkbox" value="秘密 / 繼承 / 危機轉化"><span>🔮 秘密/繼承</span></label>
+          <label class="tp-chip"><input type="checkbox" value="朋友 / 社群 / 願望"><span>👥 社群</span></label>
+          <label class="tp-chip"><input type="checkbox" value="靈性 / 修行 / 隱居 / 潛意識"><span>🧘 靈性</span></label>
+        </div>
+        <input id="topic_custom" type="text" placeholder="其他議題(自填,可留空)例:租屋合約、寵物、搬家吉日..." />
+        <div class="tp-hint">💡 選了議題,AI 判讀會針對這些面向側重回答;沒選則泛泛看整體。</div>
+      </div>
     </div>
   </div>
 
@@ -1475,6 +1520,14 @@ function init(){
   updateHistoryCount();
   updateUserUI();
   initGoogleSignIn();
+  // 議題 chip 勾選狀態同步(視覺 label 切換 .checked)
+  document.querySelectorAll('#topic_chips .tp-chip').forEach(chip => {
+    const cb = chip.querySelector('input');
+    if(!cb) return;
+    const sync = () => chip.classList.toggle('checked', cb.checked);
+    cb.addEventListener('change', sync);
+    sync();
+  });
 }
 
 function reset(){
@@ -1673,6 +1726,13 @@ function renderRashiChart(asc, placements){
 }
 
 // ============ 🔮 AI 白話短解（仿測測 App，1-3 句話直答，純新增） ============
+function getSelectedTopics(){
+  const chips = Array.from(document.querySelectorAll('#topic_chips input:checked')).map(i => i.value);
+  const custom = ($('topic_custom') && $('topic_custom').value || '').trim();
+  if(custom) chips.push(custom);
+  return chips;
+}
+
 function renderAIQuickRead(ctx){
   const payload = {
     pA: ctx.pA.id, sA: ctx.sA.id, house_a: ctx.house_a,
@@ -1682,6 +1742,7 @@ function renderAIQuickRead(ctx){
     asc: ctx.ascSign ? ctx.ascSign.id : null,
     lord: ctx.pLord ? ctx.pLord.id : null,
     question: ctx.question || '',
+    topics: getSelectedTopics(),
     transitDate: ctx.transitDateLabel || '',
     transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house})),
   };
@@ -1745,6 +1806,9 @@ ${transitAvailable ? `日期:${payload.transitDate}` : ''}
 
 【問題】
 ${payload.question || '(未特別提問,泛泛看今天/近期整體)'}
+
+【特別關注議題】
+${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（請針對這些面向側重回答,聯繫對應宮位:愛情→7 宮、事業→10 宮、財運→2/11 宮、健康→6 宮、家庭→4 宮、子女→5 宮、學業→3 宮、遷移→9 宮、訴訟→6 宮、秘密繼承→8 宮、社群→11 宮、靈性→12 宮）' : '（未指定議題,泛泛看整體）'}
 
 【輸出格式 — 只回 JSON,不要 markdown、不要 code block、不要前後說明】
 {

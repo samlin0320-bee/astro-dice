@@ -1519,8 +1519,8 @@ function init(){
   $('sign_b').value='3';
   toggleSubdie();  // 副骰預設關閉 → 讓副骰欄位一開始就變灰
   updateHistoryCount();
+  initGoogleSignIn();  // 必須在 updateUserUI 之前:initialize 先完成才能 renderButton
   updateUserUI();
-  initGoogleSignIn();
   // 議題 chip 勾選狀態同步(視覺 label 切換 .checked)
   document.querySelectorAll('#topic_chips .tp-chip').forEach(chip => {
     const cb = chip.querySelector('input');
@@ -2770,17 +2770,21 @@ function updateUserUI(){
   }
 }
 
+let GSI_INITIALIZED = false;
+
 function renderGoogleButton(){
   if(!GOOGLE_CLIENT_ID) return;
   const wrap = document.getElementById('g_signin_btn_wrap');
   const fallback = document.getElementById('g_signin_fallback');
   if(!wrap) return;
-  if(!window.google || !google.accounts || !google.accounts.id){
+  // 必要條件:GSI SDK 已載入 + initialize 已跑
+  if(!window.google || !google.accounts || !google.accounts.id || !GSI_INITIALIZED){
     if(fallback) fallback.style.display = 'inline-flex';
-    setTimeout(renderGoogleButton, 500);
+    initGoogleSignIn();  // 觸發 SDK 檢查/initialize;完成後會回頭 render
     return;
   }
   try{
+    wrap.innerHTML = '';  // 清空避免多次 render 疊加
     google.accounts.id.renderButton(wrap, {
       type:'standard', theme: document.documentElement.getAttribute('data-theme')==='light' ? 'outline' : 'filled_black',
       size:'medium', text:'signin_with', shape:'pill', logo_alignment:'left'
@@ -2837,14 +2841,17 @@ function initGoogleSignIn(){
     setTimeout(initGoogleSignIn, 500);
     return;
   }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: window.handleGoogleSignIn,
-    auto_select: false,
-    use_fedcm_for_prompt: true,  // 用 FedCM(未來 Chrome 強制)
-    itp_support: true,           // Safari ITP 支援
-  });
-  // 未登入時立刻 render 實體按鈕
+  if(!GSI_INITIALIZED){
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: window.handleGoogleSignIn,
+      auto_select: false,
+      use_fedcm_for_prompt: true,  // 用 FedCM(未來 Chrome 強制)
+      itp_support: true,           // Safari ITP 支援
+    });
+    GSI_INITIALIZED = true;
+  }
+  // initialize 完成後 render 實體按鈕(未登入時)
   if(!getUser()) renderGoogleButton();
 }
 

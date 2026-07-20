@@ -2765,7 +2765,7 @@ function updateUserUI(){
     // 未登入 → 顯示 Google 官方 Render Button(比 One Tap 穩)
     // 先給 placeholder,等 GSI ready 才 renderButton
     container.innerHTML = `<div id="g_signin_btn_wrap" style="display:inline-block"></div>
-      <button class="user-chip" id="g_signin_fallback" style="display:none" onclick="promptGoogleSignIn()">🔐 Gmail 登入</button>`;
+      <button class="user-chip" id="g_signin_fallback" style="display:none" onclick="loginWithGoogleOAuth()" title="直接走 OAuth,不用 GSI SDK">🔐 用 Google 登入</button>`;
     renderGoogleButton();
   }
 }
@@ -2799,7 +2799,7 @@ function renderGoogleButton(){
 function showOAuthFallback(btn){
   if(!btn) return;
   btn.style.display = 'inline-flex';
-  btn.textContent = '🔐 用 Google 帳號登入';
+  btn.textContent = '🔐 用 Google 登入';
   btn.title = '傳統 OAuth 流程(會跳到 Google 授權頁再回來)';
   btn.onclick = loginWithGoogleOAuth;
 }

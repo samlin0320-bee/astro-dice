@@ -2777,24 +2777,77 @@ function renderGoogleButton(){
   const wrap = document.getElementById('g_signin_btn_wrap');
   const fallback = document.getElementById('g_signin_fallback');
   if(!wrap) return;
-  // 必要條件:GSI SDK 已載入 + initialize 已跑
+  // 若 GSI 尚未就緒 → 立刻顯示 OAuth fallback 按鈕(絕對可用),同時嘗試載入 GSI
   if(!window.google || !google.accounts || !google.accounts.id || !GSI_INITIALIZED){
-    if(fallback) fallback.style.display = 'inline-flex';
-    initGoogleSignIn();  // 觸發 SDK 檢查/initialize;完成後會回頭 render
+    showOAuthFallback(fallback);
+    initGoogleSignIn();
     return;
   }
   try{
-    wrap.innerHTML = '';  // 清空避免多次 render 疊加
+    wrap.innerHTML = '';
     google.accounts.id.renderButton(wrap, {
       type:'standard', theme: document.documentElement.getAttribute('data-theme')==='light' ? 'outline' : 'filled_black',
       size:'medium', text:'signin_with', shape:'pill', logo_alignment:'left'
     });
     if(fallback) fallback.style.display = 'none';
   }catch(e){
-    if(fallback) fallback.style.display = 'inline-flex';
+    showOAuthFallback(fallback);
     console.warn('GSI renderButton failed', e);
   }
 }
+
+function showOAuthFallback(btn){
+  if(!btn) return;
+  btn.style.display = 'inline-flex';
+  btn.textContent = '🔐 用 Google 帳號登入';
+  btn.title = '傳統 OAuth 流程(會跳到 Google 授權頁再回來)';
+  btn.onclick = loginWithGoogleOAuth;
+}
+
+// ---- OAuth 2.0 Implicit Flow(不依賴 GSI SDK,穩定備用路徑) ----
+function loginWithGoogleOAuth(){
+  if(!GOOGLE_CLIENT_ID){ alert('Client ID 未設定'); return; }
+  const state = 'dices_' + Math.random().toString(36).slice(2, 10);
+  sessionStorage.setItem('gauth_state', state);
+  const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  sessionStorage.setItem('gauth_nonce', nonce);
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: location.origin + location.pathname,
+    response_type: 'id_token',
+    scope: 'openid email profile',
+    state, nonce,
+    prompt: 'select_account',
+  });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+}
+
+// 頁面載入時檢查 URL hash 是否是 Google OAuth 回調
+(function checkOAuthCallback(){
+  if(!location.hash || !location.hash.includes('id_token')) return;
+  try{
+    const p = new URLSearchParams(location.hash.slice(1));
+    const idToken = p.get('id_token');
+    const state = p.get('state');
+    const expectedState = sessionStorage.getItem('gauth_state');
+    if(!idToken){ return; }
+    if(state && expectedState && state !== expectedState){
+      console.warn('OAuth state mismatch, aborting'); return;
+    }
+    const payload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    // nonce 校驗
+    const expectedNonce = sessionStorage.getItem('gauth_nonce');
+    if(expectedNonce && payload.nonce && payload.nonce !== expectedNonce){
+      console.warn('OAuth nonce mismatch, aborting'); return;
+    }
+    const user = { email: payload.email, name: payload.name, picture: payload.picture };
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.removeItem('gauth_state');
+    sessionStorage.removeItem('gauth_nonce');
+    // 清 URL hash
+    history.replaceState(null, '', location.pathname + location.search);
+  }catch(e){ console.warn('OAuth callback parse failed', e); }
+})();
 
 function signOut(){
   localStorage.removeItem(USER_KEY);

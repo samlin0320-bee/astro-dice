@@ -2637,9 +2637,10 @@ function exportCopy(btn){
 // ================ 使用者身分 + 歷史紀錄(localStorage) + Gmail 登入 ================
 const USER_KEY = 'dices_user';
 const RECORDS_KEY = 'dices_records_v1';
-// GCP OAuth 2.0 Client ID(Web application)。Sam 到 https://console.cloud.google.com/apis/credentials
-// 建 Web OAuth Client → Authorized origins 加 https://dices.3minstest.com → 填在這裡或走 URL ?gid=<CID>
-let GOOGLE_CLIENT_ID = '';
+// GCP OAuth 2.0 Client ID(Web application) — 硬編 OK,OAuth Web Client ID 是公開資訊,
+// 保護靠 GCP Console 設定的「Authorized JavaScript origins」白名單(僅 dices.3minstest.com)
+// 要換 client 可用 URL ?gid=<CID> 覆蓋(存 localStorage)
+let GOOGLE_CLIENT_ID = '527208434591-in05qk4a6kn4f84qo8cr77nckk6tqpv3.apps.googleusercontent.com';
 (function ingestGoogleClientId(){
   try{
     const p = new URLSearchParams(location.search);
@@ -2650,7 +2651,9 @@ let GOOGLE_CLIENT_ID = '';
       const clean = location.pathname + (p.toString() ? '?' + p : '') + location.hash;
       history.replaceState(null, '', clean);
     }
-    GOOGLE_CLIENT_ID = localStorage.getItem('google_client_id') || '';
+    // URL 或 localStorage 有值就覆蓋硬編的 default
+    const stored = localStorage.getItem('google_client_id');
+    if(stored) GOOGLE_CLIENT_ID = stored;
   }catch(e){}
 })();
 

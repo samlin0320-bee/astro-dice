@@ -2762,7 +2762,33 @@ function updateUserUI(){
       : `<span class="avatar">${initial}</span>`;
     container.innerHTML = `<span class="user-chip active" title="${user.email}">${avatar}${user.email.split('@')[0]}<span onclick="signOut()" style="margin-left:6px;cursor:pointer;opacity:.7" title="登出">✕</span></span>`;
   }else{
-    container.innerHTML = `<button class="user-chip" onclick="promptGoogleSignIn()" title="以 Gmail 登入">🔐 Gmail 登入</button>`;
+    // 未登入 → 顯示 Google 官方 Render Button(比 One Tap 穩)
+    // 先給 placeholder,等 GSI ready 才 renderButton
+    container.innerHTML = `<div id="g_signin_btn_wrap" style="display:inline-block"></div>
+      <button class="user-chip" id="g_signin_fallback" style="display:none" onclick="promptGoogleSignIn()">🔐 Gmail 登入</button>`;
+    renderGoogleButton();
+  }
+}
+
+function renderGoogleButton(){
+  if(!GOOGLE_CLIENT_ID) return;
+  const wrap = document.getElementById('g_signin_btn_wrap');
+  const fallback = document.getElementById('g_signin_fallback');
+  if(!wrap) return;
+  if(!window.google || !google.accounts || !google.accounts.id){
+    if(fallback) fallback.style.display = 'inline-flex';
+    setTimeout(renderGoogleButton, 500);
+    return;
+  }
+  try{
+    google.accounts.id.renderButton(wrap, {
+      type:'standard', theme: document.documentElement.getAttribute('data-theme')==='light' ? 'outline' : 'filled_black',
+      size:'medium', text:'signin_with', shape:'pill', logo_alignment:'left'
+    });
+    if(fallback) fallback.style.display = 'none';
+  }catch(e){
+    if(fallback) fallback.style.display = 'inline-flex';
+    console.warn('GSI renderButton failed', e);
   }
 }
 
@@ -2772,16 +2798,37 @@ function signOut(){
   updateUserUI();
 }
 
+const GSI_NOT_DISPLAYED_MSG = {
+  browser_not_supported: '瀏覽器不支援 Google 登入(請用 Chrome/Edge/Safari 最新版)',
+  invalid_client: 'OAuth Client ID 無效',
+  missing_client_id: '缺少 Client ID',
+  opt_out_or_no_session: '你的瀏覽器沒有登入 Google 帳號,請先到 gmail.com 登入再回來',
+  secure_http_required: '需要 HTTPS',
+  suppressed_by_user: '你之前關閉過此網站的 Google One Tap 提示。請直接點藍色「Sign in with Google」按鈕登入',
+  unregistered_origin: '這個網址未在 GCP OAuth Console 的 Authorized JavaScript origins 白名單。\n\nSam 需到 https://console.cloud.google.com/apis/credentials 打開該 Client → 「Authorized JavaScript origins」加上完整字串:\nhttps://dices.3minstest.com\n(不能有斜線結尾、不能是 http)',
+  unknown_reason: '未知原因(F12 devtools console 會顯示更詳細訊息)',
+};
+
 function promptGoogleSignIn(){
   if(!GOOGLE_CLIENT_ID){
-    alert('Gmail 登入尚未設定 OAuth Client。\n\n請 Sam 到 https://console.cloud.google.com/apis/credentials\n建立「Web application」OAuth Client ID → Authorized JavaScript origins 加\nhttps://dices.3minstest.com\n然後把 client_id 用 ?gid=<CLIENT_ID> 參數帶進網址。\n\n（不影響儲存紀錄功能，紀錄仍存本機）');
+    alert('Gmail 登入尚未設定 OAuth Client。到 GCP Console 建 Web Client 後填 GOOGLE_CLIENT_ID。');
     return;
   }
   if(!window.google || !google.accounts || !google.accounts.id){
-    alert('Google Identity Services 尚未載入,請稍後再試。');
+    alert('Google Identity Services 尚未載入,請稍後再試(檢查網路是否被擋)。');
     return;
   }
-  google.accounts.id.prompt();
+  google.accounts.id.prompt(notification => {
+    try{
+      if(notification.isNotDisplayed && notification.isNotDisplayed()){
+        const reason = notification.getNotDisplayedReason();
+        alert('Google 登入無法顯示,原因:' + (GSI_NOT_DISPLAYED_MSG[reason] || reason) +
+          '\n\n👉 建議直接點右上藍色「Sign in with Google」按鈕登入(不用 One Tap)。');
+      }else if(notification.isSkippedMoment && notification.isSkippedMoment()){
+        // 使用者點外面關掉 One Tap,不用管
+      }
+    }catch(e){}
+  });
 }
 
 function initGoogleSignIn(){
@@ -2794,7 +2841,11 @@ function initGoogleSignIn(){
     client_id: GOOGLE_CLIENT_ID,
     callback: window.handleGoogleSignIn,
     auto_select: false,
+    use_fedcm_for_prompt: true,  // 用 FedCM(未來 Chrome 強制)
+    itp_support: true,           // Safari ITP 支援
   });
+  // 未登入時立刻 render 實體按鈕
+  if(!getUser()) renderGoogleButton();
 }
 
 // ================ 12 宮位意義卡片(西洋 vs 印度對照) ================

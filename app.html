@@ -397,10 +397,11 @@ html[data-theme="light"] .house-meanings-card tr:nth-child(even) td{background:r
 .rashi-cell .rc-hnum strong{font-size:14px;color:var(--gold);margin-left:2px;}
 .rashi-cell .rc-planets{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto;}
 .rashi-cell .rc-planet{
-  display:inline-flex;align-items:center;gap:2px;
-  padding:1px 5px;border-radius:8px;font-size:11px;font-weight:500;
-  border:1px solid transparent;
+  display:inline-flex;align-items:center;gap:3px;
+  padding:3px 9px;border-radius:10px;font-size:14px;font-weight:600;
+  border:1px solid transparent;line-height:1.2;
 }
+.rashi-cell .rc-planets{gap:4px;}
 /* 行星色 — Vedic Grahas 傳統色(源自 BPHS 寶石對應):
    Surya=紅銅、Chandra=白銀、Kuja=純紅、Budha=祖母綠、Guru=金黃、
    Shukra=鑽白、Shani=藍寶石、Rahu=煙灰、Ketu=棕(雜彩)
@@ -521,6 +522,62 @@ html[data-theme="light"] .ai-side-vedic  {background:linear-gradient(135deg, #ff
 html[data-theme="light"] .ai-side-western .ai-side-title{color:#0f4c85;}
 html[data-theme="light"] .ai-side-vedic   .ai-side-title{color:#b04a08;}
 html[data-theme="light"] .ai-block-text{background-image:linear-gradient(180deg, transparent 65%, #fbecc0 65%);}
+
+/* ============ AI 兩派共識與最終建議(第三段獨立卡) ============ */
+.ai-consensus-card{
+  margin-top:14px;padding:16px 20px;border-radius:12px;
+  background:linear-gradient(135deg, rgba(212,175,55,.14) 0%, rgba(154,213,255,.08) 50%, rgba(255,154,60,.10) 100%);
+  border:1px solid rgba(212,175,55,.6);
+}
+.aic-title{
+  font-size:14px;font-weight:700;color:var(--gold);letter-spacing:.05em;
+  margin-bottom:10px;display:flex;align-items:center;gap:6px;
+}
+.aic-section{margin-bottom:10px;}
+.aic-section:last-of-type{margin-bottom:0;}
+.aic-label{font-size:12px;font-weight:600;margin-bottom:5px;letter-spacing:.03em;}
+.aic-intersect .aic-label{color:#7fd67f;}
+.aic-diverge .aic-label{color:var(--muted);}
+.aic-final .aic-label{color:var(--gold);}
+.aic-section ul{margin:0;padding-left:20px;list-style-type:'▸ ';}
+.aic-section li{font-size:13px;line-height:1.75;color:var(--text);margin-bottom:3px;}
+.aic-final{
+  border-top:1px dashed rgba(212,175,55,.5);padding-top:10px;margin-top:12px;
+}
+.aic-final-text{
+  font-size:14.5px;line-height:1.85;color:var(--text);
+  background-image:linear-gradient(180deg, transparent 60%, rgba(212,175,55,.25) 60%);
+  padding:2px 4px;white-space:pre-wrap;
+}
+html[data-theme="light"] .ai-consensus-card{
+  background:linear-gradient(135deg, #fff9e0, #eaf5ff, #fff2e6);
+  border-color:#d4a017;
+}
+html[data-theme="light"] .aic-intersect .aic-label{color:#1a6b1a;}
+html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg, transparent 60%, #fdedb8 60%);}
+
+/* ============ 相位表:卦象主導行星色強調 ============ */
+.aspect-table tr.aspect-key td:first-child{
+  box-shadow:inset 5px 0 0 var(--key-color, #d4a017);
+  padding-left:14px !important;
+}
+.aspect-table tr.aspect-key-kyo{
+  background:color-mix(in srgb, var(--key-color, #ff5a5a) 14%, transparent);
+}
+.aspect-table tr.aspect-key-kyo td{
+  color:var(--key-color, #ff5a5a);font-weight:600;
+}
+.aspect-table tr.aspect-key-kyo td .muted{color:inherit;opacity:.75;}
+.aspect-key-legend{
+  display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--muted);
+  margin-bottom:10px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:6px;
+}
+.aspect-key-legend .akl-chip{
+  display:inline-flex;align-items:center;gap:5px;
+}
+.aspect-key-legend .akl-sw{
+  width:14px;height:14px;border-radius:3px;display:inline-block;
+}
 
 /* ============ 五星飛兩宮:cell 內含西/印含義,議題相關用彩虹字強調 ============ */
 .flying-houses .fh-cell{
@@ -1907,6 +1964,11 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
     "lord_relation": "1-2 句白話,命主星(Lagna Lord、傳統七曜守護)跟這對雙星的關係,對『你』意味著什麼",
     "transit": "1-2 句白話,${transitAvailable ? '對照當前行運印度視角(Gochara、行星映射)的呼應' : '未帶入當前行運資料,無法對照天上真實星象'}",
     "advice": "1-2 句白話,印度派的具體可行動作,不模糊兩可"
+  },
+  "consensus": {
+    "intersection": ["1-3 句白話陣列,列出西洋派與印度派『真正指向同一件事』的共通點,每項獨立一句(若兩派幾乎沒重疊就給空陣列 [])"],
+    "divergence": ["1-2 句白話陣列,列出兩派『明顯分歧』的地方,協助判讀(可空 [])"],
+    "final_advice": "綜合兩派給出的『交集事件建議』2-3 句白話。若兩派共識明確,就照共識;若分歧大,說明何時採西洋、何時採印度。要具體、可行、不模糊。"
   }
 }
 
@@ -1957,6 +2019,29 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
       </div>`;
     if(parsed && parsed.western && parsed.vedic){
       const w = parsed.western, v = parsed.vedic;
+      const c = parsed.consensus || {};
+      const inter = Array.isArray(c.intersection) ? c.intersection.filter(x=>x && x.trim()) : [];
+      const diverge = Array.isArray(c.divergence) ? c.divergence.filter(x=>x && x.trim()) : [];
+      const finalAdvice = c.final_advice || '';
+      const consensusHTML = (inter.length || diverge.length || finalAdvice) ? `
+        <div class="ai-consensus-card">
+          <div class="aic-title">🌈 兩派共識 · 交集事件 · 最終建議</div>
+          ${inter.length ? `
+            <div class="aic-section aic-intersect">
+              <div class="aic-label">✓ 兩派共通點(交集事件)</div>
+              <ul>${inter.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+            </div>` : ''}
+          ${diverge.length ? `
+            <div class="aic-section aic-diverge">
+              <div class="aic-label">⚖ 兩派分歧點</div>
+              <ul>${diverge.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+            </div>` : ''}
+          ${finalAdvice ? `
+            <div class="aic-final">
+              <div class="aic-label">💡 綜合建議</div>
+              <div class="aic-final-text">${esc(finalAdvice)}</div>
+            </div>` : ''}
+        </div>` : '';
       body.innerHTML = `
         <div class="ai-two-col">
           <div class="ai-side ai-side-western">
@@ -1974,6 +2059,7 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
             ${block('💡 建議', v.advice)}
           </div>
         </div>
+        ${consensusHTML}
         <div class="ai-quick-hint">${usedModel} · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
     }else{
       // JSON 解析失敗 fallback:直接顯示原文
@@ -2421,7 +2507,15 @@ const VEDIC_SPECIAL = {
   saturn:  [{d:2, label:'土星 3 宮特殊相位'}, {d:9, label:'土星 10 宮特殊相位'}],
 };
 
-function aspectsHTML(placements){
+// Vedic Grahas 傳統色(對應 .rc-planet.rp-* CSS,用來標示卦象主導行星)
+const PLANET_COLOR = {
+  sun:'#c74a2e', moon:'#c8c8d8', mars:'#c22020', mercury:'#2e8a52',
+  jupiter:'#d4a017', venus:'#c8b8a0', saturn:'#4a5f9a',
+  rahu:'#5a5a5a', ketu:'#8a5a3a',
+  uranus:'#5ab0f0', neptune:'#4a7ac8', pluto:'#8b2e6e',
+};
+
+function aspectsHTML(placements, mainPid, subPid){
   const aspects = [];
   for(let i=0; i<placements.length; i++){
     for(let j=i+1; j<placements.length; j++){
@@ -2451,10 +2545,22 @@ function aspectsHTML(placements){
     }
   });
 
+  const mainColor = PLANET_COLOR[mainPid] || '#d4a017';
+  const subColor  = PLANET_COLOR[subPid]  || '#9ad5ff';
+
   const renderRow = asp=>{
     const pa = findPlanet(asp.a.pid);
     const pb = findPlanet(asp.b.pid);
-    return `<tr>
+    const isMainInvolved = asp.a.pid === mainPid || asp.b.pid === mainPid;
+    const isSubInvolved  = subPid && (asp.a.pid === subPid || asp.b.pid === subPid);
+    const isKyo = asp.info && asp.info.cls === 'kyo';
+    const isKey = isMainInvolved || isSubInvolved;
+    const keyColor = isMainInvolved ? mainColor : (isSubInvolved ? subColor : '');
+    const classes = ['aspect-row'];
+    if(isKey) classes.push('aspect-key');
+    if(isKey && isKyo) classes.push('aspect-key-kyo');
+    const style = keyColor ? ` style="--key-color:${keyColor}"` : '';
+    return `<tr class="${classes.join(' ')}"${style}>
       <td><span class="muted">${asp.a.source}</span> ${pa.sym}${pa.zh}</td>
       <td>${asp.info ? asp.info.name : '<span class="muted">無西洋相位</span>'}</td>
       <td><span class="muted">${asp.b.source}</span> ${pb.sym}${pb.zh}</td>
@@ -2462,13 +2568,24 @@ function aspectsHTML(placements){
     </tr>`;
   };
 
+  const mainName = mainPid ? (findPlanet(mainPid) || {}).zh : '';
+  const subName  = subPid  ? (findPlanet(subPid)  || {}).zh : '';
+  const legend = `
+    <div class="aspect-key-legend">
+      <span>本卦主導色:</span>
+      ${mainPid ? `<span class="akl-chip"><span class="akl-sw" style="background:${mainColor}"></span>主骰 ${mainName}</span>` : ''}
+      ${subPid  ? `<span class="akl-chip"><span class="akl-sw" style="background:${subColor}"></span>副骰 ${subName}</span>` : ''}
+      <span>← 涉及主/副骰的相位用該色標左邊條;若同時是凶相位則整列該色底(視為「卦象關鍵凶相位」)</span>
+    </div>`;
+
   let html = `
     <div class="card">
       <div class="card-title">⚔ 全相位吉凶分類（整宮制 + 印度特殊相位）</div>
       <div class="muted" style="margin-bottom:12px">
         共 ${aspects.length} 組有效相位（鄰宮 2 宮 / 12 宮無相位除外）。<br>
         西洋整宮制 + 印度特殊相位（火 4/8、木 5/9、土 3/10）並列。
-      </div>`;
+      </div>
+      ${legend}`;
 
   if(groups.kichi.length){
     html += `<h4 style="color:#90ee90;margin:12px 0 6px">✓ 吉相位 · ${groups.kichi.length} 組</h4>`;
@@ -2658,7 +2775,7 @@ function run(){
     </div>
     ${houseChartHTML(asc, placements)}
     ${flyingHousesHTML(asc, getSelectedTopics())}
-    ${aspectsHTML(placements)}
+    ${aspectsHTML(placements, pA.id, (useSubdie && pB) ? pB.id : null)}
     ${renderVedicRules(asc, placements)}
     ${renderAIDeepRead({
       pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question,

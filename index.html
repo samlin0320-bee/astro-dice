@@ -2805,22 +2805,41 @@ function showOAuthFallback(btn){
   btn.onclick = loginWithGoogleOAuth;
 }
 
-// ---- OAuth 2.0 Implicit Flow(不依賴 GSI SDK,穩定備用路徑) ----
+// ---- GSI OAuth2 Popup Mode(不需要 redirect_uri,只要 JavaScript origins) ----
+let _tokenClient = null;
 function loginWithGoogleOAuth(){
-  if(!GOOGLE_CLIENT_ID){ alert('Client ID 未設定'); return; }
-  const state = 'dices_' + Math.random().toString(36).slice(2, 10);
-  sessionStorage.setItem('gauth_state', state);
-  const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  sessionStorage.setItem('gauth_nonce', nonce);
-  const params = new URLSearchParams({
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: location.origin + location.pathname,
-    response_type: 'id_token',
-    scope: 'openid email profile',
-    state, nonce,
-    prompt: 'select_account',
-  });
-  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  if(!GOOGLE_CLIENT_ID){ alert('Client ID 未設'); return; }
+  if(!window.google || !google.accounts || !google.accounts.oauth2){
+    alert('Google SDK 尚未載入,請 3 秒後再點一次(檢查網路/擋廣告擴充)');
+    return;
+  }
+  if(!_tokenClient){
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: async (tokenResponse) => {
+        if(tokenResponse.error){
+          alert('Google OAuth 錯誤:' + tokenResponse.error + '\n' + (tokenResponse.error_description || ''));
+          return;
+        }
+        try{
+          const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: 'Bearer ' + tokenResponse.access_token }
+          });
+          if(!r.ok) throw new Error('userinfo HTTP ' + r.status);
+          const u = await r.json();
+          const user = { email: u.email, name: u.name, picture: u.picture };
+          localStorage.setItem(USER_KEY, JSON.stringify(user));
+          updateUserUI();
+        }catch(e){ alert('取使用者資料失敗:' + e.message); }
+      },
+      error_callback: (err) => {
+        if(err && err.type === 'popup_closed'){ return; }  // 使用者關 popup,不用警告
+        alert('Google 授權失敗:' + (err.message || err.type || 'unknown'));
+      }
+    });
+  }
+  _tokenClient.requestAccessToken({prompt: 'select_account'});
 }
 
 // 頁面載入時檢查 URL hash 是否是 Google OAuth 回調

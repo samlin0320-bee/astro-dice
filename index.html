@@ -522,6 +522,53 @@ html[data-theme="light"] .ai-side-western .ai-side-title{color:#0f4c85;}
 html[data-theme="light"] .ai-side-vedic   .ai-side-title{color:#b04a08;}
 html[data-theme="light"] .ai-block-text{background-image:linear-gradient(180deg, transparent 65%, #fbecc0 65%);}
 
+/* ============ 五星飛兩宮:cell 內含西/印含義,議題相關用彩虹字強調 ============ */
+.flying-houses .fh-cell{
+  display:flex;flex-direction:column;gap:4px;
+  padding:6px 8px;border-radius:6px;position:relative;
+}
+.fh-cell .fh-house{font-size:13px;font-weight:600;color:var(--text);}
+.fh-cell .fh-house .fh-hn{color:var(--gold);font-weight:700;}
+.fh-cell .fh-meaning{font-size:11px;line-height:1.5;display:flex;flex-direction:column;gap:1px;}
+.fh-cell .fh-west{color:var(--western);}
+.fh-cell .fh-west::before{content:"西 ";color:var(--muted);font-size:10px;}
+.fh-cell .fh-vedic{color:var(--vedic);}
+.fh-cell .fh-vedic::before{content:"印 ";color:var(--muted);font-size:10px;}
+
+/* 議題相關 → 彩虹漸層字動畫 */
+@keyframes rainbow-shift{
+  0%{background-position:0% 50%}
+  100%{background-position:200% 50%}
+}
+.fh-cell.topic-match .fh-house,
+.fh-cell.topic-match .fh-west,
+.fh-cell.topic-match .fh-vedic{
+  background:linear-gradient(90deg,#ff5a5a,#ff9930,#ffe040,#4caf70,#5ab0f0,#a070ff,#ff5aa0,#ff5a5a);
+  background-size:200% 100%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent !important;
+  font-weight:700;
+  animation:rainbow-shift 4s linear infinite;
+}
+.fh-cell.topic-match .fh-west::before,
+.fh-cell.topic-match .fh-vedic::before{color:var(--muted);-webkit-text-fill-color:currentColor;}
+/* 議題相關 + 凶宮(6/8/12) → 彩虹字 + 淡紅底雙重強調 */
+.fh-cell.topic-match.fh-dush{
+  background:rgba(255,90,90,.14);
+  box-shadow:inset 0 0 0 2px rgba(255,90,60,.55);
+}
+/* 純凶宮(未命中議題)→ 淡淺紅底 */
+.fh-cell.fh-dush{background:rgba(255,120,120,.08);}
+html[data-theme="light"] .fh-cell.fh-dush{background:#ffe3dc;}
+html[data-theme="light"] .fh-cell.topic-match.fh-dush{background:#ffd0c8;}
+
+.fh-legend{font-size:11px;color:var(--muted);margin-top:8px;display:flex;flex-wrap:wrap;gap:12px;}
+.fh-legend .fl-rainbow{
+  background:linear-gradient(90deg,#ff5a5a,#ff9930,#ffe040,#4caf70,#5ab0f0,#a070ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700;
+}
+
 /* ============ 議題選項(勾選 + 自填) ============ */
 .topic-picker{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
 .tp-title{font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:.03em;}
@@ -2277,13 +2324,41 @@ function houseChartHTML(asc, placements){
     </div>`;
 }
 
-function flyingHousesHTML(asc){
+// 議題關鍵字 → 對應宮位(用於飛宮判讀「跟你關心的議題相關」高亮)
+const TOPIC_HOUSE_MAP = {
+  '愛情':[7],'感情':[7],'婚姻':[7],
+  '事業':[10],'工作':[10],'職涯':[10],
+  '財運':[2,11],'金錢':[2],'投資':[2,11],
+  '健康':[6],'疾病':[6],'身體':[6],
+  '家庭':[4],'父母':[4],'不動產':[4],
+  '子女':[5],'創作':[5],'戀愛':[5],
+  '學業':[3],'考試':[3],'短程':[3],
+  '遷移':[9],'長旅':[9],'出國':[9],'宗教':[9],
+  '訴訟':[6],'敵人':[6],'債務':[6],
+  '秘密':[8],'繼承':[8],'危機':[8],'轉化':[8],
+  '朋友':[11],'社群':[11],'願望':[11],
+  '靈性':[12],'修行':[12],'隱居':[12],'潛意識':[12],
+  '警察':[6,8,10],'刑警':[6,8,10],'報案':[6,8],'案件':[6,8],'治安':[6,10],
+};
+function topicsToHouseSet(topics){
+  const s = new Set();
+  (topics||[]).forEach(t => {
+    Object.entries(TOPIC_HOUSE_MAP).forEach(([kw, hs]) => {
+      if(t.includes(kw)) hs.forEach(h => s.add(h));
+    });
+  });
+  return s;
+}
+
+function flyingHousesHTML(asc, topics){
   const dual = ['mars','venus','mercury','jupiter','saturn'];
   const ruled = {};
   for(let s=0; s<12; s++){
     const r = TRADITIONAL_RULER[s];
     (ruled[r] = ruled[r] || []).push(s);
   }
+  const topicHouses = topicsToHouseSet(topics);
+  const dushHouses = new Set([6, 8, 12]);
   let rows = '';
   dual.forEach(pid=>{
     const p = findPlanet(pid);
@@ -2291,19 +2366,37 @@ function flyingHousesHTML(asc){
     const cells = signs.map(sId=>{
       const sn = findSign(sId);
       const hs = houseOfSign(sId, asc);
-      return `<strong>第 ${hs} 宮</strong>（${sn.sym}${sn.zh}）`;
-    }).join(' ／ ');
-    rows += `<tr><td><strong>${p.sym} ${p.zh}</strong></td><td>${cells}</td></tr>`;
+      const isTopic = topicHouses.has(hs);
+      const isDush = dushHouses.has(hs);
+      const wTitle = WESTERN_HOUSE_TITLES[hs] || '';
+      const vTitle = (VEDIC_HOUSE[hs] || '').split('—')[0].trim() ||
+                     (VEDIC_HOUSE[hs] || '').split('—').slice(1).join('—').trim();
+      const cls = ['fh-cell', isTopic ? 'topic-match' : '', isDush ? 'fh-dush' : ''].filter(Boolean).join(' ');
+      return `<td><div class="${cls}">
+        <div class="fh-house"><span class="fh-hn">第 ${hs} 宮</span> ${sn.sym}${sn.zh}${isDush ? ' <span style="color:#ff5a5a;font-size:10px">凶</span>' : ''}</div>
+        <div class="fh-meaning">
+          <span class="fh-west">${wTitle}</span>
+          <span class="fh-vedic">${vTitle}</span>
+        </div>
+      </div></td>`;
+    }).join('');
+    rows += `<tr><td><strong>${p.sym} ${p.zh}</strong></td>${cells}</tr>`;
   });
+  const hasTopics = topicHouses.size > 0;
   return `
     <div class="card">
-      <div class="card-title">🔭 五星飛兩宮（火金水木土）</div>
-      <div class="muted" style="margin-bottom:12px">這五顆傳統行星各守護兩個星座，看它們飛到哪兩個宮是飛宮判讀的核心。</div>
+      <div class="card-title">🔭 五星飛兩宮（火金水木土）— 各宮西洋 vs 印度含義</div>
+      <div class="muted" style="margin-bottom:12px">五顆傳統行星各守護兩個星座,看飛到哪兩個宮是判讀核心。每宮附西洋(Sam 老師版)+印度 Bhava 含義。</div>
       <div style="overflow-x:auto">
         <table class="flying-houses">
-          <thead><tr><th>行星</th><th>飛兩宮</th></tr></thead>
+          <thead><tr><th style="width:80px">行星</th><th>宮位 A</th><th>宮位 B</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
+      </div>
+      <div class="fh-legend">
+        ${hasTopics ? `<span><span class="fl-rainbow">彩虹字</span>=跟你勾選議題相關的宮位</span>` : `<span class="muted">(未勾選議題,關聯高亮未啟用)</span>`}
+        <span><span style="color:#ff5a5a">■ 淡紅底</span>=6/8/12 凶宮</span>
+        <span>兩者疊加=議題正落在凶宮(需特別注意)</span>
       </div>
     </div>`;
 }
@@ -2564,7 +2657,7 @@ function run(){
       </div>
     </div>
     ${houseChartHTML(asc, placements)}
-    ${flyingHousesHTML(asc)}
+    ${flyingHousesHTML(asc, getSelectedTopics())}
     ${aspectsHTML(placements)}
     ${renderVedicRules(asc, placements)}
     ${renderAIDeepRead({

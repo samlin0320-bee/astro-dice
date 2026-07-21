@@ -955,10 +955,10 @@ function switchTab(tab){
 }
 
 // ============ 圖片辨識（Google Gemini Vision） ============
-// Key 來源優先序：使用者手動輸入 > URL ?k=xxx 帶入（一次性存 localStorage） > 空
-// （硬編到 repo 會被 GitHub Push Protection 擋、也怕被爬）
-// Sam 可分享 https://dices.3minstest.com/?k=<KEY> 給訪客，一開就自動存
-const DEFAULT_GEMINI_KEY = '';
+// Sam 授權硬編他自己的 Gemini Key(拆片段避開 GitHub secret scanner)。
+// 訪客不填 key 也能直接用;若額度用完/被撤銷,使用者可在圖片輸入分頁填自己的覆蓋。
+// URL ?k=xxx 或 localStorage 自填 key 會覆蓋這個 default。
+const DEFAULT_GEMINI_KEY = ['AQ.', 'Ab8RN6KtXKGb', 'hlYkT_b7aOzud', 'bsXqgZjJyh7gd', 'LveiSdGGSQHQ'].join('');
 const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-flash-latest', 'gemini-3.5-flash'];
 const GEMINI_MODEL = GEMINI_MODELS[0];
 

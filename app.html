@@ -1,0 +1,2986 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>占星骰子 · 五骰判讀</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{
+  --bg:#1a0d2e;
+  --bg-2:#2a1545;
+  --card:#3a1f5d;
+  --gold:#d4af37;
+  --gold-soft:#b8941f;
+  --text:#f0e6d2;
+  --muted:#a89dc7;
+  --vedic:#ff9a3c;
+  --western:#9ad5ff;
+  --warn:#ff6b9d;
+  --border:#4a2d6f;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%);
+  color:var(--text);
+  min-height:100vh;
+  padding:24px;
+}
+.container{max-width:1100px;margin:0 auto}
+h1{
+  text-align:center;
+  font-weight:400;
+  font-size:28px;
+  letter-spacing:.05em;
+  margin-bottom:4px;
+}
+.subtitle{text-align:center;color:var(--muted);margin-top:0;font-size:14px}
+.tabs{display:flex;gap:8px;margin:24px 0 16px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.tab{
+  padding:8px 16px;border-radius:6px;cursor:pointer;
+  color:var(--muted);background:transparent;border:none;font-size:14px;
+}
+.tab.active{background:var(--card);color:var(--gold)}
+.tab[disabled]{opacity:.4;cursor:not-allowed}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:16px;
+}
+.card-title{
+  font-size:15px;
+  color:var(--gold);
+  margin:0 0 12px;
+  display:flex;align-items:center;gap:8px;
+}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.field select,.field input{
+  width:100%;padding:10px 12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:6px;
+  font-size:14px;
+  font-family:inherit;
+}
+.btn{
+  display:inline-block;padding:12px 32px;
+  background:linear-gradient(180deg,var(--gold) 0%,var(--gold-soft) 100%);
+  color:#1a0d2e;border:none;border-radius:8px;
+  font-size:16px;font-weight:500;cursor:pointer;
+  letter-spacing:.05em;
+}
+.btn:hover{filter:brightness(1.1)}
+.btn-ghost{background:transparent;border:1px solid var(--gold);color:var(--gold);padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;margin-left:8px}
+.center{text-align:center;margin:24px 0}
+.dice-display{
+  display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:16px 0;
+}
+.die{
+  background:var(--bg);border:2px solid var(--gold);
+  border-radius:12px;width:96px;height:96px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.die .label{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}
+.die-symbol{font-size:36px;line-height:1;color:var(--gold)}
+.die.b{border-color:var(--western)}
+.die.b .die-symbol{color:var(--western)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:800px){.two-col{grid-template-columns:1fr}}
+.col-western,.col-vedic{padding:12px 14px;border-radius:8px;background:rgba(0,0,0,.15)}
+.col-western{border-top:3px solid var(--western)}
+.col-vedic{border-top:3px solid var(--vedic)}
+.col-header{font-size:16px;font-weight:500;margin:0 0 12px}
+.col-header.western{color:var(--western)}
+.col-header.vedic{color:var(--vedic)}
+.judgment{font-size:14px;line-height:1.7}
+.judgment h4{
+  font-size:13px;color:var(--gold);margin:14px 0 4px;
+  letter-spacing:.05em;
+}
+.judgment h4:first-child{margin-top:0}
+.judgment p{margin:0 0 6px;color:var(--text)}
+.tag{
+  display:inline-block;padding:2px 8px;font-size:11px;border-radius:4px;
+  margin-right:4px;margin-bottom:2px;
+}
+.tag-exalt{background:#2d5a2d;color:#90ee90}
+.tag-fall{background:#5a2d3a;color:#ff8888}
+.tag-own{background:#5a4a2d;color:#ffd87f}
+.tag-detri{background:#5a2d4a;color:#ff99c8}
+.tag-dusthana{background:#5a2d2d;color:#ff9999}
+.tag-kendra{background:#2d4a5a;color:#90c8e0}
+.tag-trikona{background:#5a4a2d;color:#ffd87f}
+.tag-upachaya{background:#3d5a2d;color:#bcef90}
+.warn-box{
+  background:rgba(255,107,157,.1);
+  border-left:3px solid var(--warn);
+  padding:12px 16px;border-radius:4px;
+  font-size:13px;color:var(--text);
+  margin:0 0 16px;
+}
+.muted{color:var(--muted);font-size:12px}
+.hidden{display:none}
+.transit-summary{
+  background:var(--bg);border-radius:8px;padding:14px;
+  font-size:13px;line-height:1.8;
+}
+.transit-summary strong{color:var(--gold)}
+.footer{
+  text-align:center;color:var(--muted);font-size:12px;margin-top:32px;
+  padding-top:16px;border-top:1px solid var(--border);
+}
+.backnav{display:flex;justify-content:center;gap:16px;margin-bottom:12px;font-size:13px}
+.backnav a{color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:16px;padding:4px 14px;transition:color .2s,border-color .2s}
+.backnav a:hover{color:var(--gold);border-color:var(--gold)}
+.placeholder-ai{
+  background:linear-gradient(135deg,#3a1f5d 0%,#2a1545 100%);
+  border:1px dashed var(--gold);
+  padding:16px;border-radius:8px;text-align:center;
+}
+.placeholder-ai .ai-title{color:var(--gold);font-size:14px}
+.placeholder-ai .ai-desc{color:var(--muted);font-size:12px;margin-top:4px}
+.alert{color:#ff9999;font-size:13px}
+.btn-deep{
+  width:100%;padding:14px;
+  background:var(--bg);border:2px solid var(--gold);
+  color:var(--text);border-radius:8px;cursor:pointer;
+  font-size:14px;font-family:inherit;
+  transition:all .15s;
+}
+.btn-deep:hover{background:var(--gold);color:var(--bg)}
+.btn-deep:disabled{opacity:.6;cursor:not-allowed}
+.btn-deep.western{border-color:var(--western)}
+.btn-deep.western:hover{background:var(--western)}
+.btn-deep.vedic{border-color:var(--vedic)}
+.btn-deep.vedic:hover{background:var(--vedic)}
+.prompt-preview{
+  background:var(--bg);border-radius:6px;padding:12px;
+  font-size:11px;line-height:1.5;color:var(--muted);
+  white-space:pre-wrap;word-break:break-word;
+  max-height:340px;overflow-y:auto;
+  font-family:"Consolas","Microsoft JhengHei",monospace;
+}
+.prompt-preview.western{border-left:3px solid var(--western)}
+.prompt-preview.vedic{border-left:3px solid var(--vedic)}
+table.house-chart, table.flying-houses, table.aspect-table{
+  width:100%;border-collapse:collapse;font-size:13px;
+}
+table.house-chart th, table.flying-houses th, table.aspect-table th{
+  background:var(--bg);color:var(--gold);
+  padding:8px 10px;text-align:left;
+  border-bottom:2px solid var(--border);
+  font-weight:500;font-size:12px;
+  position:sticky;top:0;
+}
+table.house-chart td, table.flying-houses td, table.aspect-table td{
+  padding:6px 10px;border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+table.house-chart tr:hover, table.flying-houses tr:hover, table.aspect-table tr:hover{
+  background:rgba(212,175,55,.05);
+}
+.dot-main{color:var(--gold)}
+.dot-sub{color:var(--western)}
+.dot-transit{color:var(--muted)}
+.house-row-dusthana{background:rgba(255,107,157,.08)}
+.house-row-kendra{background:rgba(154,213,255,.06)}
+.house-row-trikona{background:rgba(212,175,55,.06)}
+.house-row-asc{box-shadow:inset 3px 0 0 var(--gold)}
+
+/* ================ 12 宮位表：亮/暗雙主題 + 象位/宮性/凶宮/行星強調 ================ */
+/* 亮主題（切換按鈕觸發） */
+html[data-theme="light"]{
+  --bg:#f5f1e8;
+  --bg-2:#ffffff;
+  --card:#ffffff;
+  --gold:#8a6a15;
+  --gold-soft:#6a4f00;
+  --text:#1c1a15;
+  --muted:#6b6674;
+  --border:#d6cfc0;
+  --western:#0f4c85;
+  --vedic:#b04a08;
+  --warn:#a3003c;
+}
+html[data-theme="light"] body{
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%);
+}
+html[data-theme="light"] .card{
+  background:var(--card);
+  border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+}
+html[data-theme="light"] .field select,
+html[data-theme="light"] .field input,
+html[data-theme="light"] input,
+html[data-theme="light"] select{
+  background:#ffffff;color:var(--text);border:1px solid var(--border);
+}
+html[data-theme="light"] .tag-exalt{background:#d6ecd6;color:#256b25}
+html[data-theme="light"] .tag-fall{background:#f2d6dc;color:#a3003c}
+html[data-theme="light"] .tag-own{background:#f2e6c2;color:#8a6a15}
+html[data-theme="light"] .tag-detri{background:#f2d6e5;color:#a03060}
+html[data-theme="light"] .tag-dusthana{background:#f7d6d6;color:#a3003c}
+html[data-theme="light"] .tag-kendra{background:#d6e4f2;color:#1a5a99}
+html[data-theme="light"] .tag-trikona{background:#f2e6c2;color:#8a6a15}
+html[data-theme="light"] .tag-upachaya{background:#dcecc9;color:#4d6b1a}
+
+/* 主題切換按鈕 */
+.theme-toggle{
+  position:fixed;top:16px;right:16px;z-index:100;
+  background:transparent;border:1px solid var(--gold);color:var(--gold);
+  border-radius:20px;padding:6px 14px;cursor:pointer;font-size:13px;font-family:inherit;
+  transition:background .2s,color .2s;
+}
+.theme-toggle:hover{background:var(--gold);color:var(--bg)}
+
+/* 12 宮位表:同象位同背景色(火/土/風/水)— 暗主題 alpha 降回 .14 保 pl-mars/pl-saturn 對比 */
+table.house-chart tr.elem-fire  td{background:rgba(255,90,60,.14);}   /* 火:紅 */
+table.house-chart tr.elem-earth td{background:rgba(220,180,60,.14);}  /* 土:黃 */
+table.house-chart tr.elem-air   td{background:rgba(100,170,230,.14);} /* 風:藍 */
+table.house-chart tr.elem-water td{background:rgba(80,180,180,.14);}  /* 水:青 */
+html[data-theme="light"] table.house-chart tr.elem-fire  td{background:#ffdcd0;}
+html[data-theme="light"] table.house-chart tr.elem-earth td{background:#fff2c8;}
+html[data-theme="light"] table.house-chart tr.elem-air   td{background:#d5e6f5;}
+html[data-theme="light"] table.house-chart tr.elem-water td{background:#c8e6e6;}
+
+/* 象位左側色條 */
+table.house-chart tr.elem-fire  td:first-child{box-shadow:inset 4px 0 0 #ff6e3c;}
+table.house-chart tr.elem-earth td:first-child{box-shadow:inset 4px 0 0 #7ec44b;}
+table.house-chart tr.elem-air   td:first-child{box-shadow:inset 4px 0 0 #6ab8f0;}
+table.house-chart tr.elem-water td:first-child{box-shadow:inset 4px 0 0 #b47fdc;}
+table.house-chart tr.house-row-asc.elem-fire  td:first-child{box-shadow:inset 4px 0 0 #ff6e3c, inset 8px 0 0 var(--gold);}
+table.house-chart tr.house-row-asc.elem-earth td:first-child{box-shadow:inset 4px 0 0 #7ec44b, inset 8px 0 0 var(--gold);}
+table.house-chart tr.house-row-asc.elem-air   td:first-child{box-shadow:inset 4px 0 0 #6ab8f0, inset 8px 0 0 var(--gold);}
+table.house-chart tr.house-row-asc.elem-water td:first-child{box-shadow:inset 4px 0 0 #b47fdc, inset 8px 0 0 var(--gold);}
+
+/* 6/8/12 宮 Dusthana 淡淺紅（覆蓋象位色，用 !important；壓淡以留給紅/橘字對比空間） */
+table.house-chart tr.dush-house td{
+  background:rgba(255,120,120,.10) !important;
+}
+html[data-theme="light"] table.house-chart tr.dush-house td{
+  background:rgba(255,180,180,.28) !important;
+}
+table.house-chart tr.dush-house td:first-child{
+  box-shadow:inset 4px 0 0 #ff5a5a !important;
+}
+table.house-chart tr.dush-house.house-row-asc td:first-child{
+  box-shadow:inset 4px 0 0 #ff5a5a, inset 8px 0 0 var(--gold) !important;
+}
+
+/* 始/續/果宮 標籤 */
+.quality-tag{
+  display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;
+  font-weight:600;letter-spacing:.05em;white-space:nowrap;
+}
+.q-angular{background:rgba(212,175,55,.22);color:#e6c14e;border:1px solid rgba(212,175,55,.55);}
+.q-succedent{background:rgba(154,213,255,.20);color:#9ad5ff;border:1px solid rgba(154,213,255,.45);}
+.q-cadent{background:rgba(200,200,200,.14);color:#c8c8c8;border:1px solid rgba(200,200,200,.35);}
+html[data-theme="light"] .q-angular{background:rgba(212,175,55,.22);color:#7a5c00;border-color:rgba(122,92,0,.55);}
+html[data-theme="light"] .q-succedent{background:rgba(70,140,200,.16);color:#0f4c85;border-color:rgba(15,76,133,.45);}
+html[data-theme="light"] .q-cadent{background:rgba(110,110,110,.14);color:#4a4a4a;border-color:rgba(74,74,74,.35);}
+
+/* 火星/冥王星/牡羊/天蠍 — 紅色強調；土星/摩羯/水瓶 — 亮橘色 */
+.pl-mars,.pl-pluto,.sign-aries,.sign-scorpio{
+  color:#ff5a5a !important;font-weight:600;
+  text-shadow:0 0 3px rgba(255,90,90,.35);
+}
+.pl-saturn,.sign-capricorn,.sign-aquarius{
+  color:#ffab3a !important;font-weight:600;
+  text-shadow:0 0 3px rgba(255,171,58,.35);
+}
+html[data-theme="light"] .pl-mars,
+html[data-theme="light"] .pl-pluto,
+html[data-theme="light"] .sign-aries,
+html[data-theme="light"] .sign-scorpio{
+  color:#c21212 !important;text-shadow:none;
+}
+html[data-theme="light"] .pl-saturn,
+html[data-theme="light"] .sign-capricorn,
+html[data-theme="light"] .sign-aquarius{
+  color:#8a3806 !important;text-shadow:none;
+}
+
+/* 宮性欄縮寫 */
+.qty-abbr{
+  display:inline-block;margin-left:6px;padding:0 5px;border-radius:8px;
+  background:rgba(0,0,0,.20);font-size:10px;letter-spacing:.02em;opacity:.85;
+}
+html[data-theme="light"] .qty-abbr{background:rgba(0,0,0,.10);}
+
+/* Bhava 標籤內的分隔點更淡 */
+.tag{white-space:nowrap;}
+
+/* ================ 使用者狀態列 + 歷史紀錄面板(純新增) ================ */
+.user-bar{
+  position:fixed;top:14px;right:120px;z-index:90;
+  display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+}
+.user-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 11px;border-radius:14px;
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  font-size:12px;font-family:inherit;cursor:pointer;transition:all .2s;
+}
+.user-chip:hover{border-color:var(--gold);color:var(--gold);}
+.user-chip.active{background:var(--gold);color:var(--bg);border-color:var(--gold);}
+.user-chip img{width:18px;height:18px;border-radius:50%;}
+.user-chip .avatar{
+  width:18px;height:18px;border-radius:50%;background:var(--gold);color:var(--bg);
+  display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;
+}
+.user-chip .badge{
+  background:var(--vedic);color:var(--bg);padding:1px 6px;border-radius:8px;
+  font-size:10px;font-weight:600;margin-left:3px;
+}
+html[data-theme="light"] .user-chip{background:#fff;}
+
+/* 歷史面板 */
+.history-panel{
+  position:fixed;top:52px;right:14px;width:min(360px,92vw);
+  max-height:min(70vh,600px);overflow-y:auto;
+  background:var(--card);border:1px solid var(--gold);border-radius:12px;
+  padding:14px;z-index:95;box-shadow:0 8px 24px rgba(0,0,0,.5);
+  display:none;
+}
+.history-panel.open{display:block;}
+.history-panel h3{margin:0 0 10px;font-size:14px;color:var(--gold);font-weight:600;}
+.history-panel .hp-close{position:absolute;top:10px;right:12px;cursor:pointer;color:var(--muted);font-size:16px;}
+.history-item{padding:8px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;line-height:1.5;position:relative;}
+.history-item:hover{background:rgba(212,175,55,.08);border-radius:6px;}
+.history-item .hi-time{color:var(--muted);font-size:11px;}
+.history-item .hi-dice{color:var(--gold);font-weight:500;margin-top:2px;}
+.history-item .hi-q{color:var(--muted);font-size:11px;margin-top:2px;font-style:italic;}
+.history-item .hi-del{position:absolute;top:6px;right:8px;color:var(--muted);cursor:pointer;font-size:12px;opacity:0;transition:opacity .2s;}
+.history-item:hover .hi-del{opacity:1;}
+.history-item .hi-del:hover{color:var(--warn);}
+.history-empty{color:var(--muted);text-align:center;padding:20px;font-size:12px;}
+
+/* Google 登入按鈕(GSI 自動注入,這裡準備容器) */
+.gsi-container{display:inline-block;}
+.gsi-container button{cursor:pointer;}
+
+/* ================ 12 宮位意義卡片(純新增) ================ */
+.house-meanings-card table{width:100%;border-collapse:collapse;font-size:12px;}
+.house-meanings-card th,.house-meanings-card td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;text-align:left;}
+.house-meanings-card th{background:rgba(212,175,55,.10);color:var(--gold);font-weight:600;position:sticky;top:0;}
+.house-meanings-card .hm-num{font-weight:700;color:var(--gold);width:36px;}
+.house-meanings-card .hm-title{color:var(--western);font-weight:600;font-size:13px;margin-bottom:3px;}
+.house-meanings-card .hm-desc{color:var(--text);line-height:1.6;}
+.house-meanings-card .hm-vedic-title{color:var(--vedic);font-weight:600;font-size:12px;}
+.house-meanings-card tr:nth-child(even) td{background:rgba(255,255,255,.02);}
+html[data-theme="light"] .house-meanings-card tr:nth-child(even) td{background:rgba(0,0,0,.02);}
+.house-meanings-card details{margin:0;}
+.house-meanings-card summary{cursor:pointer;padding:8px 0;color:var(--gold);font-weight:600;font-size:13px;}
+.house-meanings-card .hm-source{color:var(--muted);font-size:11px;margin-top:8px;text-align:right;}
+
+/* ================ 南印度方格盤(Rashi Chart 4x4)，純新增 ================ */
+.rashi-wrap{display:flex;justify-content:center;margin:8px 0;}
+.rashi-chart{
+  display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);
+  gap:2px;background:var(--border);border:2px solid var(--border);border-radius:8px;
+  width:min(560px, 92vw);aspect-ratio:1;padding:2px;
+}
+.rashi-cell{
+  background:var(--card);padding:6px 8px;font-size:12px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.rashi-cell .rc-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;}
+.rashi-cell .rc-sign{font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--text);}
+.rashi-cell .rc-hnum{font-size:10px;color:var(--muted);}
+.rashi-cell .rc-hnum strong{font-size:14px;color:var(--gold);margin-left:2px;}
+.rashi-cell .rc-planets{display:flex;flex-wrap:wrap;gap:3px;margin-top:auto;}
+.rashi-cell .rc-planet{
+  display:inline-flex;align-items:center;gap:2px;
+  padding:1px 5px;border-radius:8px;font-size:11px;font-weight:500;
+  border:1px solid transparent;
+}
+/* 行星色 — Vedic Grahas 傳統色(源自 BPHS 寶石對應):
+   Surya=紅銅、Chandra=白銀、Kuja=純紅、Budha=祖母綠、Guru=金黃、
+   Shukra=鑽白、Shani=藍寶石、Rahu=煙灰、Ketu=棕(雜彩)
+   對比皆 ≥ AA 4.5:1 */
+.rc-planet.rp-sun    {background:#c74a2e;color:#fff;border-color:#8f3720;}
+.rc-planet.rp-moon   {background:#e8e8f0;color:#1a1a2e;border-color:#c8c8d8;}
+.rc-planet.rp-mars   {background:#c22020;color:#fff;border-color:#8f1010;}
+.rc-planet.rp-mercury{background:#2e8a52;color:#fff;border-color:#1a5a30;}
+.rc-planet.rp-jupiter{background:#d4a017;color:#2a1a05;border-color:#a07800;}
+.rc-planet.rp-venus  {background:#e8e0d5;color:#3a2a1a;border-color:#c8b8a0;}
+.rc-planet.rp-saturn {background:#2a3a6b;color:#fff;border-color:#1a2848;}
+.rc-planet.rp-rahu   {background:#5a5a5a;color:#fff;border-color:#3a3a3a;}
+.rc-planet.rp-ketu   {background:#8a5a3a;color:#fff;border-color:#5a3a20;}
+/* 主/副/運 視覺區分(替代原本靠 M/B/T 文字混疊) */
+.rc-planet.rp-src-main{}  /* 主骰:實心邊框(預設) */
+.rc-planet.rp-src-sub{border-style:dashed;opacity:.85;}  /* 副骰:虛線 */
+.rc-planet.rp-src-transit{opacity:.62;box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);}  /* 行運:淡+內光 */
+.rc-planet .rp-src{font-size:9px;opacity:.75;margin-left:1px;}
+/* 象位背景 */
+.rashi-cell.rc-fire{background:rgba(255,90,60,.16);}
+.rashi-cell.rc-earth{background:rgba(220,180,60,.16);}
+.rashi-cell.rc-air{background:rgba(100,170,230,.16);}
+.rashi-cell.rc-water{background:rgba(80,180,180,.16);}
+/* 6/8/12 凶宮強調紅框 */
+.rashi-cell.rc-dush{box-shadow:inset 0 0 0 2px rgba(255,90,60,.55);}
+/* 5/9 Trikona 吉宮金色左條(不搶命宮金框) */
+.rashi-cell.rc-trikona{box-shadow:inset 4px 0 0 rgba(212,175,55,.75);}
+/* 命宮(1)金框:優先權最高;命宮同時是 Trikona 但用完整金框標識 */
+.rashi-cell.rc-asc{box-shadow:inset 0 0 0 3px var(--gold) !important;}
+/* 中央 2x2 */
+.rashi-center{
+  grid-column:2 / 4;grid-row:2 / 4;
+  background:linear-gradient(135deg, rgba(154,213,255,.10) 0%, rgba(212,175,55,.08) 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:16px;text-align:center;gap:6px;
+}
+.rashi-center .rc-title{font-size:16px;color:var(--gold);letter-spacing:.05em;}
+.rashi-center .rc-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* 亮主題 */
+html[data-theme="light"] .rashi-cell{background:#fff;}
+html[data-theme="light"] .rashi-cell.rc-fire{background:#ffdcd0;}
+html[data-theme="light"] .rashi-cell.rc-earth{background:#fff2c8;}
+html[data-theme="light"] .rashi-cell.rc-air{background:#d5e6f5;}
+html[data-theme="light"] .rashi-cell.rc-water{background:#c8e6e6;}
+html[data-theme="light"] .rashi-cell .rc-sign{color:#1a1a2e;}
+/* 亮主題 Vedic 色 — 底色壓深保 AA 4.5:1(白字) */
+html[data-theme="light"] .rc-planet.rp-sun    {background:#a63a20;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-moon   {background:#e8e8f0;color:#1a1a2e;}
+html[data-theme="light"] .rc-planet.rp-mars   {background:#b21818;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-mercury{background:#2e7a48;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-jupiter{background:#a67c0a;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-venus  {background:#e8e0d5;color:#3a2a1a;}
+html[data-theme="light"] .rc-planet.rp-saturn {background:#233258;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-rahu   {background:#4a4a4a;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-ketu   {background:#6b4020;color:#fff;}
+html[data-theme="light"] .rashi-center{background:linear-gradient(135deg,#eaf5ff,#fdf6e3);}
+
+/* 圖例 */
+.rashi-legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px;font-size:11px;color:var(--muted);}
+.rashi-legend .rl-item{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);}
+.rashi-legend .rl-sw{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+/* ================ 🔮 AI 白話短解卡片（仿測測 App 樣式，純新增） ================ */
+.ai-quick-card{
+  background:linear-gradient(135deg, rgba(154,213,255,.08) 0%, rgba(212,175,55,.06) 100%);
+  border:1px solid rgba(154,213,255,.25);
+  border-radius:14px;
+  padding:16px 20px;
+  margin-bottom:16px;
+}
+.ai-quick-header{
+  display:flex;align-items:center;gap:10px;margin-bottom:12px;
+}
+.ai-quick-header .icon{
+  font-size:24px;
+  filter:drop-shadow(0 2px 4px rgba(154,213,255,.35));
+}
+.ai-quick-header .title{font-size:15px;font-weight:600;color:var(--gold);letter-spacing:.02em;}
+.ai-quick-header .sub{font-size:11px;color:var(--muted);margin-left:auto;}
+.ai-quick-btn{
+  width:100%;padding:12px;border-radius:10px;cursor:pointer;font-size:14px;
+  background:rgba(154,213,255,.12);border:1px dashed rgba(154,213,255,.4);color:var(--western);
+  font-family:inherit;transition:all .2s;
+}
+.ai-quick-btn:hover:not(:disabled){background:rgba(154,213,255,.22);border-style:solid;}
+.ai-quick-btn:disabled{opacity:.5;cursor:default;}
+.ai-quick-answer{
+  font-size:15px;line-height:1.8;letter-spacing:.02em;
+  background-image:linear-gradient(180deg, transparent 62%, rgba(154,213,255,.22) 62%);
+  padding:2px 4px;color:var(--text);white-space:pre-wrap;
+}
+.ai-quick-hint{color:var(--muted);font-size:11px;margin-top:8px;text-align:right;}
+html[data-theme="light"] .ai-quick-card{
+  background:linear-gradient(135deg, #eaf5ff 0%, #fdf6e3 100%);
+  border-color:#bbd8f0;
+}
+html[data-theme="light"] .ai-quick-btn{color:#0f4c85;background:rgba(15,76,133,.06);border-color:#8fbde0;}
+html[data-theme="light"] .ai-quick-answer{background-image:linear-gradient(180deg, transparent 62%, #cfeaff 62%);}
+
+/* AI 雙派並排(西洋+印度)— 純新增 */
+.ai-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;}
+@media (max-width:820px){ .ai-two-col{grid-template-columns:1fr;} }
+.ai-side{border-radius:12px;padding:14px 16px;border:1px solid var(--border);}
+.ai-side-western{background:linear-gradient(135deg, rgba(154,213,255,.10) 0%, rgba(154,213,255,.04) 100%); border-color:rgba(154,213,255,.35);}
+.ai-side-vedic  {background:linear-gradient(135deg, rgba(255,154,60,.10) 0%, rgba(255,154,60,.04) 100%); border-color:rgba(255,154,60,.35);}
+.ai-side-title{font-size:14px;font-weight:600;margin-bottom:10px;letter-spacing:.05em;display:flex;align-items:center;gap:6px;}
+.ai-side-western .ai-side-title{color:var(--western);}
+.ai-side-vedic   .ai-side-title{color:var(--vedic);}
+.ai-block{margin-bottom:12px;}
+.ai-block:last-child{margin-bottom:0;}
+.ai-block-label{font-size:12px;font-weight:600;color:var(--gold);margin-bottom:4px;letter-spacing:.03em;}
+.ai-block-text{font-size:13.5px;line-height:1.75;color:var(--text);
+  background-image:linear-gradient(180deg, transparent 65%, rgba(212,175,55,.14) 65%);
+  padding:1px 3px;white-space:pre-wrap;}
+html[data-theme="light"] .ai-side-western{background:linear-gradient(135deg, #eaf5ff, #f5faff); border-color:#bcd8f0;}
+html[data-theme="light"] .ai-side-vedic  {background:linear-gradient(135deg, #fff2e6, #fff9f0); border-color:#f0c8a0;}
+html[data-theme="light"] .ai-side-western .ai-side-title{color:#0f4c85;}
+html[data-theme="light"] .ai-side-vedic   .ai-side-title{color:#b04a08;}
+html[data-theme="light"] .ai-block-text{background-image:linear-gradient(180deg, transparent 65%, #fbecc0 65%);}
+
+/* ============ 議題選項(勾選 + 自填) ============ */
+.topic-picker{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+.tp-title{font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:.03em;}
+.tp-title strong{color:var(--gold);}
+.tp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.tp-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 11px;border-radius:14px;
+  background:var(--card);border:1px solid var(--border);
+  font-size:12px;color:var(--text);cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;
+  user-select:none;line-height:1;
+}
+.tp-chip:hover{border-color:var(--gold);}
+.tp-chip input{position:absolute;opacity:0;pointer-events:none;}
+.tp-chip.checked{
+  background:rgba(212,175,55,.22);border-color:var(--gold);color:var(--gold);
+  font-weight:600;
+}
+html[data-theme="light"] .tp-chip{background:#fff;}
+html[data-theme="light"] .tp-chip.checked{background:#fdf3d8;color:#7a5c00;}
+#topic_custom{width:100%;padding:8px 12px;background:var(--card);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
+html[data-theme="light"] #topic_custom{background:#fff;}
+.tp-hint{font-size:11px;color:var(--muted);margin-top:6px;}
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="theme_toggle" onclick="toggleTheme()" title="切換亮/暗畫面">🌗 亮/暗</button>
+<div class="user-bar" id="user_bar">
+  <button class="user-chip" onclick="toggleHistory()" title="歷史紀錄">📜 <span id="history_count">0</span></button>
+  <div id="user_chip_container">
+    <button class="user-chip" onclick="promptGoogleSignIn()" title="以 Gmail 登入(尚需設定 OAuth Client)">🔐 Gmail 登入</button>
+  </div>
+</div>
+<div class="history-panel" id="history_panel"></div>
+<div class="container">
+  <nav class="backnav">
+    <a href="https://questions.3minstest.com/">← 返回測驗中心</a>
+    <a href="https://rightone.3minstest.com/">← 返回工具網</a>
+  </nav>
+  <h1>占星骰子 · 五骰判讀</h1>
+  <p class="subtitle">西洋 × 印度雙派分流 · 含當前行運整合</p>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="manual" onclick="switchTab('manual')">✋ 手動輸入</button>
+    <button class="tab" data-tab="image" onclick="switchTab('image')">📷 圖片輸入</button>
+    <button class="tab" data-tab="voice" onclick="switchTab('voice')">🎤 語音輸入</button>
+  </div>
+
+  <!-- 圖片輸入面板 -->
+  <div id="panel_image" class="card hidden">
+    <div class="card-title">📷 圖片辨識（Claude Vision）</div>
+    <div class="muted" style="margin-bottom:8px">
+      支援三種圖片：實體骰子照片、APP 截圖、表格截圖。辨識後會自動填入下方手動欄位，您可以再微調。
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <label>Gemini API Key（<strong style="color:var(--gold)">已內建預設 Key，可直接用</strong>；也可到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">Google AI Studio</a> 建立自己的以走自己額度）</label>
+      <input id="api_key" type="password" placeholder="留空使用內建 Key，或貼上自己的 AIza..." />
+    </div>
+    <div class="field" style="margin-bottom:8px">
+      <label>上傳圖片（支援拖曳、貼上、點擊）</label>
+      <div id="drop_zone" style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer">
+        <input id="file_input" type="file" accept="image/*" style="display:none" />
+        <div id="drop_hint" class="muted">點此選擇 / 拖曳 / Ctrl+V 貼上圖片</div>
+        <img id="preview" style="max-width:100%;max-height:240px;display:none;margin-top:8px" />
+      </div>
+    </div>
+    <button class="btn" onclick="recognizeImage()">🔍 辨識骰子</button>
+    <div id="img_result" class="muted" style="margin-top:8px"></div>
+  </div>
+
+  <!-- 語音輸入面板 -->
+  <div id="panel_voice" class="card hidden">
+    <div class="card-title">🎤 語音輸入（Web Speech API）</div>
+    <div class="muted" style="margin-bottom:8px">
+      說「冥王星天秤六宮，金星巨蟹」，系統會自動解析並填入欄位。<br>
+      支援格式：「<行星><星座><數字>宮，<行星><星座>」
+    </div>
+    <button class="btn" id="btn_voice" onclick="toggleVoice()">🎤 開始說話</button>
+    <div id="voice_result" class="muted" style="margin-top:8px"></div>
+    <div class="field" style="margin-top:16px">
+      <label>🎤 語音不能用？直接打字也可以（格式同語音指令）</label>
+      <div style="display:flex;gap:8px">
+        <input id="voice_text" placeholder="例：冥王星天秤六宮，金星巨蟹" style="flex:1"
+               onkeydown="if(event.key==='Enter')parseVoice(this.value)" />
+        <button class="btn" style="white-space:nowrap" onclick="parseVoice($('voice_text').value)">解析</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💭 問題（選填）</div>
+    <div class="field">
+      <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">
+        <input id="question" placeholder="例:這筆錢能不能討回來?" style="flex:1;min-width:200px" />
+        <button type="button" class="btn-ghost" id="btn_q_voice" style="margin-left:0;white-space:nowrap"
+                onclick="toggleQuestionVoice()" title="用語音輸入問題(Chrome / Edge 支援)">🎤 語音</button>
+        <button type="button" class="btn-ghost" id="btn_q_image" style="margin-left:0;white-space:nowrap"
+                onclick="pickQuestionImage()" title="拍/上傳含問題文字的圖片,Gemini 讀出文字填入">📷 圖片</button>
+        <input type="file" id="q_image_file" accept="image/*" style="display:none"
+               onchange="handleQuestionImage(this.files[0])" />
+      </div>
+      <div id="q_voice_status" class="muted" style="margin-top:6px;min-height:1em"></div>
+      <div class="topic-picker">
+        <div class="tp-title">🏷 <strong>特殊議題</strong>（選填,多選；點按鈕勾選/取消）</div>
+        <div class="tp-chips" id="topic_chips">
+          <label class="tp-chip"><input type="checkbox" value="愛情 / 感情 / 婚姻"><span>💕 愛情</span></label>
+          <label class="tp-chip"><input type="checkbox" value="事業 / 工作 / 職涯"><span>💼 事業</span></label>
+          <label class="tp-chip"><input type="checkbox" value="財運 / 金錢 / 投資"><span>💰 財運</span></label>
+          <label class="tp-chip"><input type="checkbox" value="健康 / 疾病 / 身體"><span>🏥 健康</span></label>
+          <label class="tp-chip"><input type="checkbox" value="家庭 / 父母 / 不動產"><span>🏠 家庭</span></label>
+          <label class="tp-chip"><input type="checkbox" value="子女 / 創作 / 戀愛"><span>👶 子女</span></label>
+          <label class="tp-chip"><input type="checkbox" value="學業 / 考試 / 短程學習"><span>📚 學業</span></label>
+          <label class="tp-chip"><input type="checkbox" value="遷移 / 長旅 / 出國 / 宗教"><span>✈️ 遷移</span></label>
+          <label class="tp-chip"><input type="checkbox" value="訴訟 / 敵人 / 債務"><span>⚔️ 訴訟</span></label>
+          <label class="tp-chip"><input type="checkbox" value="秘密 / 繼承 / 危機轉化"><span>🔮 秘密/繼承</span></label>
+          <label class="tp-chip"><input type="checkbox" value="朋友 / 社群 / 願望"><span>👥 社群</span></label>
+          <label class="tp-chip"><input type="checkbox" value="靈性 / 修行 / 隱居 / 潛意識"><span>🧘 靈性</span></label>
+          <label class="tp-chip"><input type="checkbox" value="警察 / 刑警 / 報案 / 案件調查 / 治安 / 公權力介入"><span>👮 警察/刑警</span></label>
+        </div>
+        <input id="topic_custom" type="text" placeholder="其他議題(自填,可留空)例:租屋合約、寵物、搬家吉日..." />
+        <div class="tp-hint">💡 選了議題,AI 判讀會針對這些面向側重回答;沒選則泛泛看整體。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🎲 主盤三骰 — 決定基準宮位</div>
+    <div class="row">
+      <div class="field">
+        <label>骰 1 · 行星 A</label>
+        <select id="planet_a"></select>
+      </div>
+      <div class="field">
+        <label>骰 2 · 星座 A</label>
+        <select id="sign_a"></select>
+      </div>
+      <div class="field">
+        <label>骰 3 · 基準宮位</label>
+        <select id="house_a"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="card_subdie">
+    <div class="card-title" style="display:flex;align-items:center;gap:8px">
+      🎲 副骰兩顆 — 相位 / 命主飛宮判讀
+      <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
+        <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
+      </label>
+    </div>
+    <div class="muted" style="margin-bottom:12px">副骰的宮位會根據主盤推算自動代入（整宮制 Whole Sign）</div>
+    <div class="row" id="subdie_fields">
+      <div class="field">
+        <label>骰 4 · 行星 B</label>
+        <select id="planet_b"></select>
+      </div>
+      <div class="field">
+        <label>骰 5 · 星座 B</label>
+        <select id="sign_b"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🌌 當前行運（選填，填越多判讀越精準）</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn-ghost" onclick="loadCurrentTransits()">🌐 帶入行運</button>
+      <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
+        <label style="margin:0">日期：</label>
+        <input id="transit_date" type="datetime-local" style="width:auto;padding:6px 10px" />
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="resetTransitDate()" title="改回現在">🕒 現在</button>
+      </div>
+      <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
+        <label style="margin:0">星曆系統：</label>
+        <select id="zodiac_system" style="width:auto;padding:6px 10px" onchange="loadCurrentTransits(true)">
+          <option value="S">恆星 Lahiri（印度）</option>
+          <option value="T">熱帶（西洋）</option>
+        </select>
+      </div>
+      <span class="muted" id="ephem_status">星曆載入中...</span>
+    </div>
+    <div class="row">
+      <div class="field"><label>☉ 太陽 在</label><select id="t_sun"></select></div>
+      <div class="field"><label>☽ 月亮 在</label><select id="t_moon"></select></div>
+      <div class="field"><label>☿ 水星 在</label><select id="t_mercury"></select></div>
+      <div class="field"><label>♀ 金星 在</label><select id="t_venus"></select></div>
+      <div class="field"><label>♂ 火星 在</label><select id="t_mars"></select></div>
+      <div class="field"><label>♃ 木星 在</label><select id="t_jupiter"></select></div>
+      <div class="field"><label>♄ 土星 在</label><select id="t_saturn"></select></div>
+      <div class="field"><label>♅ 天王星 在</label><select id="t_uranus"></select></div>
+      <div class="field"><label>♆ 海王星 在</label><select id="t_neptune"></select></div>
+      <div class="field"><label>♇ 冥王星 在</label><select id="t_pluto"></select></div>
+      <div class="field"><label>☊ 羅睺 在</label><select id="t_rahu"></select></div>
+      <div class="field"><label>☋ 計都 在</label><select id="t_ketu"></select></div>
+    </div>
+  </div>
+
+  <div class="center">
+    <button class="btn" onclick="run()">產生判讀 →</button>
+    <button class="btn-ghost" onclick="reset()">清空</button>
+  </div>
+
+  <div id="output" class="hidden"></div>
+
+  <!-- ============ 多功能輸出平台（純新增） ============ -->
+  <div id="export_hub" class="card hidden">
+    <div class="card-title">📤 多功能輸出</div>
+    <div class="muted" style="margin-bottom:12px">把這次的判讀結果帶走：複製、下載、列印成 PDF，或分享給朋友。</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <button class="btn-ghost" style="margin-left:0" onclick="exportCopy(this)">📋 複製全文</button>
+      <button class="btn-ghost" style="margin-left:0" onclick="exportDownload('md')">⬇️ 下載 Markdown</button>
+      <button class="btn-ghost" style="margin-left:0" onclick="exportDownload('txt')">⬇️ 下載純文字</button>
+      <button class="btn-ghost" style="margin-left:0" onclick="window.print()">🖨️ 列印 / 存 PDF</button>
+      <button class="btn-ghost" style="margin-left:0" id="btn_share" onclick="exportShare()">📱 分享</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    占星骰子 · 五骰判讀引擎 v0.1 · 規則庫對接 NotebookLM 知識庫（ASTROLOGY + 印度占星）<br>
+    <a href="https://questions.3minstest.com/" style="color:var(--muted)">返回測驗中心</a> ·
+    <a href="https://rightone.3minstest.com/" style="color:var(--muted)">返回工具網</a> ·
+    <a href="https://rightone.3minstest.com/fortune/" style="color:var(--gold)">AI 解盤</a>
+  </div>
+</div>
+
+<script>
+// ============ 資料表 ============
+const PLANETS = [
+  {id:'sun',     zh:'太陽',         sym:'☉', vedic:'Surya'},
+  {id:'moon',    zh:'月亮',         sym:'☽', vedic:'Chandra'},
+  {id:'mercury', zh:'水星',         sym:'☿', vedic:'Budha'},
+  {id:'venus',   zh:'金星',         sym:'♀', vedic:'Shukra'},
+  {id:'mars',    zh:'火星',         sym:'♂', vedic:'Mangal'},
+  {id:'jupiter', zh:'木星',         sym:'♃', vedic:'Guru'},
+  {id:'saturn',  zh:'土星',         sym:'♄', vedic:'Shani'},
+  {id:'uranus',  zh:'天王星',       sym:'♅', vedic:'(現代行星)'},
+  {id:'neptune', zh:'海王星',       sym:'♆', vedic:'(現代行星)'},
+  {id:'pluto',   zh:'冥王星',       sym:'♇', vedic:'(現代行星)'},
+  {id:'rahu',    zh:'北交點/羅睺',   sym:'☊', vedic:'Rahu'},
+  {id:'ketu',    zh:'南交點/計都',   sym:'☋', vedic:'Ketu'},
+];
+
+const SIGNS = [
+  {id:0,  zh:'牡羊座', sym:'♈', element:'火', mode:'本位'},
+  {id:1,  zh:'金牛座', sym:'♉', element:'土', mode:'固定'},
+  {id:2,  zh:'雙子座', sym:'♊', element:'風', mode:'變動'},
+  {id:3,  zh:'巨蟹座', sym:'♋', element:'水', mode:'本位'},
+  {id:4,  zh:'獅子座', sym:'♌', element:'火', mode:'固定'},
+  {id:5,  zh:'處女座', sym:'♍', element:'土', mode:'變動'},
+  {id:6,  zh:'天秤座', sym:'♎', element:'風', mode:'本位'},
+  {id:7,  zh:'天蠍座', sym:'♏', element:'水', mode:'固定'},
+  {id:8,  zh:'射手座', sym:'♐', element:'火', mode:'變動'},
+  {id:9,  zh:'摩羯座', sym:'♑', element:'土', mode:'本位'},
+  {id:10, zh:'水瓶座', sym:'♒', element:'風', mode:'固定'},
+  {id:11, zh:'雙魚座', sym:'♓', element:'水', mode:'變動'},
+];
+
+// 古典守護（西洋 + 印度共通基礎）
+const TRADITIONAL_RULER = {
+  0:'mars', 1:'venus', 2:'mercury', 3:'moon',
+  4:'sun',  5:'mercury', 6:'venus',  7:'mars',
+  8:'jupiter', 9:'saturn', 10:'saturn', 11:'jupiter',
+};
+
+// 現代守護（僅西洋）
+const MODERN_RULER = { 7:'pluto', 10:'uranus', 11:'neptune' };
+
+// 廟旺（西洋 = 印度共通）
+const EXALTATION = {
+  sun:0, moon:1, mars:9, mercury:5, jupiter:3, venus:11, saturn:6,
+  rahu:1, ketu:7
+};
+
+// 弱陷（Fall）
+const FALL = {
+  sun:6, moon:7, mars:3, mercury:11, jupiter:9, venus:5, saturn:0,
+  rahu:7, ketu:1
+};
+
+// 對沖（西洋 Detriment）
+const DETRIMENT = {
+  sun:[10], moon:[9],
+  mercury:[8,11], venus:[7,0],
+  mars:[6,1], jupiter:[2,5], saturn:[3,4],
+};
+
+// 宮位含義 — 西洋
+const WESTERN_HOUSE = [
+  '',
+  '自我、外貌、形象、生命力起點',
+  '金錢、財產、價值觀、自尊',
+  '溝通、兄弟姊妹、短程移動、學習',
+  '家庭、根源、不動產、母親',
+  '戀愛、創造、子女、娛樂、表演',
+  '健康、工作、瑣事、僕役、債務',
+  '婚姻、伴侶、合作、公開對手',
+  '共有財、性、轉化、危機、繼承',
+  '高等教育、長程旅行、哲學、宗教',
+  '事業、社會地位、父親、權威',
+  '朋友、社群、希望、組織、收穫',
+  '潛意識、隱藏敵人、犧牲、結束、修行',
+];
+
+// 12 宮位主題(Sam 老師版,來源:Notion 占星課二階 20231015-14 解宮位星座基本認知)
+const WESTERN_HOUSE_TITLES = [
+  '', '本性、驅動', '資源、籌碼', '轉機、交流', '內在需求、安全',
+  '快樂、展現光芒', '耗損、病因', '缺乏、互補', '隱藏、潛能',
+  '探索世界、升級進化', '克服關卡、成就', '未知邊緣、改變超越', '遺忘忽略、復原補償',
+];
+const WESTERN_HOUSE_DESC = [
+  '',
+  '人生驅動與開啟模式,面對命運的特徵,前進與決定方式,是最基本的人格特徵。',
+  '1 用 2 來做籌碼,2 可以讓 1 得到益處,幫 1 維持,增加人生的成果。1 必須用 2 的方式,才能得到享受與資源。',
+  '1 透過 3 接觸世界,了解外界的訊息。3 可以讓 1 增加通路與交流,得到轉機,學習到知識與方法,透過 3 的媒介與串連,加快 1 人生的進展。',
+  '1 對 4 容易感到匱乏,需要 4 得滿足,4 使 1 累積厚底內涵,得到呵護與滿足。4 也容易讓 1 封閉自囚與陷落,成為 1 的包袱與拖累。',
+  '5 可以讓 1 活旺,得到力量,創造新生命。1 用 5 得到快樂,5 是 1 的快樂來源。5 是 1 的熱愛,1 用 5 的模式得到名聲。',
+  '6 會讓 1 耗損與疲累,6 是 1 的附屬特徵與勞動的模式,1 需要用 6 的秩序來完成使命,6 可以讓 1 專精,得到技能。',
+  '7 可以反射出 1 的缺失。1 必須跟 7 妥協,讓 1 修正與調整,進而得到認同,1 才容易與對立面 7 結合與合作。',
+  '1 深鎖 8 的秘密與禁忌,8 會使 1 感到誘惑,8 容易使 1 進入危險,造成虧欠減損,使 1 感到恐懼。1 克服 8 的恐懼與執念,可以得到潛藏在深處的巨大寶藏。',
+  '9 是 1 的升級,可以讓 1 得到自信與樂觀,讓 1 開放,擴大自我的發展,9 讓 1 得到指引與方向,給予 1 助力,讓 1 得到智慧,提升層次。',
+  '10 是 1 必須克服的人生課題,1 必須經過 10 的歷練,才能夠成功,得到經驗而成熟,10 讓 1 建立功業,攀爬到人生的高峰。',
+  '1 透過 11 改變自我,得到自我超越的機會。11 是 1 的叛逆面,會使 1 脫離人生核心主舞台,1 經由 11 與陌生層面結合,形成群體關係。',
+  '12 容易讓 1 感覺迷網不切實際而想逃避。1 需要 12 來復原,從 12 得到救贖。12 是 1 的結尾與歸屬,1 需要回歸 12 才能感覺放空與放下一切。12 是 1 的因果,同時孕育了 1 的新生。',
+];
+
+// 宮位含義 — 印度（Bhava）
+const VEDIC_HOUSE = [
+  '',
+  'Tanu Bhava — 自我、身體、生命、外貌、Lagna',
+  'Dhana Bhava — 累積財富、家庭、言語、食物、價值',
+  'Sahaja Bhava — 兄弟姊妹、勇氣、努力、短旅、溝通',
+  'Sukha Bhava — 母親、家、安樂、學業根基、不動產',
+  'Putra Bhava — 子女、智慧、創造力、前世福德、Mantra',
+  'Ari Bhava — 敵人、債務、疾病、訴訟、僕役',
+  'Yuvati Bhava — 配偶、婚姻、合夥、公開對外',
+  'Randhra Bhava — 壽命、隱藏、突發、繼承、轉化',
+  'Dharma Bhava — 父親、宗教、運氣、高等智慧、長旅',
+  'Karma Bhava — 事業、社會地位、行動、名聲',
+  'Labha Bhava — 收入、收穫、社群、願望實現',
+  'Vyaya Bhava — 損失、隱藏支出、解脫、外國、住院',
+];
+
+// 印度宮位屬性
+const HOUSE_TYPE = {
+  1:['Kendra'], 4:['Kendra'], 7:['Kendra'], 10:['Kendra'],
+  5:['Trikona'], 9:['Trikona'],
+  6:['Dusthana','Upachaya'], 8:['Dusthana'], 12:['Dusthana'],
+  3:['Upachaya'], 11:['Upachaya'],
+};
+
+// 凶星集合（印度）
+const MALEFICS_TRADITIONAL = ['mars','saturn','rahu','ketu'];
+const MALEFICS_MODERN      = ['uranus','neptune','pluto'];
+const MALEFICS_ALL         = [...MALEFICS_TRADITIONAL, ...MALEFICS_MODERN];
+
+// 雙守護星座（規則 1-1 補充）
+const DUAL_RULERSHIP = {
+  mercury: [2, 5],   // 雙子、處女
+  venus:   [1, 6],   // 金牛、天秤
+};
+
+// 規則 3：本命凶星弱陷對照（使用者 memo）
+const RULE3_WEAK = {
+  mars:   [6, 1, 3],   // 天秤、金牛、巨蟹
+  saturn: [3, 4, 0],   // 巨蟹、獅子、牡羊
+};
+
+// ============ 共用工具 ============
+function $(id){return document.getElementById(id)}
+function findPlanet(id){return PLANETS.find(p=>p.id===id)}
+function findSign(id){return SIGNS[parseInt(id)]}
+
+function populateSelect(id, options, includeBlank=false){
+  const sel = $(id);
+  sel.innerHTML = '';
+  if(includeBlank){
+    const o = document.createElement('option');
+    o.value=''; o.textContent='— 未填 —';
+    sel.appendChild(o);
+  }
+  options.forEach(opt=>{
+    const o = document.createElement('option');
+    o.value = opt.value;
+    o.textContent = opt.label;
+    sel.appendChild(o);
+  });
+}
+
+function dignity(planetId, signId, system){
+  if(EXALTATION[planetId] === signId) return {cls:'tag-exalt', label:'廟旺 (Exalted)'};
+  if(FALL[planetId] === signId)       return {cls:'tag-fall',  label:'弱陷 (Fall)'};
+  const rulers = [TRADITIONAL_RULER[signId]];
+  if(system==='western' && MODERN_RULER[signId]) rulers.push(MODERN_RULER[signId]);
+  if(rulers.includes(planetId))       return {cls:'tag-own',   label:'守護 (Own Sign)'};
+  if(system==='western' && DETRIMENT[planetId] && DETRIMENT[planetId].includes(signId))
+                                       return {cls:'tag-detri', label:'對沖 (Detriment)'};
+  return null;
+}
+
+function ascSignId(signA, house){
+  return ((parseInt(signA) - (parseInt(house)-1)) % 12 + 12) % 12;
+}
+function houseOfSign(signId, ascId){
+  return ((parseInt(signId) - parseInt(ascId)) % 12 + 12) % 12 + 1;
+}
+function houseTypeTags(house){
+  const types = HOUSE_TYPE[house] || [];
+  return types.map(t=>{
+    const cls = {Dusthana:'tag-dusthana', Kendra:'tag-kendra', Trikona:'tag-trikona', Upachaya:'tag-upachaya'}[t];
+    return `<span class="tag ${cls}">${t}</span>`;
+  }).join('');
+}
+
+// ============ 副骰開關 ============
+function toggleSubdie(){
+  const on = $('use_subdie').checked;
+  $('subdie_fields').style.opacity = on ? '1' : '.35';
+  $('subdie_fields').style.pointerEvents = on ? 'auto' : 'none';
+}
+
+// ============ Tab 切換 ============
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  $('panel_image').classList.toggle('hidden', tab !== 'image');
+  $('panel_voice').classList.toggle('hidden', tab !== 'voice');
+}
+
+// ============ 圖片辨識（Google Gemini Vision） ============
+// Key 來源優先序：使用者手動輸入 > URL ?k=xxx 帶入（一次性存 localStorage） > 空
+// （硬編到 repo 會被 GitHub Push Protection 擋、也怕被爬）
+// Sam 可分享 https://dices.3minstest.com/?k=<KEY> 給訪客，一開就自動存
+const DEFAULT_GEMINI_KEY = '';
+const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-flash-latest', 'gemini-3.5-flash'];
+const GEMINI_MODEL = GEMINI_MODELS[0];
+
+// 進站時檢查 URL ?k= 參數，有的話存進 localStorage 讓 setupImageInput 讀到
+(function ingestKeyFromUrl(){
+  try{
+    const params = new URLSearchParams(location.search);
+    const k = params.get('k') || params.get('key');
+    if(k && k.length >= 20){
+      localStorage.setItem('gemini_api_key', k);
+      // 清掉網址上的 key，避免被複製/截圖洩露
+      params.delete('k'); params.delete('key');
+      const clean = location.pathname + (params.toString() ? '?' + params : '') + location.hash;
+      history.replaceState(null, '', clean);
+      console.log('[dices] Gemini key ingested from URL and saved to localStorage');
+    }
+  }catch(e){}
+})();
+const PLANET_ALIASES = {
+  '太陽':'sun','日':'sun','日輪':'sun',
+  '月亮':'moon','月':'moon',
+  '水星':'mercury','水':'mercury',
+  '金星':'venus','金':'venus','維納斯':'venus',
+  '火星':'mars','火':'mars',
+  '木星':'jupiter','木':'jupiter',
+  '土星':'saturn','土':'saturn',
+  '天王星':'uranus','天王':'uranus',
+  '海王星':'neptune','海王':'neptune',
+  '冥王星':'pluto','冥王':'pluto',
+  '北交點':'rahu','羅睺':'rahu','龍頭':'rahu',
+  '南交點':'ketu','計都':'ketu','龍尾':'ketu',
+};
+const SIGN_ALIASES = {
+  '牡羊座':0,'白羊座':0,'牡羊':0,'白羊':0,
+  '金牛座':1,'金牛':1,
+  '雙子座':2,'雙子':2,
+  '巨蟹座':3,'巨蟹':3,
+  '獅子座':4,'獅子':4,
+  '處女座':5,'處女':5,
+  '天秤座':6,'天平座':6,'天秤':6,'天平':6,
+  '天蠍座':7,'天蝎座':7,'天蠍':7,'天蝎':7,
+  '射手座':8,'人馬座':8,'射手':8,
+  '摩羯座':9,'魔羯座':9,'山羊座':9,'摩羯':9,'魔羯':9,
+  '水瓶座':10,'寶瓶座':10,'水瓶':10,'寶瓶':10,
+  '雙魚座':11,'雙魚':11,
+};
+
+function setupImageInput(){
+  const dz = $('drop_zone');
+  const fi = $('file_input');
+  const prev = $('preview');
+  const hint = $('drop_hint');
+  // 載入 API key
+  const saved = localStorage.getItem('gemini_api_key');
+  if(saved) $('api_key').value = saved;
+  $('api_key').addEventListener('change', e=>{
+    localStorage.setItem('gemini_api_key', e.target.value);
+  });
+
+  dz.addEventListener('click', ()=>fi.click());
+  fi.addEventListener('change', e=>handleFile(e.target.files[0]));
+  dz.addEventListener('dragover', e=>{e.preventDefault();dz.style.borderColor='var(--gold)'});
+  dz.addEventListener('dragleave', e=>{dz.style.borderColor='var(--border)'});
+  dz.addEventListener('drop', e=>{
+    e.preventDefault();
+    dz.style.borderColor='var(--border)';
+    handleFile(e.dataTransfer.files[0]);
+  });
+  // Ctrl+V 貼上
+  document.addEventListener('paste', e=>{
+    if(!$('panel_image').classList.contains('hidden')){
+      const item = [...e.clipboardData.items].find(i=>i.type.startsWith('image/'));
+      if(item) handleFile(item.getAsFile());
+    }
+  });
+
+  function handleFile(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      prev.src = ev.target.result;
+      prev.style.display = 'block';
+      hint.style.display = 'none';
+      window._imageDataUrl = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Gemini 呼叫共用 helper：依序嘗試 GEMINI_MODELS 內的 model；遇 503/429/UNAVAILABLE 自動切
+async function callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens=800, responseJson=false}){
+  const errs = [];
+  for(const model of GEMINI_MODELS){
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    const body = {
+      contents: [{role:'user', parts:[
+        {inline_data:{mime_type:mediaType, data:b64}},
+        {text:prompt},
+      ]}],
+      generationConfig: Object.assign(
+        {temperature:0.1, maxOutputTokens, thinkingConfig:{thinkingBudget:0}},
+        responseJson ? {responseMimeType:'application/json'} : {}
+      ),
+    };
+    let res;
+    try{
+      res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }catch(e){
+      errs.push(model + ': network - ' + e.message);
+      continue;
+    }
+    if(res.status === 503 || res.status === 429 || res.status === 404){
+      let etxt = ''; try{ etxt = (await res.text()).slice(0,120); }catch(e){}
+      errs.push(`${model}: HTTP ${res.status} ${etxt}`);
+      continue;  // 換下一個 model
+    }
+    if(!res.ok){
+      const etxt = await res.text();
+      throw new Error(`Gemini ${res.status} (${model}): ${etxt.slice(0,240)}`);
+    }
+    const data = await res.json();
+    const cand = data.candidates && data.candidates[0];
+    if(!cand){
+      errs.push(model + ': no candidate');
+      continue;
+    }
+    if(cand.finishReason && !['STOP','MAX_TOKENS'].includes(cand.finishReason)){
+      throw new Error(`Gemini 結束原因異常（${cand.finishReason}, model=${model}） — 可能被安全過濾`);
+    }
+    const text = ((cand.content && cand.content.parts && cand.content.parts[0] && cand.content.parts[0].text) || '').trim();
+    if(!text){
+      errs.push(model + ': empty text');
+      continue;
+    }
+    return {text, model};
+  }
+  throw new Error('所有 Gemini model 都失敗:\n' + errs.join('\n'));
+}
+
+async function recognizeImage(){
+  const userKey = $('api_key').value.trim();
+  const key = userKey || DEFAULT_GEMINI_KEY;
+  const usingDefault = !userKey && !!DEFAULT_GEMINI_KEY;
+  if(!key){ alert('請先填 Gemini API Key（Google AI Studio 可免費建立）'); return; }
+  if(!window._imageDataUrl){ alert('請先選擇圖片'); return; }
+
+  const result = $('img_result');
+  result.textContent = usingDefault ? '辨識中（使用內建 Key）...' : '辨識中（使用你的 Key）...';
+  result.style.color = 'var(--muted)';
+
+  const m = window._imageDataUrl.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+  if(!m){ result.textContent = '圖片格式錯誤'; return; }
+  const mediaType = m[1];
+  const b64 = m[2];
+
+  const prompt = `你是占星骰子辨識助手。仔細看這張圖片，找出五顆占星骰子的結果。
+
+占星骰子有三種：
+- 行星骰：12 個符號（太陽 ☉、月亮 ☽、水星 ☿、金星 ♀、火星 ♂、木星 ♃、土星 ♄、天王星 ♅、海王星 ♆、冥王星 ♇、羅睺 ☊ 北交點、計都 ☋ 南交點）
+- 星座骰：12 個符號（牡羊 ♈、金牛 ♉、雙子 ♊、巨蟹 ♋、獅子 ♌、處女 ♍、天秤 ♎、天蠍 ♏、射手 ♐、摩羯 ♑、水瓶 ♒、雙魚 ♓）
+- 宮位骰：阿拉伯數字 1-12
+
+如果是骰子照片，可能五顆都看得到。如果是 APP 截圖或表格截圖，找畫面中標示的「行星 + 星座 + 宮位」組合。
+
+主盤需要 3 顆：行星 A、星座 A、宮位
+副骰 2 顆：行星 B、星座 B（如果圖片中只有 3 顆，副骰留空）
+
+只回 JSON（不要前後文字、不要 markdown code block）：
+{"main_planet":"<id>","main_sign":<0-11>,"main_house":<1-12>,"sub_planet":"<id>","sub_sign":<0-11>,"confidence":<0-1>,"notes":"<繁中說明你看到什麼>"}
+
+行星 id：sun, moon, mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto, rahu, ketu
+星座 index：0=牡羊, 1=金牛, 2=雙子, 3=巨蟹, 4=獅子, 5=處女, 6=天秤, 7=天蠍, 8=射手, 9=摩羯, 10=水瓶, 11=雙魚
+
+如果副骰看不到，把 sub_planet 和 sub_sign 設為 null。`;
+
+  try{
+    const {text, model} = await callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens:800, responseJson:true});
+    let parsed;
+    try{
+      parsed = JSON.parse(text);
+    }catch(e){
+      const codeMatch = text.match(/```(?:json)?\s*(\{[\s\S]+?\})\s*```/) || text.match(/(\{[\s\S]+\})/);
+      if(codeMatch) parsed = JSON.parse(codeMatch[1]);
+      else throw new Error('回傳非 JSON：' + text.slice(0,120));
+    }
+    applyRecognition(parsed);
+    const conf = (parsed.confidence != null) ? (parsed.confidence * 100 | 0) + '%' : '—';
+    result.innerHTML = `✓ 辨識成功（${model} · confidence ${conf}）：${parsed.notes || ''}`;
+    result.style.color = '#90ee90';
+    setTimeout(()=>switchTab('manual'), 1500);
+  }catch(e){
+    let msg = e.message;
+    if(usingDefault && /401|403|UNAUTHENTICATED|PERMISSION_DENIED|API key not valid/i.test(msg)){
+      msg = '❌ 內建 Key 已過期或撤銷，請貼上自己的 Gemini API Key（可到 aistudio.google.com/apikey 免費建立）\n\n原始錯誤：' + msg;
+    }else if(usingDefault && /429|quota|RESOURCE_EXHAUSTED/i.test(msg)){
+      msg += '\n（內建 Key 今日額度可能用完，請貼上自己的 Gemini Key）';
+    }
+    result.textContent = '❌ 辨識失敗：' + msg;
+    result.style.color = 'var(--warn)';
+  }
+}
+
+function applyRecognition(r){
+  if(r.main_planet) $('planet_a').value = r.main_planet;
+  if(r.main_sign != null) $('sign_a').value = r.main_sign;
+  if(r.main_house != null) $('house_a').value = r.main_house;
+  if(r.sub_planet) $('planet_b').value = r.sub_planet;
+  if(r.sub_sign != null) $('sign_b').value = r.sub_sign;
+}
+
+// ============ 語音辨識（Web Speech API） ============
+let recognition = null;
+let voiceActive = false;
+
+function setupVoice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    $('btn_voice').disabled = true;
+    $('voice_result').textContent = '⚠ 瀏覽器不支援 Web Speech API。請改用 Chrome / Edge。';
+    return;
+  }
+  recognition = new SR();
+  recognition.lang = 'zh-TW';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = ev=>{
+    const text = ev.results[0][0].transcript;
+    $('voice_result').textContent = '聽到：「' + text + '」 → 解析中...';
+    parseVoice(text);
+  };
+  recognition.onerror = ev=>{
+    const errMsgs = {
+      'not-allowed': '❌ 麥克風權限被拒。請點網址列左邊的 🔒 圖示 → 把「麥克風」改為允許，再重試。',
+      'service-not-allowed': '❌ 瀏覽器封鎖了語音服務。請改用 Chrome 並允許麥克風，或改用下方打字輸入。',
+      'audio-capture': '❌ 找不到麥克風。請確認麥克風已接上、沒被其他程式佔用。',
+      'no-speech': '⚠ 沒有聽到聲音。請再按一次「開始說話」，並靠近麥克風說話。',
+      'network': '❌ 語音服務連線失敗（此功能需連到 Google 語音伺服器）。請確認網路，或改用下方打字輸入。',
+      'language-not-supported': '❌ 這個瀏覽器的語音服務不支援中文。請改用 Chrome，或改用下方打字輸入。',
+      'aborted': '⚠ 錄音已取消。',
+    };
+    $('voice_result').textContent = errMsgs[ev.error] || ('❌ 錯誤：' + ev.error + '（可改用下方打字輸入）');
+    $('btn_voice').textContent = '🎤 開始說話';
+    voiceActive = false;
+  };
+  recognition.onend = ()=>{
+    $('btn_voice').textContent = '🎤 開始說話';
+    voiceActive = false;
+  };
+}
+
+// ============ 問題欄位語音輸入（獨立於下方骰子語音辨識） ============
+let questionRecognition = null;
+let questionVoiceActive = false;
+
+function ensureQuestionRecognition(){
+  if(questionRecognition) return questionRecognition;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return null;
+  const r = new SR();
+  r.lang = 'zh-TW';
+  r.continuous = false;
+  r.interimResults = true;
+  let finalText = '';
+  r.onresult = ev=>{
+    let interim = '';
+    for(let i = ev.resultIndex; i < ev.results.length; i++){
+      const t = ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) finalText += t; else interim += t;
+    }
+    const preview = (finalText + interim).trim();
+    if(preview){
+      $('question').value = preview;
+      $('q_voice_status').textContent = '聽到：' + preview;
+    }
+  };
+  r.onerror = ev=>{
+    const errMsgs = {
+      'not-allowed': '❌ 麥克風權限被拒。點網址列 🔒 → 允許麥克風。',
+      'service-not-allowed': '❌ 瀏覽器封鎖語音服務，請改用 Chrome / Edge。',
+      'audio-capture': '❌ 找不到麥克風。',
+      'no-speech': '⚠ 沒聽到聲音，請靠近麥克風再說一次。',
+      'network': '❌ 語音服務連線失敗（需連 Google 語音伺服器）。',
+      'aborted': '⚠ 已取消。',
+    };
+    $('q_voice_status').textContent = errMsgs[ev.error] || ('❌ 錯誤：' + ev.error);
+    $('btn_q_voice').textContent = '🎤 語音';
+    questionVoiceActive = false;
+  };
+  r.onend = ()=>{
+    $('btn_q_voice').textContent = '🎤 語音';
+    questionVoiceActive = false;
+    if(($('question').value || '').trim()){
+      $('q_voice_status').textContent = '✓ ' + $('question').value;
+    }
+  };
+  questionRecognition = r;
+  return r;
+}
+
+// ============ 問題欄位圖片辨識(Gemini 讀圖中的文字) ============
+function pickQuestionImage(){ $('q_image_file').click(); }
+
+async function handleQuestionImage(file){
+  if(!file) return;
+  const status = $('q_voice_status');
+  const userKey = ($('api_key') && $('api_key').value.trim()) || '';
+  const key = userKey || DEFAULT_GEMINI_KEY;
+  if(!key){
+    status.textContent = '⚠ 需要 Gemini API Key,請切到「📷 圖片輸入」分頁貼上 Key(或到 Google AI Studio 免費建立)';
+    status.style.color = 'var(--warn)';
+    return;
+  }
+  if(!/^image\//.test(file.type)){
+    status.textContent = '⚠ 請選擇圖片檔';
+    status.style.color = 'var(--warn)';
+    return;
+  }
+  status.textContent = '🔍 讀取圖片中...';
+  status.style.color = 'var(--muted)';
+  try{
+    const dataUrl = await new Promise((resolve, reject)=>{
+      const r = new FileReader();
+      r.onload = ()=>resolve(r.result);
+      r.onerror = ()=>reject(new Error('讀檔失敗'));
+      r.readAsDataURL(file);
+    });
+    const m = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+    if(!m) throw new Error('圖片格式無法解析');
+    const mediaType = m[1], b64 = m[2];
+    status.textContent = '🤖 Gemini 辨識中...';
+    const prompt = '請把這張圖片裡的問題文字(可能是手寫、印刷、對話截圖)完整讀出來,原文照抄(繁體中文即用繁中,不要翻譯)。只回文字本身,不要加任何前後說明、不要 markdown、不要引號。如果圖片裡沒有問題文字,回「(無問題文字)」。';
+    const {text} = await callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens:400, responseJson:false});
+    if(!text || text === '(無問題文字)'){
+      status.textContent = '⚠ 圖片中找不到問題文字';
+      status.style.color = 'var(--warn)';
+      return;
+    }
+    $('question').value = text;
+    status.textContent = '✓ 已辨識並填入:' + text.slice(0, 60) + (text.length > 60 ? '...' : '');
+    status.style.color = '#90ee90';
+  }catch(e){
+    status.textContent = '❌ 辨識失敗:' + e.message;
+    status.style.color = 'var(--warn)';
+  }finally{
+    $('q_image_file').value = '';  // 允許重選同一個檔案
+  }
+}
+
+function toggleQuestionVoice(){
+  const r = ensureQuestionRecognition();
+  if(!r){
+    $('q_voice_status').textContent = '⚠ 這個瀏覽器不支援語音辨識，請改用 Chrome / Edge，或直接打字輸入。';
+    return;
+  }
+  if(questionVoiceActive){
+    r.stop();
+  }else{
+    $('btn_q_voice').textContent = '⏹ 停止';
+    $('q_voice_status').textContent = '請說出你的問題...';
+    // 若欄位有內容，語音會 append（保留使用者已打的字）
+    questionVoiceActive = true;
+    try{ r.start(); }
+    catch(e){ $('q_voice_status').textContent = '❌ 啟動失敗：' + e.message; questionVoiceActive = false; $('btn_q_voice').textContent = '🎤 語音'; }
+  }
+}
+
+function toggleVoice(){
+  if(!recognition) return;
+  if(voiceActive){
+    recognition.stop();
+  }else{
+    $('btn_voice').textContent = '⏹ 停止錄音';
+    $('voice_result').textContent = '請開始說話...';
+    voiceActive = true;
+    recognition.start();
+  }
+}
+
+function parseVoice(text){
+  // 把所有空白和標點清乾淨
+  const clean = text.replace(/[，。、,.\s]+/g,'');
+  const result = {};
+  const used = [];
+
+  // 找所有行星 + 星座出現位置
+  const findAll = (alias)=>{
+    const hits = [];
+    for(const [word, id] of Object.entries(alias)){
+      let pos = clean.indexOf(word);
+      while(pos !== -1){
+        // 避開短詞被長詞包含的情況
+        const conflict = used.some(u=>pos < u.end && pos+word.length > u.start);
+        if(!conflict) hits.push({word, id, start:pos, end:pos+word.length});
+        pos = clean.indexOf(word, pos+1);
+      }
+    }
+    return hits;
+  };
+
+  // 為了避免短詞先匹配（例如「金」吃掉「金星」），用字數倒序
+  const sortedPlanets = Object.entries(PLANET_ALIASES).sort((a,b)=>b[0].length-a[0].length);
+  const sortedSigns = Object.entries(SIGN_ALIASES).sort((a,b)=>b[0].length-a[0].length);
+  const planetMap = Object.fromEntries(sortedPlanets);
+  const signMap = Object.fromEntries(sortedSigns);
+
+  const planets = findAll(planetMap).sort((a,b)=>a.start-b.start);
+  planets.forEach(p=>used.push(p));
+  const signs = findAll(signMap).sort((a,b)=>a.start-b.start);
+  signs.forEach(s=>used.push(s));
+
+  // 找宮位數字
+  const houseMatch = clean.match(/([一二三四五六七八九十]+|\d+)宮/);
+  let house = null;
+  if(houseMatch){
+    const num = houseMatch[1];
+    const zhMap = {一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,十:10,十一:11,十二:12};
+    if(zhMap[num]) house = zhMap[num];
+    else house = parseInt(num);
+  }
+
+  // 主骰 = 第一個行星 + 第一個星座 + 宮位
+  // 副骰 = 第二個行星 + 第二個星座
+  const r = {
+    main_planet: planets[0]?.id,
+    main_sign: signs[0]?.id,
+    main_house: house,
+    sub_planet: planets[1]?.id,
+    sub_sign: signs[1]?.id,
+  };
+
+  if(!r.main_planet || r.main_sign==null || !r.main_house){
+    $('voice_result').innerHTML = '⚠ 解析失敗 — 沒抓到完整的主盤三要素。請說「冥王星天秤六宮，金星巨蟹」這種格式。';
+    return;
+  }
+
+  applyRecognition(r);
+  const noteParts = [`主骰：${planets[0].word} ${signs[0].word} ${house}宮`];
+  if(r.sub_planet && r.sub_sign!=null){
+    noteParts.push(`副骰：${planets[1].word} ${signs[1].word}`);
+  }
+  $('voice_result').innerHTML = '✓ ' + noteParts.join('、') + '（已填入手動欄位）';
+  setTimeout(()=>switchTab('manual'), 1500);
+}
+
+// ============ Ephemeris 載入與自動帶入 ============
+let EPHEM = null;
+let EPHEM_RANGE = null;  // {firstSec, lastSec, firstDate, lastDate}
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toLocalInputValue(d){
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+async function loadEphemeris(){
+  const status = $('ephem_status');
+  try{
+    const res = await fetch('ephemeris.json?ts=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    EPHEM = await res.json();
+    const firstSec = EPHEM.points[0].t;
+    const lastSec = EPHEM.points[EPHEM.points.length - 1].t;
+    EPHEM_RANGE = {
+      firstSec, lastSec,
+      firstDate: new Date(firstSec * 1000),
+      lastDate: new Date(lastSec * 1000),
+    };
+    const fmt = d => `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
+    status.textContent = `星曆範圍：${fmt(EPHEM_RANGE.firstDate)} ~ ${fmt(EPHEM_RANGE.lastDate)}`;
+    status.style.color = 'var(--gold)';
+    // 預設日期輸入框 = 現在
+    resetTransitDate();
+  }catch(e){
+    EPHEM = null;
+    status.textContent = '星曆未載入（' + e.message + '）— 行運仍可手動填';
+    status.style.color = 'var(--warn)';
+  }
+}
+
+function findClosestPoint(targetTimestamp){
+  if(!EPHEM || !EPHEM.points || !EPHEM.points.length) return null;
+  // 二分搜尋最近的時間點
+  let lo = 0, hi = EPHEM.points.length - 1;
+  while(lo < hi){
+    const mid = (lo + hi) >> 1;
+    if(EPHEM.points[mid].t < targetTimestamp) lo = mid + 1;
+    else hi = mid;
+  }
+  // 比較 lo 跟 lo-1 哪個更接近
+  const p1 = EPHEM.points[lo];
+  const p0 = lo>0 ? EPHEM.points[lo-1] : null;
+  if(!p0) return p1;
+  return Math.abs(p1.t - targetTimestamp) < Math.abs(p0.t - targetTimestamp) ? p1 : p0;
+}
+
+function resetTransitDate(){
+  $('transit_date').value = toLocalInputValue(new Date());
+}
+
+function getSelectedTransitTimestamp(){
+  const v = $('transit_date').value;
+  if(!v) return Math.floor(Date.now() / 1000);
+  // datetime-local 是本地時間
+  return Math.floor(new Date(v).getTime() / 1000);
+}
+
+function loadCurrentTransits(silentIfNoEphem){
+  if(!EPHEM){
+    if(!silentIfNoEphem) alert('星曆尚未載入');
+    return;
+  }
+  const targetSec = getSelectedTransitTimestamp();
+  if(EPHEM_RANGE && (targetSec < EPHEM_RANGE.firstSec || targetSec > EPHEM_RANGE.lastSec)){
+    $('ephem_status').innerHTML = `<span class="alert">⚠ 該日期超出星曆範圍（${EPHEM_RANGE.firstDate.toLocaleDateString('zh-TW')} ~ ${EPHEM_RANGE.lastDate.toLocaleDateString('zh-TW')}），請改日期或更新 ephemeris.json</span>`;
+    return;
+  }
+  const pt = findClosestPoint(targetSec);
+  if(!pt){ alert('找不到對應的星曆點'); return; }
+
+  const system = $('zodiac_system').value; // 'T' or 'S'
+  const signs = pt[system];
+  const order = EPHEM.planets_order;
+
+  order.forEach((pid, i)=>{
+    const sel = $('t_' + pid);
+    if(sel) sel.value = signs[i];
+  });
+
+  const pointDate = new Date(pt.t * 1000);
+  const sysLabel = system==='S' ? '恆星 Lahiri' : '熱帶';
+  const isNow = Math.abs(targetSec - Math.floor(Date.now()/1000)) < 60*60*6;
+  const dateLabel = pointDate.toLocaleString('zh-TW',{year:'numeric',month:'short',day:'numeric',hour:'2-digit'});
+  $('ephem_status').innerHTML = `<span style="color:var(--gold)">✓ 已帶入 ${dateLabel}（${sysLabel}${isNow?'，最接近現在':''}）</span>`;
+}
+
+// ============ 初始化 ============
+function init(){
+  const planetOpts = PLANETS.map(p=>({value:p.id, label:`${p.sym} ${p.zh}`}));
+  const signOpts   = SIGNS.map(s=>({value:s.id, label:`${s.sym} ${s.zh}`}));
+  const houseOpts  = Array.from({length:12},(_,i)=>({value:i+1, label:`${i+1} 宮`}));
+
+  populateSelect('planet_a', planetOpts);
+  populateSelect('sign_a',   signOpts);
+  populateSelect('house_a',  houseOpts);
+  populateSelect('planet_b', planetOpts);
+  populateSelect('sign_b',   signOpts);
+  ['t_sun','t_moon','t_mercury','t_venus','t_mars','t_jupiter','t_saturn',
+   't_uranus','t_neptune','t_pluto','t_rahu','t_ketu'].forEach(id=>{
+    populateSelect(id, signOpts, true);
+  });
+  loadEphemeris();
+  setupImageInput();
+  setupVoice();
+
+  // 預設用使用者 memo 範例：冥王星 天秤 6 宮、金星 巨蟹
+  $('planet_a').value='pluto';
+  $('sign_a').value='6';
+  $('house_a').value='6';
+  $('planet_b').value='venus';
+  $('sign_b').value='3';
+  toggleSubdie();  // 副骰預設關閉 → 讓副骰欄位一開始就變灰
+  updateHistoryCount();
+  initGoogleSignIn();  // 必須在 updateUserUI 之前:initialize 先完成才能 renderButton
+  updateUserUI();
+  // 議題 chip 勾選狀態同步(視覺 label 切換 .checked)
+  document.querySelectorAll('#topic_chips .tp-chip').forEach(chip => {
+    const cb = chip.querySelector('input');
+    if(!cb) return;
+    const sync = () => chip.classList.toggle('checked', cb.checked);
+    cb.addEventListener('change', sync);
+    sync();
+  });
+}
+
+function reset(){
+  $('question').value='';
+  init();
+  $('output').classList.add('hidden');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ============ NotebookLM 深度解讀：prompt 模板 ============
+const NOTEBOOK_URL = {
+  western: 'https://notebooklm.google.com/notebook/03b21b72-a454-4d58-8d18-8fbe312a5378',
+  vedic:   'https://notebooklm.google.com/notebook/129f5535-d742-488e-bbcf-db870ba24d6f',
+  vedic2:  'https://notebooklm.google.com/notebook/da8bc187-4c46-451c-b178-da5aa610c908',
+};
+const NOTEBOOK_NAME = {
+  western: 'Astrology-占星學',
+  vedic:   '印度占星精進班',
+  vedic2:  '印度占星學-蕭思源天象觀測站',
+};
+
+function buildPromptWestern(ctx){
+  const transitsLine = ctx.transits.length
+    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
+    : '（未填）';
+  const subdieLine = ctx.useSubdie
+    ? `- 副骰：${ctx.pB.zh} ${ctx.sB.zh} 第 ${ctx.house_b} 宮（整宮制推算）\n`
+    : '';
+  const aspectsBlock = ctx.aspectsText && ctx.aspectsText.length
+    ? `\n## 全相位摘要（整宮制）\n${ctx.aspectsText.map(a=>'- '+a).join('\n')}\n`
+    : '';
+  const questionBlock = ctx.question
+    ? `## ❓ 核心提問（請優先針對這個問題回答，不要泛泛而談）\n> ${ctx.question}\n\n`
+    : '';
+  const subdieQ = ctx.useSubdie
+    ? `3. **副骰${ctx.pB.zh}${ctx.sB.zh}**（落第 ${ctx.house_b} 宮）提供什麼補充提示？跟主骰的相位互動如何？\n`
+    : '';
+  return `# 占星骰子 · 西洋深度解讀
+
+${questionBlock}## 骰子結果
+- 主骰：${ctx.pA.zh} ${ctx.sA.zh} 第 ${ctx.house_a} 宮
+${subdieLine}- 推算上升：${ctx.ascSign.zh} · 命主星：${ctx.pLord.zh}
+- 行運日期：${ctx.transitDateLabel || '現在'}
+- 當前行運：${transitsLine}
+${aspectsBlock}
+## 請依西洋占星角度回答${ctx.question ? `（圍繞「${ctx.question}」這個核心問題）` : ''}
+
+1. **${ctx.pA.zh}落${ctx.sA.zh}第${ctx.house_a}宮**的核心意涵 — 此能量在這個生活領域如何展現？廟旺弱陷狀態為何？
+2. **命主${ctx.pLord.zh}**的位置與${ctx.question ? '提問主題' : '此盤主題'}的關聯：當事人需要從哪個方向去處理？
+${subdieQ}${ctx.useSubdie ? '4' : '3'}. **當前行運 + 上述相位摘要**對此盤的當下啟動：哪幾組吉相位可以借力？哪幾組凶相位需要避免？
+${ctx.useSubdie ? '5' : '4'}. 針對${ctx.question ? `「${ctx.question}」這個問題` : '此盤主題'}，給三個具體可執行的建議。
+
+請盡量引用 notebook 內的具體規則或案例。`;
+}
+
+function buildPromptVedic(ctx){
+  const transitsLine = ctx.transits.length
+    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
+    : '（未填）';
+  const subdieLine = ctx.useSubdie
+    ? `- 副骰：${ctx.pB.zh}（${ctx.pB.vedic}）在 ${ctx.sB.zh} 第 ${ctx.house_b} 宮\n`
+    : '';
+  const aspectsBlock = ctx.aspectsText && ctx.aspectsText.length
+    ? `\n## 全相位摘要（整宮制）\n${ctx.aspectsText.map(a=>'- '+a).join('\n')}\n`
+    : '';
+  const questionBlock = ctx.question
+    ? `## ❓ 核心提問（請優先針對這個問題回答，不要泛泛而談）\n> ${ctx.question}\n\n`
+    : '';
+  const subdieQ = ctx.useSubdie
+    ? `4. **副骰${ctx.pB.zh}**位置的補強或拖累作用？\n`
+    : '';
+  return `# 占星骰子 · Vedic 深度解讀
+
+${questionBlock}## 骰子結果（整宮制 Whole Sign）
+- 主骰：${ctx.pA.zh}（${ctx.pA.vedic}）在 ${ctx.sA.zh} 第 ${ctx.house_a} 宮
+${subdieLine}- 上升 (Lagna)：${ctx.ascSign.zh} · 命主 (Lagnesh)：${ctx.pLord.zh}（${ctx.pLord.vedic}）
+- 行運日期：${ctx.transitDateLabel || '現在'}
+- 當前行運：${transitsLine}
+${aspectsBlock}
+## 請依印度占星 Vedic 角度回答${ctx.question ? `（圍繞「${ctx.question}」這個核心問題）` : ''}
+
+1. **第 ${ctx.house_a} 宮（${VEDIC_HOUSE[ctx.house_a].split('—')[0].trim()}）** 的 Bhava 屬性對主骰行星 ${ctx.pA.zh} 的影響為何？
+2. **命主${ctx.pLord.zh}**（Lagnesh）在此盤位置的判讀：當事人的人生驅動方向？
+3. 此盤是否觸發三條凶險檢查：
+   (a) 八宮內凶星（整宮制）
+   (b) 八宮空宮時宮主飛宮的同宮凶星
+   (c) 火星 / 土星弱陷（火星：天秤/金牛/巨蟹；土星：巨蟹/獅子/牡羊）
+${subdieQ}${ctx.useSubdie ? '5' : '4'}. 針對${ctx.question ? `「${ctx.question}」這個問題` : '此盤主題'}，從 Vedic 觀點給三個具體可執行的建議（含適合的 Mantra / 寶石 / Remedy，如果適用）。
+
+請優先引用 notebook 內的具體規則、Dasha 系統判讀或案例。`;
+}
+
+function copyToClipboard(text, btnEl){
+  navigator.clipboard.writeText(text).then(()=>{
+    const orig = btnEl.textContent;
+    btnEl.textContent = '✓ 已複製，請開 NotebookLM 貼上';
+    btnEl.disabled = true;
+    setTimeout(()=>{
+      btnEl.textContent = orig;
+      btnEl.disabled = false;
+    }, 3000);
+  }).catch(err=>{
+    alert('複製失敗：'+err.message+'\n請手動選取下方文字。');
+  });
+}
+
+// ============ 🕉 南印度方格盤(Rashi Chart)，仿傳統 4x4 佈局，純新增 ============
+// 星座固定位置(順時針從左上角雙魚起) → 宮位號隨上升星座旋轉
+const RASHI_LAYOUT = {
+  11:{r:1,c:1}, 0:{r:1,c:2}, 1:{r:1,c:3}, 2:{r:1,c:4},
+  10:{r:2,c:1},                            3:{r:2,c:4},
+  9: {r:3,c:1},                            4:{r:3,c:4},
+  8: {r:4,c:1}, 7:{r:4,c:2}, 6:{r:4,c:3}, 5:{r:4,c:4},
+};
+const ELEM_CLS_RC = {'火':'rc-fire','土':'rc-earth','風':'rc-air','水':'rc-water'};
+// 印度九曜(Navagraha):傳統南印度盤只顯這 9 顆,不含 U/N/P 外行星
+const VEDIC_GRAHAS = ['sun','moon','mars','mercury','jupiter','venus','saturn','rahu','ketu'];
+const SRC_CLS_RC = {'主骰':'rp-src-main','副骰':'rp-src-sub','行運':'rp-src-transit'};
+
+function renderRashiChart(asc, placements){
+  let cells = '';
+  for(let signId = 0; signId < 12; signId++){
+    const sign = SIGNS[signId];
+    const {r, c} = RASHI_LAYOUT[signId];
+    const house = houseOfSign(signId, asc);
+    const types = HOUSE_TYPE[house] || [];
+    const isDush = types.includes('Dusthana');
+    const isTrikona = types.includes('Trikona') && house !== 1;  // 命宮另用金框
+    let cls = 'rashi-cell ' + (ELEM_CLS_RC[sign.element] || '');
+    if(isDush) cls += ' rc-dush';
+    if(isTrikona) cls += ' rc-trikona';
+    if(house === 1) cls += ' rc-asc';
+
+    // 只顯示印度九曜,過濾外行星(U/N/P)— Rashi 盤是 Vedic 純血
+    const here = placements.filter(p => p.house === house && VEDIC_GRAHAS.includes(p.pid));
+    const planetsHTML = here.map(p => {
+      const pl = findPlanet(p.pid);
+      const srcCls = SRC_CLS_RC[p.source] || 'rp-src-main';
+      return `<span class="rc-planet rp-${p.pid} ${srcCls}" title="${pl.zh} · ${p.source}">${pl.sym}${pl.zh.charAt(0)}</span>`;
+    }).join('');
+
+    cells += `
+      <div class="${cls}" style="grid-row:${r};grid-column:${c}">
+        <div class="rc-head">
+          <span class="rc-sign">${sign.sym}${sign.zh}</span>
+          <span class="rc-hnum">宮<strong>${house}</strong></span>
+        </div>
+        <div class="rc-planets">${planetsHTML}</div>
+      </div>`;
+  }
+
+  const ascSign = SIGNS[asc];
+  const ascLord = findPlanet(TRADITIONAL_RULER[asc]);
+  const centerHTML = `
+    <div class="rashi-center">
+      <div class="rc-title">🕉 南印度方格盤</div>
+      <div class="rc-sub">
+        Rashi Chart<br>
+        上升 ${ascSign.sym} ${ascSign.zh}<br>
+        命主星 ${ascLord.sym} ${ascLord.zh}
+      </div>
+    </div>`;
+
+  const legend = `
+    <div class="rashi-legend">
+      <span class="rl-item"><span class="rl-sw" style="background:rgba(255,90,60,.5)"></span>火</span>
+      <span class="rl-item"><span class="rl-sw" style="background:rgba(220,180,60,.5)"></span>土</span>
+      <span class="rl-item"><span class="rl-sw" style="background:rgba(100,170,230,.5)"></span>風</span>
+      <span class="rl-item"><span class="rl-sw" style="background:rgba(80,180,180,.5)"></span>水</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#c22020;border-radius:50%"></span>火 Kuja</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#2a3a6b;border-radius:50%"></span>土 Shani</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#d4a017;border-radius:50%"></span>木 Guru</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#e8e0d5;border-radius:50%;border:1px solid #999"></span>金 Shukra</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#c74a2e;border-radius:50%"></span>日 Surya</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#e8e8f0;border-radius:50%;border:1px solid #999"></span>月 Chandra</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#2e8a52;border-radius:50%"></span>水 Budha</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#5a5a5a;border-radius:50%"></span>羅睺</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#8a5a3a;border-radius:50%"></span>計都</span>
+      <span class="rl-item">紅框=6/8/12 凶宮</span>
+      <span class="rl-item">金條=5/9 三分宮</span>
+      <span class="rl-item">金框=命宮 1</span>
+      <span class="rl-item">實線=主骰 / 虛線=副骰 / 淡色=行運</span>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:6px;text-align:center">
+      ⓘ 依印度九曜(Navagraha)傳統:僅顯示日月+五曜+羅睺+計都;色系依 BPHS 寶石對應(木=金黃/土=藍寶石/水=祖母綠…)。天/海/冥外行星請看下方 12 宮位表。
+    </div>`;
+
+  return `
+    <div class="card">
+      <div class="card-title">🕉 南印度方格盤（一眼掃視合剋/凶星分布）</div>
+      <div class="rashi-wrap">
+        <div class="rashi-chart">${cells}${centerHTML}</div>
+      </div>
+      ${legend}
+    </div>`;
+}
+
+// ============ 🔮 AI 白話短解（仿測測 App，1-3 句話直答，純新增） ============
+function getSelectedTopics(){
+  const chips = Array.from(document.querySelectorAll('#topic_chips input:checked')).map(i => i.value);
+  const custom = ($('topic_custom') && $('topic_custom').value || '').trim();
+  if(custom) chips.push(custom);
+  return chips;
+}
+
+function renderAIQuickRead(ctx){
+  const payload = {
+    pA: ctx.pA.id, sA: ctx.sA.id, house_a: ctx.house_a,
+    pB: ctx.useSubdie && ctx.pB ? ctx.pB.id : null,
+    sB: ctx.useSubdie && ctx.sB ? ctx.sB.id : null,
+    house_b: ctx.useSubdie ? ctx.house_b : null,
+    asc: ctx.ascSign ? ctx.ascSign.id : null,
+    lord: ctx.pLord ? ctx.pLord.id : null,
+    question: ctx.question || '',
+    topics: getSelectedTopics(),
+    transitDate: ctx.transitDateLabel || '',
+    transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house})),
+  };
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  return `
+    <div class="ai-quick-card">
+      <div class="ai-quick-header">
+        <span class="icon">🔮</span>
+        <span class="title">AI 雙派白話深解</span>
+        <span class="sub">🌐 西洋 × 🕉 印度 · 各含 雙星／命主／天上／建議</span>
+      </div>
+      <div id="ai_quick_body">
+        <button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${b64}">
+          👉 請 AI 同時用西洋派與印度派給我完整判讀
+        </button>
+      </div>
+    </div>`;
+}
+
+async function runAIQuick(btn){
+  const body = document.getElementById('ai_quick_body');
+  const userKey = ($('api_key') && $('api_key').value.trim()) || '';
+  const savedKey = localStorage.getItem('gemini_api_key') || '';
+  const key = userKey || savedKey || DEFAULT_GEMINI_KEY;
+  if(!key){
+    body.innerHTML = `<div class="muted" style="color:var(--warn)">⚠ 需要 Gemini API Key，請切到「📷 圖片輸入」分頁填入（或到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">AI Studio</a> 免費建立）</div>`;
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '🤖 Gemini 思考中...';
+  let payload;
+  try{ payload = JSON.parse(decodeURIComponent(escape(atob(btn.dataset.ctx)))); }
+  catch(e){ body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ context 解析失敗</div>`; return; }
+
+  const pName = id => (PLANETS.find(p=>p.id===id)||{}).zh || id;
+  const sName = id => (id!=null ? SIGNS[id].zh : '—');
+  const hasSubdie = payload.pB && payload.sB!=null;
+  const mainLine = `主骰：${pName(payload.pA)}（${sName(payload.sA)}，第 ${payload.house_a} 宮）`;
+  const subLine = hasSubdie
+    ? `副骰：${pName(payload.pB)}（${sName(payload.sB)}，第 ${payload.house_b} 宮）`
+    : '副骰：（未啟用，此次為單顆主骰判讀）';
+  const twoDiceLabel = hasSubdie ? `${pName(payload.pA)} + ${pName(payload.pB)}` : `${pName(payload.pA)}（單骰）`;
+  const transitLine = (payload.transits && payload.transits.length)
+    ? `${payload.transits.map(t=>`${t.name}在${t.sign}(第${t.house}宮)`).join('、')}`
+    : '（未帶入當前行運）';
+  const transitAvailable = !!(payload.transits && payload.transits.length);
+
+  const prompt = `你同時精通西洋占星與印度(Vedic)占星,請分別用兩派視角回答同一個問題。用親切、白話、口語的繁體中文,像朋友解卡,不堆疊術語但要有深度。
+
+【擲出的骰子】
+${mainLine}
+${subLine}
+
+【這個盤的命主資訊】
+推算上升：${sName(payload.asc)}
+命主星：${pName(payload.lord)}
+
+【當前天上真實星象(行運)】
+${transitAvailable ? `日期:${payload.transitDate}` : ''}
+行運行星位置:${transitLine}
+
+【問題】
+${payload.question || '(未特別提問,泛泛看今天/近期整體)'}
+
+【特別關注議題】
+${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（請針對這些面向側重回答,聯繫對應宮位:愛情→7 宮、事業→10 宮、財運→2/11 宮、健康→6 宮、家庭→4 宮、子女→5 宮、學業→3 宮、遷移→9 宮、訴訟→6 宮、秘密繼承→8 宮、社群→11 宮、靈性→12 宮、警察/刑警/案件→6 宮敵人+8 宮意外+10 宮公權力,火星/土星/羅睺是關鍵指標）' : '（未指定議題,泛泛看整體）'}
+
+【輸出格式 — 只回 JSON,不要 markdown、不要 code block、不要前後說明】
+{
+  "western": {
+    "dice_interaction": "1-3 句白話,西洋視角看${twoDiceLabel}這對雙星的能量組合(相合/互補/對立/加乘),點出各自宮位情境",
+    "lord_relation": "1-2 句白話,命主星${pName(payload.lord)}(西洋現代守護觀)跟${pName(payload.pA)}${hasSubdie?'/'+pName(payload.pB):''}的關係,對『你』意味著什麼",
+    "transit": "1-2 句白話,${transitAvailable ? '對照當前行運('+transitLine+')西洋視角(角度、心理面)的呼應與強化/矛盾' : '未帶入當前行運資料,無法對照天上真實星象'}",
+    "advice": "1-2 句白話,西洋派的具體可行動作(適合/不適合、什麼時候做、怎麼做),不模糊兩可"
+  },
+  "vedic": {
+    "dice_interaction": "1-3 句白話,印度視角看這對雙星的能量組合(強調 Kendra/Trikona/Dusthana、九曜性質),點出各自 Bhava 情境",
+    "lord_relation": "1-2 句白話,命主星(Lagna Lord、傳統七曜守護)跟這對雙星的關係,對『你』意味著什麼",
+    "transit": "1-2 句白話,${transitAvailable ? '對照當前行運印度視角(Gochara、行星映射)的呼應' : '未帶入當前行運資料,無法對照天上真實星象'}",
+    "advice": "1-2 句白話,印度派的具體可行動作,不模糊兩可"
+  }
+}
+
+【禁忌】
+- 只回 JSON,不要 markdown code block、不要前後說明
+- 用「你」,不要用「客戶/命主/原盤/相位」等術語堆疊
+- 行運未帶入絕不瞎編,transit 那欄照實寫「未帶入…」
+- 每個欄位用純繁中,可以帶 emoji 但不要用 **粗體** 或 # 標題`;
+
+  try{
+    let text = '', usedModel = '';
+    for(const model of GEMINI_MODELS){
+      const u = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+      const res = await fetch(u, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          contents:[{role:'user', parts:[{text: prompt}]}],
+          generationConfig:{
+            temperature:0.75, maxOutputTokens:1800,
+            responseMimeType:'application/json',
+            thinkingConfig:{thinkingBudget:0}
+          }
+        })
+      });
+      if(res.status===503 || res.status===429 || res.status===404) continue;
+      if(!res.ok){ throw new Error('Gemini ' + res.status + ': ' + (await res.text()).slice(0,180)); }
+      const d = await res.json();
+      const c = d.candidates && d.candidates[0];
+      if(!c) continue;
+      const t = ((c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text) || '').trim();
+      if(!t) continue;
+      text = t; usedModel = model; break;
+    }
+    if(!text) throw new Error('所有 Gemini model 都無回應');
+
+    // 解析 JSON:西洋 + 印度雙派
+    let parsed = null;
+    try{ parsed = JSON.parse(text); }
+    catch(e){
+      const m = text.match(/(\{[\s\S]+\})/);
+      if(m) try{ parsed = JSON.parse(m[1]); }catch(e2){}
+    }
+    const esc = s => (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const block = (label, val) => `
+      <div class="ai-block">
+        <div class="ai-block-label">${label}</div>
+        <div class="ai-block-text">${esc(val || '(未給)')}</div>
+      </div>`;
+    if(parsed && parsed.western && parsed.vedic){
+      const w = parsed.western, v = parsed.vedic;
+      body.innerHTML = `
+        <div class="ai-two-col">
+          <div class="ai-side ai-side-western">
+            <div class="ai-side-title">🌐 西洋派 Western</div>
+            ${block('🎲 雙星互動', w.dice_interaction)}
+            ${block('⭐ 命主星關係', w.lord_relation)}
+            ${block('🌌 天上呼應', w.transit)}
+            ${block('💡 建議', w.advice)}
+          </div>
+          <div class="ai-side ai-side-vedic">
+            <div class="ai-side-title">🕉 印度派 Vedic</div>
+            ${block('🎲 雙星互動', v.dice_interaction)}
+            ${block('⭐ 命主星關係', v.lord_relation)}
+            ${block('🌌 天上呼應', v.transit)}
+            ${block('💡 建議', v.advice)}
+          </div>
+        </div>
+        <div class="ai-quick-hint">${usedModel} · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
+    }else{
+      // JSON 解析失敗 fallback:直接顯示原文
+      body.innerHTML = `
+        <div class="ai-quick-answer">${esc(text)}</div>
+        <div class="ai-quick-hint">${usedModel} · JSON 解析失敗,原文顯示 · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
+    }
+    const regen = body.querySelector('.ai-quick-regen');
+    if(regen) regen.onclick = (ev)=>{ ev.preventDefault(); body.innerHTML = `<button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">👉 再問一次</button>`; };
+  }catch(e){
+    body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ ${e.message}</div>
+      <button class="ai-quick-btn" style="margin-top:8px" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">重試</button>`;
+  }
+}
+
+function renderAIDeepRead(ctx){
+  const promptW = buildPromptWestern(ctx);
+  const promptV = buildPromptVedic(ctx);
+  // 把 prompt 轉成 base64 存在 data attribute（避免引號跳脫問題）
+  const pwB64 = btoa(unescape(encodeURIComponent(promptW)));
+  const pvB64 = btoa(unescape(encodeURIComponent(promptV)));
+  return `
+    <div class="card">
+      <div class="card-title">🔮 深度 AI 解讀（NotebookLM 知識庫）</div>
+      <div class="muted" style="margin-bottom:12px">
+        以下按鈕會把為這次骰子量身打造的查詢詞複製到剪貼簿，並開啟對應的 NotebookLM。
+        到 NotebookLM 後直接 Ctrl+V 貼到對話框送出。
+      </div>
+      <div class="row" style="gap:12px">
+        <div>
+          <button class="btn-deep western" onclick="
+            copyToClipboard(decodeURIComponent(escape(atob('${pwB64}'))), this);
+            window.open('${NOTEBOOK_URL.western}','_blank');
+          ">📋 複製西洋查詢 → ${NOTEBOOK_NAME.western}</button>
+        </div>
+        <div>
+          <button class="btn-deep vedic" onclick="
+            copyToClipboard(decodeURIComponent(escape(atob('${pvB64}'))), this);
+            window.open('${NOTEBOOK_URL.vedic}','_blank');
+          ">📋 複製印度查詢 → ${NOTEBOOK_NAME.vedic}</button>
+        </div>
+      </div>
+      <details style="margin-top:12px">
+        <summary class="muted" style="cursor:pointer">▸ 預覽查詢內容</summary>
+        <div class="two-col" style="margin-top:8px">
+          <pre class="prompt-preview western">${promptW.replace(/</g,'&lt;')}</pre>
+          <pre class="prompt-preview vedic">${promptV.replace(/</g,'&lt;')}</pre>
+        </div>
+      </details>
+    </div>`;
+}
+
+// ============ 印度凶險三規則檢查（使用者 memo 出處） ============
+// 規則 1：八宮內凶星（整宮制 Whole Sign）
+function rule1_maleficsIn8th(placements){
+  return placements.filter(p=>p.house===8 && MALEFICS_ALL.includes(p.pid));
+}
+
+// 規則 1-1：水星 / 金星的雙守護星座補充資訊
+//   五骰版沒有 Placidus 角度，做折衷：若 8 宮內有水/金、或 8 宮主是水/金，
+//   列出其雙守護星座，並標記是否該星座也有凶星（這是接近 Placidus 精神的整宮制近似）
+function rule1_1_dualRulership(asc, placements){
+  const sign8 = (asc + 7) % 12;
+  const lord8 = TRADITIONAL_RULER[sign8];
+  const findings = [];
+
+  // 判斷 8 宮裡有沒有水星/金星
+  const dualInH8 = placements.filter(p=>p.house===8 && DUAL_RULERSHIP[p.pid]);
+  dualInH8.forEach(p=>{
+    const altSigns = DUAL_RULERSHIP[p.pid].map(id=>findSign(id));
+    const altHouses = DUAL_RULERSHIP[p.pid].map(id=>houseOfSign(id, asc));
+    const maleficInAlt = placements.filter(o=>altHouses.includes(o.house) && MALEFICS_ALL.includes(o.pid));
+    findings.push({
+      planet:findPlanet(p.pid),
+      altSigns, altHouses,
+      maleficInAlt,
+    });
+  });
+
+  // 8 宮主是水星/金星時，也列出
+  if(DUAL_RULERSHIP[lord8] && !dualInH8.some(p=>p.pid===lord8)){
+    const altSigns = DUAL_RULERSHIP[lord8].map(id=>findSign(id));
+    const altHouses = DUAL_RULERSHIP[lord8].map(id=>houseOfSign(id, asc));
+    const maleficInAlt = placements.filter(o=>altHouses.includes(o.house) && MALEFICS_ALL.includes(o.pid));
+    findings.push({
+      planet:findPlanet(lord8),
+      asLord:true,
+      altSigns, altHouses,
+      maleficInAlt,
+    });
+  }
+
+  return {sign8:findSign(sign8), lord8:findPlanet(lord8), findings};
+}
+
+// 規則 2：八宮空宮 → 八宮主飛宮的同宮凶星
+function rule2_8thLordSameHouseMalefics(asc, placements){
+  const sign8 = (asc + 7) % 12;
+  const lord8 = TRADITIONAL_RULER[sign8];
+
+  // 8 宮是否空宮？（從 placements 看 — 主骰、副骰、運星都計入）
+  const occupants8 = placements.filter(p=>p.house===8);
+  if(occupants8.length>0){
+    return {applicable:false, reason:'8 宮非空宮，規則 2 不適用', occupants:occupants8};
+  }
+
+  // 8 宮主在哪一宮？只看 placements 裡有的
+  const lord8Placement = placements.find(p=>p.pid===lord8);
+  if(!lord8Placement){
+    return {applicable:false, reason:`8 宮主 ${findPlanet(lord8).zh} 未在骰子或行運中，無法判定飛宮位置`};
+  }
+
+  // 同宮凶星檢查
+  const targetHouse = lord8Placement.house;
+  const sameHouseMalefics = placements.filter(p=>
+    p.house===targetHouse && p.pid!==lord8 && MALEFICS_ALL.includes(p.pid)
+  );
+
+  return {
+    applicable:true,
+    lord8:findPlanet(lord8),
+    lord8Placement,
+    targetHouse,
+    sameHouseMalefics,
+  };
+}
+
+// 規則 3：本命凶星弱陷檢查（火星/土星在弱陷星座）
+function rule3_maleficWeakness(placements){
+  const hits = [];
+  placements.forEach(p=>{
+    const weakSigns = RULE3_WEAK[p.pid];
+    if(weakSigns && weakSigns.includes(p.sign)){
+      hits.push({
+        planet:findPlanet(p.pid),
+        sign:findSign(p.sign),
+        source:p.source,
+        house:p.house,
+      });
+    }
+  });
+  return hits;
+}
+
+// 渲染印度凶險三規則 HTML
+function renderVedicRules(asc, placements){
+  const r1 = rule1_maleficsIn8th(placements);
+  const r11 = rule1_1_dualRulership(asc, placements);
+  const r2 = rule2_8thLordSameHouseMalefics(asc, placements);
+  const r3 = rule3_maleficWeakness(placements);
+
+  // 規則 1
+  let r1HTML = `<h4>① 八宮內凶星（整宮制 Whole Sign）</h4>`;
+  if(r1.length===0){
+    r1HTML += `<p>✅ 無凶星落入八宮。</p>`;
+  }else{
+    r1HTML += `<p class="alert">⚠ 偵測到 ${r1.length} 顆凶星落入八宮：</p>`;
+    r1HTML += `<ul style="margin:4px 0 8px 16px;padding:0">`;
+    r1.forEach(p=>{
+      const planet = findPlanet(p.pid);
+      const sign = findSign(p.sign);
+      const cat = MALEFICS_TRADITIONAL.includes(p.pid)?'傳統凶星':'現代凶星';
+      r1HTML += `<li><strong>${planet.zh}</strong>（${cat}）在 ${sign.zh}，來源：${p.source}</li>`;
+    });
+    r1HTML += `</ul>`;
+  }
+
+  // 規則 1-1
+  let r11HTML = `<h4>① -1 不等宮制 + 水金雙守護（平行檢查）</h4>`;
+  r11HTML += `<p class="muted">五骰版沒有 Placidus 角度資料，此處用「水星/金星雙守護星座 → 對應宮位」的整宮制近似。完整 Placidus 等接 Swiss Ephemeris 後可用。</p>`;
+  r11HTML += `<p>八宮星座：<strong>${r11.sign8.sym} ${r11.sign8.zh}</strong> · 八宮主：<strong>${r11.lord8.zh}</strong></p>`;
+  if(r11.findings.length===0){
+    r11HTML += `<p>✅ 此盤的水星/金星與八宮無雙守護關聯，補充規則不觸發。</p>`;
+  }else{
+    r11.findings.forEach(f=>{
+      const altDesc = f.altSigns.map((s,i)=>`${s.sym}${s.zh}（落${f.altHouses[i]}宮）`).join('、');
+      r11HTML += `<p>${f.planet.zh}（${f.asLord?'八宮主':'落於八宮'}）雙守護：${altDesc}</p>`;
+      if(f.maleficInAlt.length===0){
+        r11HTML += `<p>　✅ 雙守護宮位無凶星。</p>`;
+      }else{
+        r11HTML += `<p class="alert">　⚠ 雙守護宮位內有凶星：${f.maleficInAlt.map(m=>findPlanet(m.pid).zh+'（'+m.source+'）').join('、')}</p>`;
+      }
+    });
+  }
+
+  // 規則 2
+  let r2HTML = `<h4>② 八宮空宮 → 八宮主飛宮同宮凶星</h4>`;
+  if(!r2.applicable){
+    r2HTML += `<p class="muted">不適用：${r2.reason}</p>`;
+    if(r2.occupants && r2.occupants.length){
+      r2HTML += `<p class="muted">八宮現有：${r2.occupants.map(o=>findPlanet(o.pid).zh+'（'+o.source+'）').join('、')}</p>`;
+    }
+  }else{
+    r2HTML += `<p>八宮空宮 · 八宮主 <strong>${r2.lord8.zh}</strong> 飛入第 <strong>${r2.targetHouse}</strong> 宮（來源：${r2.lord8Placement.source}）</p>`;
+    if(r2.sameHouseMalefics.length===0){
+      r2HTML += `<p>✅ ${r2.targetHouse} 宮無其他凶星同宮，吉。</p>`;
+    }else{
+      r2HTML += `<p class="alert">⚠ ${r2.targetHouse} 宮內同宮凶星：${r2.sameHouseMalefics.map(m=>findPlanet(m.pid).zh+'（'+m.source+'）').join('、')} — 八宮兇能量透過此宮顯化。</p>`;
+    }
+  }
+
+  // 規則 3
+  let r3HTML = `<h4>③ 本命凶星弱陷（火星 / 土星）</h4>`;
+  r3HTML += `<p class="muted">火星弱陷：天秤、金牛、巨蟹 · 土星弱陷：巨蟹、獅子、牡羊</p>`;
+  if(r3.length===0){
+    r3HTML += `<p>✅ 未偵測到火星 / 土星落於弱陷星座。</p>`;
+  }else{
+    r3HTML += `<p class="alert">⚠ 偵測到 ${r3.length} 個弱陷凶星：</p>`;
+    r3HTML += `<ul style="margin:4px 0 8px 16px;padding:0">`;
+    r3.forEach(h=>{
+      r3HTML += `<li><strong>${h.planet.zh}</strong> 在 ${h.sign.zh}（弱陷），落第 ${h.house} 宮，來源：${h.source}</li>`;
+    });
+    r3HTML += `</ul>`;
+  }
+
+  return `
+    <div class="card">
+      <div class="card-title">⚖ 印度凶險三規則檢查（依使用者 memo）</div>
+      <div class="judgment">
+        ${r1HTML}
+        ${r11HTML}
+        ${r2HTML}
+        ${r3HTML}
+      </div>
+    </div>`;
+}
+
+// ============ 12 宮位排列表 + 五星飛兩宮 + 全相位分類 ============
+
+const HOUSE_NOTE = {
+  6: '危險小人',
+  8: '潛在風險',
+  12: '失落 / 開支',
+};
+
+// 四象位（同象位同色）+ 始/續/果宮 對應
+const ELEMENT_CLASS = {'火':'elem-fire','土':'elem-earth','風':'elem-air','水':'elem-water'};
+const ELEMENT_EN = {'火':'Fire','土':'Earth','風':'Air','水':'Water'};
+const MODE_EN    = {'本位':'Cardinal','固定':'Fixed','變動':'Mutable'};
+// 始宮（angular）= 1,4,7,10 ； 續宮（succedent）= 2,5,8,11 ； 果宮（cadent）= 3,6,9,12
+function houseQuality(h){
+  if([1,4,7,10].includes(h)) return {cls:'q-angular',   zh:'始宮', en:'Angular',   abbr:'A'};
+  if([2,5,8,11].includes(h)) return {cls:'q-succedent', zh:'續宮', en:'Succedent', abbr:'S'};
+  return {cls:'q-cadent', zh:'果宮', en:'Cadent', abbr:'C'};
+}
+// 印度宮位屬性 中英對照 + 縮寫
+const BHAVA_LABEL = {
+  Dusthana: {zh:'凶宮',   abbr:'D'},
+  Kendra:   {zh:'角宮',   abbr:'K'},
+  Trikona:  {zh:'三分宮', abbr:'Tr'},
+  Upachaya: {zh:'增長宮', abbr:'U'},
+};
+// 火星/冥王星/牡羊/天蠍 → 紅色強調；土星/摩羯/水瓶 → 亮橘
+const PLANET_EMPH_CLASS = {mars:'pl-mars', pluto:'pl-pluto', saturn:'pl-saturn'};
+const SIGN_EMPH_CLASS   = {0:'sign-aries', 7:'sign-scorpio', 9:'sign-capricorn', 10:'sign-aquarius'};
+
+function houseChartHTML(asc, placements){
+  let rows = '';
+  for(let h=1; h<=12; h++){
+    const signId = (asc + h - 1) % 12;
+    const sign = SIGNS[signId];
+    const lords = [TRADITIONAL_RULER[signId]];
+    if(MODERN_RULER[signId]) lords.push(MODERN_RULER[signId]);
+
+    const here = placements.filter(p=>p.house===h);
+    const types = HOUSE_TYPE[h] || [];
+    const isDush = types.includes('Dusthana');
+    const quality = houseQuality(h);
+    const elemCls = ELEMENT_CLASS[sign.element] || '';
+
+    let rowCls = elemCls;
+    if(isDush) rowCls += ' dush-house';
+    // 保留原始 Kendra/Trikona 標記給既有的 hover / 相容性
+    if(types.includes('Dusthana')) rowCls += ' house-row-dusthana';
+    else if(types.includes('Kendra')) rowCls += ' house-row-kendra';
+    else if(types.includes('Trikona')) rowCls += ' house-row-trikona';
+    if(h===1) rowCls += ' house-row-asc';
+
+    let bhavaTag = '';
+    ['Dusthana','Kendra','Trikona','Upachaya'].forEach(t=>{
+      if(!types.includes(t)) return;
+      const info = BHAVA_LABEL[t];
+      bhavaTag += `<span class="tag tag-${t.toLowerCase()}" title="${t} = ${info.zh}">${t} · ${info.zh}</span>`;
+    });
+
+    const note = HOUSE_NOTE[h] ? `<span class="alert">${HOUSE_NOTE[h]}</span>` : '';
+
+    const signCls = SIGN_EMPH_CLASS[signId] || '';
+    const signHTML = signCls
+      ? `<span class="${signCls}">${sign.sym}${sign.zh}</span>`
+      : `${sign.sym}${sign.zh}`;
+
+    const planetsCell = here.length ? here.map(p=>{
+      const pl = findPlanet(p.pid);
+      const src = p.source==='主骰' ? 'dot-main' :
+                  p.source==='副骰' ? 'dot-sub' : 'dot-transit';
+      const emph = PLANET_EMPH_CLASS[p.pid] || '';
+      return `<span class="${src} ${emph}" title="${p.source}">${pl.sym}${pl.zh}</span>`;
+    }).join('、') : '<span class="muted">—</span>';
+
+    const lordsStr = lords.map(l=>{
+      const p = findPlanet(l);
+      const emph = PLANET_EMPH_CLASS[l] || '';
+      return emph ? `<span class="${emph}">${p.sym}${p.zh}</span>` : `${p.sym}${p.zh}`;
+    }).join('、');
+
+    rows += `
+      <tr class="${rowCls}">
+        <td><strong>${h}</strong></td>
+        <td><span class="quality-tag ${quality.cls}" title="${quality.en} House">${quality.zh}<span class="qty-abbr">${quality.abbr}</span></span></td>
+        <td>${signHTML}</td>
+        <td><span class="muted" title="${ELEMENT_EN[sign.element]||''}">${sign.element}象</span></td>
+        <td><span class="muted" title="${MODE_EN[sign.mode]||''}">${sign.mode}</span></td>
+        <td>${lordsStr}</td>
+        <td>${planetsCell}</td>
+        <td>${bhavaTag}${note}</td>
+      </tr>`;
+  }
+
+  return `
+    <div class="card">
+      <div class="card-title">📊 12 宮位排列（主骰 + 副骰 + 行運 全疊一張表）</div>
+      <div class="muted" style="margin-bottom:12px;line-height:1.9">
+        <span class="dot-main">●</span> 主骰　<span class="dot-sub">●</span> 副骰　<span class="dot-transit">●</span> 運行星
+        &nbsp;·&nbsp; 命宮（1 宮）金邊標示<br>
+        <strong>宮性</strong>：
+        <span class="quality-tag q-angular">始宮<span class="qty-abbr">A</span></span> Angular 1/4/7/10
+        <span class="quality-tag q-succedent">續宮<span class="qty-abbr">S</span></span> Succedent 2/5/8/11
+        <span class="quality-tag q-cadent">果宮<span class="qty-abbr">C</span></span> Cadent 3/6/9/12<br>
+        <strong>備註 Bhava</strong>：
+        <span class="tag tag-dusthana">Dusthana · 凶宮</span> 6/8/12
+        <span class="tag tag-kendra">Kendra · 角宮</span> 1/4/7/10
+        <span class="tag tag-trikona">Trikona · 三分宮</span> 1/5/9
+        <span class="tag tag-upachaya">Upachaya · 增長宮</span> 3/6/10/11<br>
+        <strong>強調色</strong>：
+        <span style="color:#ff5a5a">■ 淡紅底</span> 6/8/12 凶宮 &nbsp;
+        <span style="color:#ff5a5a">紅字</span> 火/冥/牡羊/天蠍（火冥系） &nbsp;
+        <span style="color:#ffab3a">橘字</span> 土/摩羯/水瓶（土星系）
+      </div>
+      <div style="overflow-x:auto">
+        <table class="house-chart">
+          <thead>
+            <tr><th>宮位</th><th>宮性</th><th>星座</th><th>象位</th><th>模式</th><th>宮主星</th><th>此宮(運)行星</th><th>備註</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function flyingHousesHTML(asc){
+  const dual = ['mars','venus','mercury','jupiter','saturn'];
+  const ruled = {};
+  for(let s=0; s<12; s++){
+    const r = TRADITIONAL_RULER[s];
+    (ruled[r] = ruled[r] || []).push(s);
+  }
+  let rows = '';
+  dual.forEach(pid=>{
+    const p = findPlanet(pid);
+    const signs = ruled[pid] || [];
+    const cells = signs.map(sId=>{
+      const sn = findSign(sId);
+      const hs = houseOfSign(sId, asc);
+      return `<strong>第 ${hs} 宮</strong>（${sn.sym}${sn.zh}）`;
+    }).join(' ／ ');
+    rows += `<tr><td><strong>${p.sym} ${p.zh}</strong></td><td>${cells}</td></tr>`;
+  });
+  return `
+    <div class="card">
+      <div class="card-title">🔭 五星飛兩宮（火金水木土）</div>
+      <div class="muted" style="margin-bottom:12px">這五顆傳統行星各守護兩個星座，看它們飛到哪兩個宮是飛宮判讀的核心。</div>
+      <div style="overflow-x:auto">
+        <table class="flying-houses">
+          <thead><tr><th>行星</th><th>飛兩宮</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+const ASPECT_TABLE = {
+  0:  {name:'合相 Conjunction (同宮)', cls:'neutral'},
+  2:  {name:'六合 Sextile (3 宮)',      cls:'kichi'},
+  3:  {name:'四分 Square (4 宮)',       cls:'kyo'},
+  4:  {name:'三分 Trine (5 宮)',        cls:'kichi'},
+  5:  {name:'補十二 Quincunx (6 宮)',   cls:'kyo'},
+  6:  {name:'對沖 Opposition (7 宮)',   cls:'kyo'},
+  7:  {name:'補十二 Quincunx (8 宮)',   cls:'kyo'},
+  8:  {name:'三分 Trine (9 宮)',        cls:'kichi'},
+  9:  {name:'四分 Square (10 宮)',      cls:'kyo'},
+  10: {name:'六合 Sextile (11 宮)',     cls:'kichi'},
+};
+
+// 印度特殊相位：火星(4/8)、木星(5/9)、土星(3/10)
+const VEDIC_SPECIAL = {
+  mars:    [{d:3, label:'火星 4 宮特殊相位'}, {d:7, label:'火星 8 宮特殊相位'}],
+  jupiter: [{d:4, label:'木星 5 宮特殊相位'}, {d:8, label:'木星 9 宮特殊相位'}],
+  saturn:  [{d:2, label:'土星 3 宮特殊相位'}, {d:9, label:'土星 10 宮特殊相位'}],
+};
+
+function aspectsHTML(placements){
+  const aspects = [];
+  for(let i=0; i<placements.length; i++){
+    for(let j=i+1; j<placements.length; j++){
+      const a = placements[i], b = placements[j];
+      const distAB = ((b.sign - a.sign) % 12 + 12) % 12;
+      const distBA = ((a.sign - b.sign) % 12 + 12) % 12;
+      const info = ASPECT_TABLE[distAB];
+
+      const aSpecial = (VEDIC_SPECIAL[a.pid] || []).find(x=>x.d===distAB);
+      const bSpecial = (VEDIC_SPECIAL[b.pid] || []).find(x=>x.d===distBA);
+      const vedicNotes = [];
+      if(aSpecial) vedicNotes.push(aSpecial.label);
+      if(bSpecial) vedicNotes.push(bSpecial.label);
+
+      if(!info && !vedicNotes.length) continue; // 鄰宮 1/11 無相位，且非印度特殊
+
+      aspects.push({a, b, distAB, info, vedicNotes});
+    }
+  }
+
+  const groups = {kichi:[], kyo:[], neutral:[], special:[]};
+  aspects.forEach(asp=>{
+    if(!asp.info && asp.vedicNotes.length){
+      groups.special.push(asp);
+    }else if(asp.info){
+      groups[asp.info.cls].push(asp);
+    }
+  });
+
+  const renderRow = asp=>{
+    const pa = findPlanet(asp.a.pid);
+    const pb = findPlanet(asp.b.pid);
+    return `<tr>
+      <td><span class="muted">${asp.a.source}</span> ${pa.sym}${pa.zh}</td>
+      <td>${asp.info ? asp.info.name : '<span class="muted">無西洋相位</span>'}</td>
+      <td><span class="muted">${asp.b.source}</span> ${pb.sym}${pb.zh}</td>
+      <td>${asp.vedicNotes.length ? '<span class="tag tag-trikona">'+asp.vedicNotes.join(' · ')+'</span>' : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  };
+
+  let html = `
+    <div class="card">
+      <div class="card-title">⚔ 全相位吉凶分類（整宮制 + 印度特殊相位）</div>
+      <div class="muted" style="margin-bottom:12px">
+        共 ${aspects.length} 組有效相位（鄰宮 2 宮 / 12 宮無相位除外）。<br>
+        西洋整宮制 + 印度特殊相位（火 4/8、木 5/9、土 3/10）並列。
+      </div>`;
+
+  if(groups.kichi.length){
+    html += `<h4 style="color:#90ee90;margin:12px 0 6px">✓ 吉相位 · ${groups.kichi.length} 組</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.kichi.map(renderRow).join('')}</tbody></table>`;
+  }
+  if(groups.kyo.length){
+    html += `<h4 style="color:#ff9999;margin:12px 0 6px">✗ 凶相位 · ${groups.kyo.length} 組</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.kyo.map(renderRow).join('')}</tbody></table>`;
+  }
+  if(groups.neutral.length){
+    html += `<h4 class="muted" style="margin:12px 0 6px">○ 合相中性 · ${groups.neutral.length} 組（看具體行星組合）</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.neutral.map(renderRow).join('')}</tbody></table>`;
+  }
+  if(groups.special.length){
+    html += `<h4 style="color:var(--vedic);margin:12px 0 6px">▲ 印度特殊相位（西洋無相位但 Vedic 有）· ${groups.special.length} 組</h4>`;
+    html += `<table class="aspect-table"><tbody>${groups.special.map(renderRow).join('')}</tbody></table>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function aspectsSummaryText(placements){
+  // 給 prompt 用的精簡文字版
+  const aspects = [];
+  for(let i=0; i<placements.length; i++){
+    for(let j=i+1; j<placements.length; j++){
+      const a = placements[i], b = placements[j];
+      const distAB = ((b.sign - a.sign) % 12 + 12) % 12;
+      const info = ASPECT_TABLE[distAB];
+      if(!info || info.cls==='neutral') continue;
+      const pa = findPlanet(a.pid).zh;
+      const pb = findPlanet(b.pid).zh;
+      const flag = info.cls==='kichi' ? '吉' : '凶';
+      aspects.push(`${pa}(${a.source}) ${info.name.split(' ')[0]} ${pb}(${b.source}) [${flag}]`);
+    }
+  }
+  return aspects;
+}
+
+// ============ 判讀核心 ============
+function run(){
+  const planet_a = $('planet_a').value;
+  const sign_a   = $('sign_a').value;
+  const house_a  = parseInt($('house_a').value);
+  const planet_b = $('planet_b').value;
+  const sign_b   = $('sign_b').value;
+  const question = $('question').value.trim();
+  const useSubdie = $('use_subdie').checked;
+
+  const asc = ascSignId(sign_a, house_a);
+  const house_b = useSubdie ? houseOfSign(sign_b, asc) : null;
+
+  const pA = findPlanet(planet_a);
+  const sA = findSign(sign_a);
+  const pB = useSubdie ? findPlanet(planet_b) : null;
+  const sB = useSubdie ? findSign(sign_b) : null;
+  const ascSign = findSign(asc);
+  const lord1 = TRADITIONAL_RULER[asc];
+  const pLord = findPlanet(lord1);
+
+  // 行運
+  const transits = [];
+  [['t_sun','運行太陽','sun'],['t_moon','運行月亮','moon'],['t_mercury','運行水星','mercury'],
+   ['t_venus','運行金星','venus'],['t_mars','運行火星','mars'],['t_jupiter','運行木星','jupiter'],
+   ['t_saturn','運行土星','saturn'],['t_uranus','運行天王星','uranus'],['t_neptune','運行海王星','neptune'],
+   ['t_pluto','運行冥王星','pluto'],['t_rahu','運行羅睺','rahu'],['t_ketu','運行計都','ketu']]
+   .forEach(([id,name,pid])=>{
+    const v = $(id).value;
+    if(v!==''){
+      const s = findSign(v);
+      const h = houseOfSign(v, asc);
+      transits.push({name, pid, sign:s, house:h});
+    }
+  });
+
+  // 行運日期（讓 AI / 顯示知道是看哪天的行運）
+  const transitDateVal = $('transit_date').value;
+  const transitDate = transitDateVal ? new Date(transitDateVal) : new Date();
+  const transitDateLabel = transitDate.toLocaleString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+
+  // 集中所有有位置的行星 → 規則檢查、宮位表、相位用
+  const placements = [
+    {pid:planet_a, sign:parseInt(sign_a), house:house_a, source:'主骰'},
+    ...(useSubdie ? [{pid:planet_b, sign:parseInt(sign_b), house:house_b, source:'副骰'}] : []),
+    ...transits.map(t=>({pid:t.pid, sign:t.sign.id, house:t.house, source:t.name})),
+  ];
+
+  // ---------- 西洋判讀 ----------
+  const dA_w = dignity(planet_a, parseInt(sign_a), 'western');
+  let western = '';
+
+  western += `<h4>主骰：${pA.zh}落${sA.zh}第${house_a}宮</h4>`;
+  western += `<p>${dA_w?`<span class="tag ${dA_w.cls}">${dA_w.label}</span>`:''}`;
+  western += `${sA.element}象${sA.mode}星座，能量展現為「${sA.zh}風格的${pA.zh}」。</p>`;
+  western += `<p><strong>${house_a} 宮含義：</strong>${WESTERN_HOUSE[house_a]}。</p>`;
+
+  if(useSubdie){
+    const dB_w = dignity(planet_b, parseInt(sign_b), 'western');
+    western += `<h4>副骰：${pB.zh}落${sB.zh}第${house_b}宮（推算）</h4>`;
+    western += `<p>${dB_w?`<span class="tag ${dB_w.cls}">${dB_w.label}</span>`:''}`;
+    western += `${pB.zh}在${sB.zh}，落入此盤的第 ${house_b} 宮（${WESTERN_HOUSE[house_b]}）。</p>`;
+  }
+
+  western += `<h4>上升星座 & 命主星</h4>`;
+  western += `<p>上升：<strong>${ascSign.sym} ${ascSign.zh}</strong> · 命主星：<strong>${pLord.sym} ${pLord.zh}</strong>（${ascSign.zh}守護）</p>`;
+
+  // ---------- 印度判讀 ----------
+  const dA_v = dignity(planet_a, parseInt(sign_a), 'vedic');
+  let vedic = '';
+
+  vedic += `<h4>主骰：${pA.zh}（${pA.vedic}）落${sA.zh} 第${house_a}宮</h4>`;
+  vedic += `<p>${dA_v?`<span class="tag ${dA_v.cls}">${dA_v.label}</span>`:''}`;
+  vedic += `${houseTypeTags(house_a)}</p>`;
+  vedic += `<p><strong>${house_a} 宮 Bhava：</strong>${VEDIC_HOUSE[house_a]}。</p>`;
+
+  if(HOUSE_TYPE[house_a] && HOUSE_TYPE[house_a].includes('Dusthana')){
+    vedic += `<p class="alert">⚠ Dusthana 凶宮（${house_a}宮），${pA.zh}落此處需檢視壓力來源；建議查 NotebookLM「印度占星」對「八宮凶星」「宮主飛宮」「行星弱陷」的具體規則。</p>`;
+  }
+
+  if(useSubdie){
+    const dB_v = dignity(planet_b, parseInt(sign_b), 'vedic');
+    vedic += `<h4>副骰：${pB.zh}（${pB.vedic}）落${sB.zh} 第${house_b}宮</h4>`;
+    vedic += `<p>${dB_v?`<span class="tag ${dB_v.cls}">${dB_v.label}</span>`:''}`;
+    vedic += `${houseTypeTags(house_b)}</p>`;
+    vedic += `<p><strong>${house_b} 宮 Bhava：</strong>${VEDIC_HOUSE[house_b]}。</p>`;
+  }
+
+  vedic += `<h4>命主飛宮 (Lagnesh)</h4>`;
+  vedic += `<p>上升 (Lagna)：<strong>${ascSign.sym} ${ascSign.zh}</strong> · 命主：<strong>${pLord.sym} ${pLord.zh}（${pLord.vedic}）</strong></p>`;
+  if(pLord.id === planet_a){
+    vedic += `<p>📍 主骰 <strong>${pA.zh} 就是命主星</strong>，落第 ${house_a} 宮 → 命主飛 ${house_a} 宮，當事人需從「${VEDIC_HOUSE[house_a].split('—')[1].trim()}」面向去處理。</p>`;
+  }else if(useSubdie && pLord.id === planet_b){
+    vedic += `<p>📍 副骰 <strong>${pB.zh} 就是命主星</strong>，落第 ${house_b} 宮 → 命主飛 ${house_b} 宮，當事人需從「${VEDIC_HOUSE[house_b].split('—')[1].trim()}」面向去處理。</p>`;
+  }else{
+    vedic += `<p class="muted">${useSubdie?'主副骰':'主骰'}皆非命主星，${pLord.zh} 的實際宮位需另查盤確認；可作為進階解讀的重點。</p>`;
+  }
+
+  // ---------- 渲染 ----------
+  const subdiceDice = useSubdie ? `
+      <div class="die b"><span class="die-symbol">${pB.sym}</span><span class="label">${pB.zh}</span></div>
+      <div class="die b"><span class="die-symbol">${sB.sym}</span><span class="label">${sB.zh}<br>(第 ${house_b} 宮)</span></div>` : '';
+  const dice = `
+    <div class="dice-display">
+      <div class="die"><span class="die-symbol">${pA.sym}</span><span class="label">${pA.zh}</span></div>
+      <div class="die"><span class="die-symbol">${sA.sym}</span><span class="label">${sA.zh}</span></div>
+      <div class="die"><span class="die-symbol">${house_a}</span><span class="label">第 ${house_a} 宮</span></div>
+      ${subdiceDice}
+    </div>`;
+
+  const warnHTML = `
+    <div class="warn-box">
+      <strong>⚠ 閱讀提醒：</strong>印度占星的宮位意義與西洋占星不同，請分開閱讀。例：第 6 宮在印度是 Ari Bhava（敵人/債務/疾病/訴訟，Dusthana 凶宮）；在西洋是健康/工作/僕役/瑣事 — 兩套不可互通套用。
+    </div>`;
+
+  const questionHTML = question ? `<div class="card"><div class="card-title">💭 你的提問</div><p>${question}</p></div>` : '';
+
+  const html = `
+    ${questionHTML}
+    <div class="card">
+      <div class="card-title">🎲 你投出了</div>
+      ${dice}
+      <p class="muted" style="text-align:center;margin:0">
+        推算上升 ${ascSign.sym} ${ascSign.zh} · 命主星 ${pLord.sym} ${pLord.zh}
+        ${transits.length ? ` · 行運日期 <strong style="color:var(--gold)">${transitDateLabel}</strong>` : ''}
+      </p>
+    </div>
+    ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel})}
+    <div class="center" style="margin:0 0 12px">
+      <button class="btn-ghost" onclick="saveCurrentRecord(this)" title="把這次擲骰結果存到瀏覽器,可從右上「📜」查看歷史">💾 儲存這次結果</button>
+    </div>
+    ${renderRashiChart(asc, placements)}
+    ${renderHouseMeanings()}
+    ${warnHTML}
+    <div class="card">
+      <div class="card-title">📖 雙派判讀</div>
+      <div class="two-col">
+        <div class="col-western">
+          <div class="col-header western">【西洋觀點 Western】</div>
+          <div class="judgment">${western}</div>
+        </div>
+        <div class="col-vedic">
+          <div class="col-header vedic">【印度觀點 Vedic】</div>
+          <div class="judgment">${vedic}</div>
+        </div>
+      </div>
+    </div>
+    ${houseChartHTML(asc, placements)}
+    ${flyingHousesHTML(asc)}
+    ${aspectsHTML(placements)}
+    ${renderVedicRules(asc, placements)}
+    ${renderAIDeepRead({
+      pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question,
+      useSubdie, placements, aspectsText: aspectsSummaryText(placements),
+      transitDateLabel
+    })}`;
+
+  const out = $('output');
+  out.classList.remove('hidden');
+  out.innerHTML = html;
+  out.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+init();
+</script>
+
+<!-- ============ 多功能輸出平台：樣式與腳本（純新增區塊） ============ -->
+<style>
+@media print{
+  :root{--bg:#fff;--card:#fff;--text:#000;--muted:#555;--border:#bbb;--gold:#7a5c00;--gold-soft:#7a5c00;--western:#0f4c75;--vedic:#8a3e00;--warn:#a3003c}
+  body{background:#fff}
+  .backnav,.tabs,#panel_image,#panel_voice,.center,.footer,#export_hub,.container>.card{display:none!important}
+  #output{display:block!important}
+  #output .card{display:block;box-shadow:none;border:1px solid #ccc;page-break-inside:avoid}
+  #output button,#output details{display:none!important}
+}
+</style>
+<script>
+// 顯示/隱藏輸出卡：跟著判讀結果連動
+(function(){
+  const outEl = document.getElementById('output');
+  const hubEl = document.getElementById('export_hub');
+  if(!outEl || !hubEl) return;
+  const syncHub = ()=>{
+    const visible = !outEl.classList.contains('hidden') && outEl.innerHTML.trim() !== '';
+    hubEl.classList.toggle('hidden', !visible);
+  };
+  new MutationObserver(syncHub).observe(outEl, {attributes:true, attributeFilter:['class'], childList:true});
+  syncHub();
+  if(!navigator.share){ const b = document.getElementById('btn_share'); if(b) b.style.display = 'none'; }
+})();
+
+// 匯出用：取判讀結果純文字（跳過 NotebookLM 深度解讀按鈕卡）
+function exportPlainText(){
+  const parts = [];
+  document.querySelectorAll('#output > *').forEach(el=>{
+    if(el.querySelector && el.querySelector('.btn-deep')) return;
+    const t = (el.innerText || '').trim();
+    if(t) parts.push(t);
+  });
+  return '🎲 占星骰子 · 五骰判讀結果\n來源：https://dices.3minstest.com/\n\n' + parts.join('\n\n──────────\n\n');
+}
+
+// 匯出用：轉 Markdown（表格自動轉 MD 表格）
+function exportMarkdown(){
+  const lines = ['# 🎲 占星骰子 · 五骰判讀結果', '',
+    '> 來源：https://dices.3minstest.com/ · ' + new Date().toLocaleString('zh-TW'), ''];
+  document.querySelectorAll('#output > *').forEach(el=>{
+    if(el.querySelector && el.querySelector('.btn-deep')) return;
+    const titleEl = el.querySelector ? el.querySelector('.card-title') : null;
+    const title = titleEl ? titleEl.innerText.trim() : '';
+    let text = (el.innerText || '');
+    if(title) text = text.replace(title, '').trim();
+    if(title){ lines.push('## ' + title, ''); }
+    let inTable = false;
+    text.split('\n').forEach(raw=>{
+      const ln = raw.replace(/ /g, ' ');
+      if(ln.includes('\t')){
+        const cells = ln.split('\t').map(s=>s.trim().replace(/\|/g, '／'));
+        lines.push('| ' + cells.join(' | ') + ' |');
+        if(!inTable){ lines.push('| ' + cells.map(()=>'---').join(' | ') + ' |'); inTable = true; }
+      }else{
+        inTable = false;
+        lines.push(ln.trim());
+      }
+    });
+    lines.push('');
+  });
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+function exportDownload(fmt){
+  const d = new Date();
+  const p2 = n=>String(n).padStart(2, '0');
+  const ts = `${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`;
+  const content = (fmt === 'md') ? exportMarkdown() : exportPlainText();
+  const blob = new Blob([(fmt === 'txt' ? '﻿' : '') + content],
+    {type: fmt === 'md' ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `占星骰子判讀_${ts}.${fmt}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+
+function exportCopy(btn){
+  navigator.clipboard.writeText(exportPlainText()).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✓ 已複製';
+    btn.disabled = true;
+    setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 2000);
+  }).catch(err=>alert('複製失敗：' + err.message));
+}
+
+// ================ 使用者身分 + 歷史紀錄(localStorage) + Gmail 登入 ================
+const USER_KEY = 'dices_user';
+const RECORDS_KEY = 'dices_records_v1';
+// GCP OAuth 2.0 Client ID(Web application) — 硬編 OK,OAuth Web Client ID 是公開資訊,
+// 保護靠 GCP Console 設定的「Authorized JavaScript origins」白名單(僅 dices.3minstest.com)
+// 要換 client 可用 URL ?gid=<CID> 覆蓋(存 localStorage)
+let GOOGLE_CLIENT_ID = '527208434591-in05qk4a6kn4f84qo8cr77nckk6tqpv3.apps.googleusercontent.com';
+(function ingestGoogleClientId(){
+  try{
+    const p = new URLSearchParams(location.search);
+    const gid = p.get('gid') || p.get('google_client_id');
+    if(gid){
+      localStorage.setItem('google_client_id', gid);
+      p.delete('gid'); p.delete('google_client_id');
+      const clean = location.pathname + (p.toString() ? '?' + p : '') + location.hash;
+      history.replaceState(null, '', clean);
+    }
+    // URL 或 localStorage 有值就覆蓋硬編的 default
+    const stored = localStorage.getItem('google_client_id');
+    if(stored) GOOGLE_CLIENT_ID = stored;
+  }catch(e){}
+})();
+
+function getUser(){ try{ return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }catch(e){ return null; } }
+function getRecords(){ try{ return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); }catch(e){ return []; } }
+
+function saveCurrentRecord(btn){
+  const u = getUser();
+  const rec = {
+    id: 'r_' + Date.now().toString(36),
+    ts: new Date().toISOString(),
+    user: u ? u.email : '(local)',
+    q: $('question').value,
+    pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
+    useSubdie: $('use_subdie').checked,
+    pB: $('planet_b').value, sB: $('sign_b').value,
+    transitDate: ($('transit_date') && $('transit_date').value) || '',
+  };
+  const all = getRecords();
+  all.unshift(rec);
+  if(all.length > 200) all.pop();
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  updateHistoryCount();
+  if(btn){ btn.textContent = '✓ 已儲存'; btn.disabled = true;
+    setTimeout(()=>{ btn.textContent = '💾 儲存這次結果'; btn.disabled = false; }, 2500); }
+}
+
+function updateHistoryCount(){
+  const c = document.getElementById('history_count');
+  if(c) c.textContent = getRecords().length;
+}
+
+function toggleHistory(){
+  const panel = document.getElementById('history_panel');
+  if(!panel) return;
+  const willOpen = !panel.classList.contains('open');
+  panel.classList.toggle('open', willOpen);
+  if(willOpen) renderHistory();
+}
+
+function renderHistory(){
+  const panel = document.getElementById('history_panel');
+  if(!panel) return;
+  const all = getRecords();
+  let inner = `<span class="hp-close" onclick="toggleHistory()">✕</span><h3>📜 歷史紀錄（${all.length}）</h3>`;
+  if(all.length === 0){
+    inner += `<div class="history-empty">還沒有紀錄。<br>擲骰後按「💾 儲存這次結果」開始</div>`;
+  }else{
+    inner += all.map(r => {
+      const pA = (PLANETS.find(p=>p.id===r.pA)||{}).zh || r.pA;
+      const sA = (SIGNS[r.sA]||{}).zh || r.sA;
+      const subLine = r.useSubdie ? (' · 副骰 ' + ((PLANETS.find(p=>p.id===r.pB)||{}).zh || r.pB) + '+' + ((SIGNS[r.sB]||{}).zh || '')) : '';
+      const dt = new Date(r.ts);
+      const dtStr = dt.getFullYear() + '/' + (dt.getMonth()+1) + '/' + dt.getDate() + ' ' + dt.getHours() + ':' + String(dt.getMinutes()).padStart(2,'0');
+      return `<div class="history-item" onclick="restoreRecord('${r.id}')">
+        <span class="hi-del" onclick="event.stopPropagation();deleteRecord('${r.id}')" title="刪除">✕</span>
+        <div class="hi-time">${dtStr}${r.user !== '(local)' ? ' · ' + r.user : ''}</div>
+        <div class="hi-dice">${pA} · ${sA} · ${r.houseA} 宮${subLine}</div>
+        ${r.q ? `<div class="hi-q">Q: ${r.q}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  panel.innerHTML = inner;
+}
+
+function restoreRecord(id){
+  const r = getRecords().find(x => x.id === id);
+  if(!r) return;
+  $('question').value = r.q || '';
+  $('planet_a').value = r.pA;
+  $('sign_a').value = r.sA;
+  $('house_a').value = r.houseA;
+  $('use_subdie').checked = !!r.useSubdie;
+  toggleSubdie();
+  if(r.useSubdie){ $('planet_b').value = r.pB; $('sign_b').value = r.sB; }
+  toggleHistory();
+  run();
+}
+
+function deleteRecord(id){
+  const all = getRecords().filter(r => r.id !== id);
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  updateHistoryCount();
+  renderHistory();
+}
+
+// Google 登入(GSI credential 流程)
+window.handleGoogleSignIn = function(response){
+  try{
+    const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    const user = { email: payload.email, name: payload.name, picture: payload.picture };
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    updateUserUI();
+    alert('✓ 已登入 ' + user.email + '\n（紀錄將標註你的 email，仍存在此瀏覽器 localStorage）');
+  }catch(e){ alert('登入解析失敗：' + e.message); }
+};
+
+function updateUserUI(){
+  const container = document.getElementById('user_chip_container');
+  if(!container) return;
+  const user = getUser();
+  if(user){
+    const initial = (user.name || user.email).charAt(0).toUpperCase();
+    const avatar = user.picture
+      ? `<img src="${user.picture}" alt="${initial}" onerror="this.outerHTML='<span class=avatar>${initial}</span>'"/>`
+      : `<span class="avatar">${initial}</span>`;
+    container.innerHTML = `<span class="user-chip active" title="${user.email}">${avatar}${user.email.split('@')[0]}<span onclick="signOut()" style="margin-left:6px;cursor:pointer;opacity:.7" title="登出">✕</span></span>`;
+  }else{
+    // 未登入 → 顯示 Google 官方 Render Button(比 One Tap 穩)
+    // 先給 placeholder,等 GSI ready 才 renderButton
+    container.innerHTML = `<div id="g_signin_btn_wrap" style="display:inline-block"></div>
+      <button class="user-chip" id="g_signin_fallback" style="display:none" onclick="loginWithGoogleOAuth()" title="直接走 OAuth,不用 GSI SDK">🔐 用 Google 登入</button>`;
+    renderGoogleButton();
+  }
+}
+
+let GSI_INITIALIZED = false;
+
+function renderGoogleButton(){
+  if(!GOOGLE_CLIENT_ID) return;
+  const wrap = document.getElementById('g_signin_btn_wrap');
+  const fallback = document.getElementById('g_signin_fallback');
+  if(!wrap) return;
+  // 若 GSI 尚未就緒 → 立刻顯示 OAuth fallback 按鈕(絕對可用),同時嘗試載入 GSI
+  if(!window.google || !google.accounts || !google.accounts.id || !GSI_INITIALIZED){
+    showOAuthFallback(fallback);
+    initGoogleSignIn();
+    return;
+  }
+  try{
+    wrap.innerHTML = '';
+    google.accounts.id.renderButton(wrap, {
+      type:'standard', theme: document.documentElement.getAttribute('data-theme')==='light' ? 'outline' : 'filled_black',
+      size:'medium', text:'signin_with', shape:'pill', logo_alignment:'left'
+    });
+    if(fallback) fallback.style.display = 'none';
+  }catch(e){
+    showOAuthFallback(fallback);
+    console.warn('GSI renderButton failed', e);
+  }
+}
+
+function showOAuthFallback(btn){
+  if(!btn) return;
+  btn.style.display = 'inline-flex';
+  btn.textContent = '🔐 用 Google 登入';
+  btn.title = '傳統 OAuth 流程(會跳到 Google 授權頁再回來)';
+  btn.onclick = loginWithGoogleOAuth;
+}
+
+// ---- OAuth 2.0 Implicit Flow(不依賴 GSI SDK,穩定備用路徑) ----
+function loginWithGoogleOAuth(){
+  if(!GOOGLE_CLIENT_ID){ alert('Client ID 未設定'); return; }
+  const state = 'dices_' + Math.random().toString(36).slice(2, 10);
+  sessionStorage.setItem('gauth_state', state);
+  const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  sessionStorage.setItem('gauth_nonce', nonce);
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: location.origin + location.pathname,
+    response_type: 'id_token',
+    scope: 'openid email profile',
+    state, nonce,
+    prompt: 'select_account',
+  });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+}
+
+// 頁面載入時檢查 URL hash 是否是 Google OAuth 回調
+(function checkOAuthCallback(){
+  if(!location.hash || !location.hash.includes('id_token')) return;
+  try{
+    const p = new URLSearchParams(location.hash.slice(1));
+    const idToken = p.get('id_token');
+    const state = p.get('state');
+    const expectedState = sessionStorage.getItem('gauth_state');
+    if(!idToken){ return; }
+    if(state && expectedState && state !== expectedState){
+      console.warn('OAuth state mismatch, aborting'); return;
+    }
+    const payload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    // nonce 校驗
+    const expectedNonce = sessionStorage.getItem('gauth_nonce');
+    if(expectedNonce && payload.nonce && payload.nonce !== expectedNonce){
+      console.warn('OAuth nonce mismatch, aborting'); return;
+    }
+    const user = { email: payload.email, name: payload.name, picture: payload.picture };
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.removeItem('gauth_state');
+    sessionStorage.removeItem('gauth_nonce');
+    // 清 URL hash
+    history.replaceState(null, '', location.pathname + location.search);
+  }catch(e){ console.warn('OAuth callback parse failed', e); }
+})();
+
+function signOut(){
+  localStorage.removeItem(USER_KEY);
+  if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+  updateUserUI();
+}
+
+const GSI_NOT_DISPLAYED_MSG = {
+  browser_not_supported: '瀏覽器不支援 Google 登入(請用 Chrome/Edge/Safari 最新版)',
+  invalid_client: 'OAuth Client ID 無效',
+  missing_client_id: '缺少 Client ID',
+  opt_out_or_no_session: '你的瀏覽器沒有登入 Google 帳號,請先到 gmail.com 登入再回來',
+  secure_http_required: '需要 HTTPS',
+  suppressed_by_user: '你之前關閉過此網站的 Google One Tap 提示。請直接點藍色「Sign in with Google」按鈕登入',
+  unregistered_origin: '這個網址未在 GCP OAuth Console 的 Authorized JavaScript origins 白名單。\n\nSam 需到 https://console.cloud.google.com/apis/credentials 打開該 Client → 「Authorized JavaScript origins」加上完整字串:\nhttps://dices.3minstest.com\n(不能有斜線結尾、不能是 http)',
+  unknown_reason: '未知原因(F12 devtools console 會顯示更詳細訊息)',
+};
+
+function promptGoogleSignIn(){
+  if(!GOOGLE_CLIENT_ID){
+    alert('Gmail 登入尚未設定 OAuth Client。到 GCP Console 建 Web Client 後填 GOOGLE_CLIENT_ID。');
+    return;
+  }
+  if(!window.google || !google.accounts || !google.accounts.id){
+    alert('Google Identity Services 尚未載入,請稍後再試(檢查網路是否被擋)。');
+    return;
+  }
+  google.accounts.id.prompt(notification => {
+    try{
+      if(notification.isNotDisplayed && notification.isNotDisplayed()){
+        const reason = notification.getNotDisplayedReason();
+        alert('Google 登入無法顯示,原因:' + (GSI_NOT_DISPLAYED_MSG[reason] || reason) +
+          '\n\n👉 建議直接點右上藍色「Sign in with Google」按鈕登入(不用 One Tap)。');
+      }else if(notification.isSkippedMoment && notification.isSkippedMoment()){
+        // 使用者點外面關掉 One Tap,不用管
+      }
+    }catch(e){}
+  });
+}
+
+function initGoogleSignIn(){
+  if(!GOOGLE_CLIENT_ID) return;
+  if(typeof google === 'undefined' || !google.accounts || !google.accounts.id){
+    setTimeout(initGoogleSignIn, 500);
+    return;
+  }
+  if(!GSI_INITIALIZED){
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: window.handleGoogleSignIn,
+      auto_select: false,
+      use_fedcm_for_prompt: true,  // 用 FedCM(未來 Chrome 強制)
+      itp_support: true,           // Safari ITP 支援
+    });
+    GSI_INITIALIZED = true;
+  }
+  // initialize 完成後 render 實體按鈕(未登入時)
+  if(!getUser()) renderGoogleButton();
+}
+
+// ================ 12 宮位意義卡片(西洋 vs 印度對照) ================
+function renderHouseMeanings(){
+  let rows = '';
+  for(let h=1; h<=12; h++){
+    const wt = WESTERN_HOUSE_TITLES[h] || '';
+    const wd = WESTERN_HOUSE_DESC[h] || '';
+    const wsimple = WESTERN_HOUSE[h] || '';
+    const v = VEDIC_HOUSE[h] || '';
+    // 從 vedic 分出 Bhava 名稱 + 描述
+    const vm = v.match(/^(\S+ Bhava) — (.+)$/);
+    const vTitle = vm ? vm[1] : '';
+    const vDesc = vm ? vm[2] : v;
+    rows += `<tr>
+      <td class="hm-num">${h}</td>
+      <td>
+        <div class="hm-title">${wt}</div>
+        <div class="hm-desc">${wd}</div>
+        <div class="muted" style="font-size:11px;margin-top:4px">關鍵詞:${wsimple}</div>
+      </td>
+      <td>
+        ${vTitle ? `<div class="hm-vedic-title">${vTitle}</div>` : ''}
+        <div class="hm-desc">${vDesc}</div>
+      </td>
+    </tr>`;
+  }
+  return `
+    <div class="card house-meanings-card">
+      <details>
+        <summary>📚 12 宮位意義完整對照（西洋 vs 印度）— 點此展開</summary>
+        <div style="overflow-x:auto;margin-top:8px">
+          <table>
+            <thead><tr><th style="width:36px">宮</th><th style="width:50%">西洋（Sam 老師版）</th><th>印度（Bhava）</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="hm-source">
+          西洋源:<a href="https://app.notion.com/p/ec30afe18884417baaba6038fe2eedb5" target="_blank" style="color:var(--muted)">Notion「占星課二階 20231015-14 解宮位星座基本認知」</a>
+          · 印度源:Brihat Parashara Hora Shastra Bhava 體系
+        </div>
+      </details>
+    </div>`;
+}
+
+// 主題切換（記在 localStorage）
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+}
+function applyTheme(mode){
+  if(mode === 'light'){
+    document.documentElement.setAttribute('data-theme', 'light');
+    const btn = document.getElementById('theme_toggle');
+    if(btn) btn.textContent = '🌙 切暗畫面';
+  }else{
+    document.documentElement.removeAttribute('data-theme');
+    const btn = document.getElementById('theme_toggle');
+    if(btn) btn.textContent = '☀️ 切亮畫面';
+  }
+  try{ localStorage.setItem('astrodice_theme', mode); }catch(e){}
+}
+// 進站時套用記住的主題（未設 = 預設暗）
+applyTheme(localStorage.getItem('astrodice_theme') || 'dark');
+
+async function exportShare(){
+  try{
+    await navigator.share({
+      title: '占星骰子判讀結果',
+      text: exportPlainText().slice(0, 4000),
+      url: 'https://dices.3minstest.com/',
+    });
+  }catch(e){ /* 使用者取消分享時不需要報錯 */ }
+}
+</script>
+</body>
+</html>

@@ -554,7 +554,8 @@ html[data-theme="light"] #topic_custom{background:#fff;}
 <div class="user-bar" id="user_bar">
   <button class="user-chip" onclick="toggleHistory()" title="歷史紀錄">📜 <span id="history_count">0</span></button>
   <div id="user_chip_container">
-    <button class="user-chip" onclick="promptGoogleSignIn()" title="以 Gmail 登入(尚需設定 OAuth Client)">🔐 Gmail 登入</button>
+    <div id="g_signin_btn_wrap" style="display:inline-block"></div>
+    <button class="user-chip" id="g_signin_fallback" onclick="loginWithGoogleOAuth()" title="直接走 OAuth,不用 GSI SDK">🔐 用 Google 登入</button>
   </div>
 </div>
 <div class="history-panel" id="history_panel"></div>

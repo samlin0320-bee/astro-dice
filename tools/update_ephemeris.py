@@ -1,7 +1,9 @@
 """
 Generate ephemeris.json for astro-dice transit auto-fill.
 
-Covers -30 to +90 days at 6-hour resolution.
+Covers -3 years to +1 year at 24-hour resolution (daily snapshots).
+Sign changes are the only thing dice-scale reading cares about, so daily
+is enough. This keeps the JSON < 300 KB while covering historical Q&A.
 Includes both tropical (西洋) and sidereal Lahiri (印度) sign positions
 for all 12 dice planets.
 
@@ -68,25 +70,26 @@ def compute_point(dt: datetime) -> dict:
 def main():
     swe.set_sid_mode(swe.SIDM_LAHIRI)
 
-    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    # round down to nearest 6-hour mark
-    now = now.replace(hour=(now.hour // 6) * 6)
+    now = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
-    start = now - timedelta(days=30)
-    end = now + timedelta(days=90)
+    # 涵蓋過去 3 年 + 未來 1 年,每天一筆(骰子級判讀不需要小時精度,
+    # 只要星座變化;木/土/外行星移動慢,24 小時 resolution 綽綽有餘)
+    start = now - timedelta(days=365 * 3)
+    end = now + timedelta(days=365)
+    step_hours = 24
 
     points = []
     cur = start
     while cur < end:
         points.append(compute_point(cur))
-        cur += timedelta(hours=6)
+        cur += timedelta(hours=step_hours)
 
     output = {
         'generated_at': now.isoformat(),
         'sidereal_system': 'Lahiri',
-        'resolution_hours': 6,
+        'resolution_hours': step_hours,
         'planets_order': PLANET_NAMES,
-        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度)',
+        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度). Daily resolution, covers -3y to +1y.',
         'points': points,
     }
 

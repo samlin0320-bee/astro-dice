@@ -1,9 +1,10 @@
 """
 Generate ephemeris.json for astro-dice transit auto-fill.
 
-Covers -5 years to +3 years at 6-hour resolution.
-Sign changes are the only thing dice-scale reading cares about; 6h
-catches all Moon-driven sign changes accurately. ~11.7k points, ~2.5-3 MB.
+Covers 2018-01-01 to 2051-01-01 (33 years) at 6-hour resolution.
+Fixed absolute range so every auto-update produces identical output;
+supports historical horary questions all the way back to 2018.
+~48k points, ~4-5 MB.
 Includes both tropical (西洋) and sidereal Lahiri (印度) sign positions
 for all 12 dice planets.
 
@@ -71,14 +72,13 @@ def main():
     swe.set_sid_mode(swe.SIDM_LAHIRI)
 
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    # round down to nearest 6-hour mark
     now = now.replace(hour=(now.hour // 6) * 6)
 
-    # 涵蓋過去 5 年 + 未來 3 年(共 8 年),6 小時精度
-    # 月亮 24 小時走約 13°,6 小時走 3° 內,star sign 級判讀 6h 完全夠
-    # ~8*365*24/6 = 11680 筆,檔案約 2.5-3 MB(可接受)
-    start = now - timedelta(days=365 * 5)
-    end = now + timedelta(days=365 * 3)
+    # 固定範圍:2018-01-01 → 2051-01-01(33 年),6 小時精度
+    # ~33*365.25*24/6 = 48,213 筆,檔案約 4-5 MB
+    # 用絕對日期而非相對 now 的好處:auto-update 每次結果一致(除非邊界更新)
+    start = datetime(2018, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    end   = datetime(2051, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
     step_hours = 6
 
     points = []
@@ -92,7 +92,7 @@ def main():
         'sidereal_system': 'Lahiri',
         'resolution_hours': step_hours,
         'planets_order': PLANET_NAMES,
-        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度). 6-hour resolution, covers -5y to +3y.',
+        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度). 6h resolution, absolute range 2018-01-01 → 2051-01-01 (33y).',
         'points': points,
     }
 

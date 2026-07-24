@@ -2941,14 +2941,33 @@ function getRecords(){ try{ return JSON.parse(localStorage.getItem(RECORDS_KEY) 
 
 function saveCurrentRecord(btn){
   const u = getUser();
+  const getText = sel => (document.querySelector(sel)?.innerText || '').trim();
+  // 從 Rashi 中央抓推算上升/命主(若已擲骰)
+  const rcSub = getText('.rashi-center .rc-sub');
+  const ascMatch = rcSub.match(/上升\s*[^\s]+\s*(\S+)/);
+  const lordMatch = rcSub.match(/命主星\s*[^\s]+\s*(\S+)/);
+  // 抓 AI 三段建議(若已生成)
+  const westAdvice = getText('.ai-side-western .ai-block:last-child .ai-block-text');
+  const vedicAdvice = getText('.ai-side-vedic .ai-block:last-child .ai-block-text');
+  const consensus = getText('.ai-consensus-card .aic-final-text');
+  const topics = (typeof getSelectedTopics === 'function' ? getSelectedTopics() : []);
+  const customTopic = ($('topic_custom') && $('topic_custom').value || '').trim();
   const rec = {
     id: 'r_' + Date.now().toString(36),
     ts: new Date().toISOString(),
     user: u ? u.email : '(local)',
     q: $('question').value,
+    askTime: (typeof getAskTime === 'function' ? getAskTime() : ''),
+    topics: topics.filter(t => t !== customTopic),
+    customTopic,
     pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
     useSubdie: $('use_subdie').checked,
     pB: $('planet_b').value, sB: $('sign_b').value,
+    ascSign: ascMatch ? ascMatch[1] : '',
+    lord:    lordMatch ? lordMatch[1] : '',
+    aiWest: westAdvice,
+    aiVedic: vedicAdvice,
+    aiConsensus: consensus,
     transitDate: ($('transit_date') && $('transit_date').value) || '',
   };
   const all = getRecords();
@@ -2960,6 +2979,63 @@ function saveCurrentRecord(btn){
   exportDownload('md', makeQuestionFileName('md'));
   if(btn){ btn.textContent = '✓ 已儲存 + 下載 MD'; btn.disabled = true;
     setTimeout(()=>{ btn.textContent = '💾 儲存這次結果'; btn.disabled = false; }, 2500); }
+}
+
+
+// 匯出所有歷史紀錄為 CSV(給 Notion Database 「Import CSV」用)
+// Notion DB 已建:https://app.notion.com/p/bdcaf8bcb45045bbb90724444ddfa6d6
+function exportRecordsCSV(){
+  const all = getRecords();
+  if(!all.length){ alert('目前沒有已儲存的紀錄'); return; }
+  // Notion DB 欄位順序(對齊 schema)
+  const cols = ['問題','時間','發問時刻','使用者','議題','其他議題',
+                '主骰行星','主骰星座','主骰宮位','副骰行星','副骰星座',
+                '推算上升','命主星','行運日期','AI 西洋建議','AI 印度建議','AI 兩派共識建議','來源'];
+  const esc = v => {
+    const s = String(v == null ? '' : v);
+    const needQ = s.indexOf('"') !== -1 || s.indexOf(',') !== -1 || s.indexOf(String.fromCharCode(10)) !== -1;
+    return needQ ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = all.slice().reverse().map(r => {
+    const p = id => (PLANETS.find(x=>x.id===id)||{}).zh || '';
+    const sn = i => (SIGNS[i]||{}).zh || '';
+    const topics = (r.topics||[]).map(t => t.split(' / ')[0]).join(',');
+    return [
+      r.q || '',
+      r.ts || '',
+      r.askTime || '',
+      r.user || '',
+      topics,
+      r.customTopic || '',
+      p(r.pA), sn(r.sA), r.houseA || '',
+      r.useSubdie ? p(r.pB) : '', r.useSubdie ? sn(r.sB) : '',
+      r.ascSign || '',
+      r.lord || '',
+      r.transitDate || '',
+      r.aiWest || '', r.aiVedic || '', r.aiConsensus || '',
+      'https://dices.3minstest.com/',
+    ].map(esc).join(',');
+  });
+  const NL = String.fromCharCode(10);
+  const csv = '﻿' + cols.map(esc).join(',') + NL + rows.join(NL);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const d = new Date();
+  const p2 = n=>String(n).padStart(2, '0');
+  a.download = `dices_records_${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+  alert(`已匯出 ${all.length} 筆到 CSV
+
+下一步:
+1. 開 Notion「🎲 dices 訪客紀錄」DB
+2. 右上「⋯」→「Merge with CSV」
+3. 選剛下載的 CSV`);
+}
+
+function openNotionAdminDB(){
+  window.open('https://app.notion.com/p/bdcaf8bcb45045bbb90724444ddfa6d6', '_blank');
 }
 
 function updateHistoryCount(){
@@ -2979,7 +3055,11 @@ function renderHistory(){
   const panel = document.getElementById('history_panel');
   if(!panel) return;
   const all = getRecords();
-  let inner = `<span class="hp-close" onclick="toggleHistory()">✕</span><h3>📜 歷史紀錄（${all.length}）</h3>`;
+  let inner = `<span class="hp-close" onclick="toggleHistory()">✕</span><h3>📜 歷史紀錄（${all.length}）</h3>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="user-chip" onclick="exportRecordsCSV()" title="產出 Notion DB 可 Import 的 CSV">⬇ 匯出 CSV → Notion</button>
+      <button class="user-chip" onclick="openNotionAdminDB()" title="打開 Sam 專屬 Notion DB 後台">🗄 開 Notion 後台</button>
+    </div>`;
   if(all.length === 0){
     inner += `<div class="history-empty">還沒有紀錄。<br>擲骰後按「💾 儲存這次結果」開始</div>`;
   }else{

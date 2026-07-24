@@ -3251,17 +3251,15 @@ function applyTheme(mode){
 applyTheme(localStorage.getItem('astrodice_theme') || 'dark');
 
 async function exportShare(){
-  // 檢查關鍵區塊是否都已呈現
+  // 檢查關鍵區塊是否都已呈現(依 Sam 定義:擲骰 + AI 白話深解,到「全相位吉凶分類」之前)
   const out = document.getElementById('output');
   const hasDice = out && out.querySelector('.dice-display');
   const hasAI = out && out.querySelector('.ai-side');  // 雙派 AI 卡至少一邊有渲染
-  const hasAspects = out && out.querySelector('table.aspect-table');
   const missing = [];
   if(!hasDice) missing.push('擲骰結果');
   if(!hasAI) missing.push('AI 白話深解(未按按鈕生成)');
-  if(!hasAspects) missing.push('全相位吉凶分類');
   if(missing.length){
-    if(!confirm(`分享內容目前缺少:\n · ${missing.join('\n · ')}\n\n仍要繼續分享?\n(取消 → 先按「產生判讀」+「🔮 AI 深解」再回來分享,內容才完整)`)){
+    if(!confirm(`分享內容目前缺少:\n · ${missing.join('\n · ')}\n\n仍要繼續分享?\n(取消 → 先按「產生判讀」+「🔮 AI 深解」再回來分享)`)){
       return;
     }
   }

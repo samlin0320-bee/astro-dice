@@ -2819,9 +2819,28 @@ init();
 })();
 
 // 匯出用：取判讀結果純文字（跳過 NotebookLM 深度解讀按鈕卡）
+// 匯出範圍:從最頂端到「⚔ 全相位吉凶分類」之前(不含)。
+// 相位表、印度凶險三規則、NotebookLM 深度解讀皆排除。
+// Sam 明確要求:「你版面上這個以上都要,這以下都不要:全相位吉凶分類」
+function shouldStopExportAt(el){
+  if(!el || !el.querySelector) return false;
+  if(el.querySelector('table.aspect-table')) return true;
+  const titleEl = el.querySelector('.card-title');
+  if(titleEl){
+    const t = titleEl.innerText || '';
+    if(/全相位吉凶分類/.test(t)) return true;
+    if(/印度凶險三規則/.test(t)) return true;
+    if(/深度 AI 解讀/.test(t)) return true;
+  }
+  return false;
+}
+
 function exportPlainText(){
   const parts = [];
+  let stopped = false;
   document.querySelectorAll('#output > *').forEach(el=>{
+    if(stopped) return;
+    if(shouldStopExportAt(el)){ stopped = true; return; }
     if(el.querySelector && el.querySelector('.btn-deep')) return;
     const t = (el.innerText || '').trim();
     if(t) parts.push(t);
@@ -2833,7 +2852,10 @@ function exportPlainText(){
 function exportMarkdown(){
   const lines = ['# 🎲 占星骰子 · 五骰判讀結果', '',
     '> 來源：https://dices.3minstest.com/ · ' + new Date().toLocaleString('zh-TW'), ''];
+  let stopped = false;
   document.querySelectorAll('#output > *').forEach(el=>{
+    if(stopped) return;
+    if(shouldStopExportAt(el)){ stopped = true; return; }
     if(el.querySelector && el.querySelector('.btn-deep')) return;
     const titleEl = el.querySelector ? el.querySelector('.card-title') : null;
     const title = titleEl ? titleEl.innerText.trim() : '';

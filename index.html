@@ -672,6 +672,42 @@ html[data-theme="light"] #topic_custom{background:#fff;}
 }
 #login_gate button.lg-btn:hover{background:#3367d6;transform:translateY(-1px);}
 #login_gate .lg-note{color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6}
+
+/* ==== 跨平台多功能報告匯出面板 ==== */
+.mx-panel{
+  margin:16px 0;padding:16px 18px;border-radius:12px;
+  background:linear-gradient(135deg, rgba(154,213,255,.06), rgba(212,175,55,.05));
+  border:1px solid var(--border);
+}
+.mx-panel details > summary{
+  cursor:pointer;color:var(--gold);font-weight:600;font-size:14px;letter-spacing:.03em;
+  list-style:none;display:flex;align-items:center;gap:6px;
+}
+.mx-panel details > summary::-webkit-details-marker{display:none}
+.mx-panel details > summary::before{content:'\25B8';transition:transform .2s;display:inline-block}
+.mx-panel details[open] > summary::before{transform:rotate(90deg)}
+.mx-panel .mx-body{margin-top:14px;}
+.mx-panel .mx-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px;}
+.mx-panel .mx-btn{
+  padding:10px 14px;border-radius:8px;cursor:pointer;font-size:13px;
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  font-family:inherit;transition:all .15s;text-align:center;line-height:1.3;
+}
+.mx-panel .mx-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,.06);}
+.mx-panel .mx-btn:disabled{opacity:.5;cursor:not-allowed;}
+.mx-panel .mx-btn.mx-primary{background:rgba(154,213,255,.10);border-color:rgba(154,213,255,.4);color:var(--western);}
+.mx-panel .mx-btn.mx-primary:hover{background:rgba(154,213,255,.18);}
+.mx-panel .mx-section-label{
+  font-size:11px;color:var(--muted);margin:12px 0 6px;letter-spacing:.05em;
+  padding-bottom:4px;border-bottom:1px dashed var(--border);
+}
+.mx-panel .mx-hint{
+  font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;
+  padding:8px 10px;background:rgba(0,0,0,.15);border-radius:6px;
+}
+html[data-theme="light"] .mx-panel{background:linear-gradient(135deg,#f5faff,#fff9e0);}
+html[data-theme="light"] .mx-panel .mx-btn{background:#fff;}
+html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
 </style>
 </head>
 <body>
@@ -2776,9 +2812,7 @@ function run(){
       </p>
     </div>
     ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel})}
-    <div class="center" style="margin:0 0 12px">
-      <button class="btn-ghost" onclick="saveCurrentRecord(this)" title="把這次擲骰結果存到瀏覽器,可從右上「📜」查看歷史">💾 儲存這次結果</button>
-    </div>
+    ${renderMultiExportPanel()}
     ${renderRashiChart(asc, placements)}
     ${renderHouseMeanings()}
     ${warnHTML}
@@ -2960,6 +2994,175 @@ let GOOGLE_CLIENT_ID = '527208434591-in05qk4a6kn4f84qo8cr77nckk6tqpv3.apps.googl
 
 function getUser(){ try{ return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }catch(e){ return null; } }
 function getRecords(){ try{ return JSON.parse(localStorage.getItem(RECORDS_KEY) || '[]'); }catch(e){ return []; } }
+
+
+// ==== 跨平台匯出面板 helpers ====
+function mxFlash(btn, msg){
+  if(!btn) return;
+  const orig = btn.innerHTML;
+  btn.innerHTML = msg;
+  btn.disabled = true;
+  setTimeout(function(){ btn.innerHTML = orig; btn.disabled = false; }, 2200);
+}
+function mxCopyMD(btn){
+  navigator.clipboard.writeText(exportMarkdown()).then(function(){
+    mxFlash(btn, '\u2713 MD \u5DF2\u8907\u88FD');
+  }).catch(function(e){ alert('\u8907\u88FD\u5931\u6557:' + e.message); });
+}
+function mxCopyPlain(btn){
+  navigator.clipboard.writeText(exportPlainText()).then(function(){
+    mxFlash(btn, '\u2713 \u7D14\u6587\u5B57\u5DF2\u8907\u88FD');
+  }).catch(function(e){ alert('\u8907\u88FD\u5931\u6557:' + e.message); });
+}
+function mxDownloadMD(btn){
+  exportDownload('md', makeQuestionFileName('md'));
+  mxFlash(btn, '\u2713 MD \u5DF2\u4E0B\u8F09');
+}
+function mxExportPDF(btn){
+  mxFlash(btn, '\uD83D\uDDA8 \u958B\u5217\u5370...');
+  setTimeout(function(){ window.print(); }, 200);
+}
+function mxCopySection(btn){
+  var cards = Array.from(document.querySelectorAll('#output .card, #output .ai-quick-card, #output .ai-consensus-card'));
+  var titles = cards.map(function(c, i){
+    var t = c.querySelector('.card-title, .ai-quick-header .title, .aic-title');
+    return (i+1) + '. ' + (t ? t.innerText.replace(/^\u25B8\s*/, '') : '(\u7121\u6A19\u984C)').slice(0, 30);
+  });
+  var pick = prompt('\u9078\u8981\u8907\u88FD\u7684\u6BB5\u843D\u7DE8\u865F (1-' + cards.length + '):\n\n' + titles.join('\n'));
+  var n = parseInt(pick);
+  if(isNaN(n) || n < 1 || n > cards.length) return;
+  navigator.clipboard.writeText((cards[n-1].innerText||'').trim()).then(function(){
+    mxFlash(btn, '\u2713 \u6BB5\u843D ' + n + ' \u5DF2\u8907\u88FD');
+  });
+}
+function mxSendTelegram(btn){
+  var bot = localStorage.getItem('tg_bot_token');
+  var chat = localStorage.getItem('tg_chat_id');
+  if(!bot || !chat){
+    if(!confirm('\u5C1A\u672A\u8A2D\u5B9A Telegram Bot Token \u8207 Chat ID\u3002\n\n\u5206\u4EAB\u7DB2\u5740\u6642\u53EF\u5E36 ?tg_bot=<TOKEN>&tg_chat=<CHAT_ID>\n\n\u73FE\u5728\u624B\u52D5\u8F38\u5165?')){ return; }
+    var b = prompt('Telegram Bot Token (\u5F9E @BotFather \u62FF):');
+    if(!b) return;
+    var c = prompt('Chat ID:');
+    if(!c) return;
+    localStorage.setItem('tg_bot_token', b);
+    localStorage.setItem('tg_chat_id', c);
+    return mxSendTelegram(btn);
+  }
+  var text = exportMarkdown().slice(0, 4000);
+  mxFlash(btn, '\u50B3\u9001\u4E2D...');
+  fetch('https://api.telegram.org/bot' + bot + '/sendMessage', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({chat_id: chat, text: text, parse_mode: 'Markdown', disable_web_page_preview: true})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    mxFlash(btn, d.ok ? '\u2713 \u5DF2\u50B3' : '\u274C ' + (d.description || '\u5931\u6557').slice(0, 30));
+  }).catch(function(e){ mxFlash(btn, '\u274C ' + e.message.slice(0, 30)); });
+}
+function mxSaveNAS(btn){
+  var url = localStorage.getItem('nas_save_url');
+  if(!url){
+    alert('\u5C1A\u672A\u8A2D\u5B9A NAS endpoint\u3002\u5206\u4EAB\u7DB2\u5740\u6642\u5E36 ?nas=<URL>');
+    return;
+  }
+  mxFlash(btn, 'NAS \u50B3\u9001\u4E2D...');
+  fetch(url, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({md: exportMarkdown(), title: $('question').value || '\u672A\u63D0\u554F'})
+  }).then(function(r){
+    mxFlash(btn, r.ok ? '\u2713 \u5DF2\u5B58 NAS' : '\u274C NAS HTTP ' + r.status);
+  }).catch(function(e){ mxFlash(btn, '\u274C ' + e.message.slice(0, 30)); });
+}
+function mxSaveNotion(btn){
+  var url = localStorage.getItem('dices_notion_worker_url');
+  if(!url){ alert('\u9700\u5148\u4EE5 ?worker=<URL> \u8A2D\u5B9A Cloudflare Worker'); return; }
+  // 直接呼叫 saveCurrentRecord 內建的 syncRecordToNotion
+  var u = (typeof getUser === 'function') ? getUser() : null;
+  var getText = function(sel){ var el = document.querySelector(sel); return el ? (el.innerText || '').trim() : ''; };
+  var rec = {
+    id: 'mx_' + Date.now().toString(36),
+    ts: new Date().toISOString(),
+    user: u ? u.email : '(local)',
+    q: $('question').value,
+    askTime: (typeof getAskTime === 'function' ? getAskTime() : ''),
+    topics: (typeof getSelectedTopics === 'function' ? getSelectedTopics() : []),
+    pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
+    useSubdie: $('use_subdie').checked,
+    pB: $('planet_b').value, sB: $('sign_b').value,
+    aiWest: getText('.ai-side-western .ai-block:last-child .ai-block-text'),
+    aiVedic: getText('.ai-side-vedic .ai-block:last-child .ai-block-text'),
+    aiConsensus: getText('.ai-consensus-card .aic-final-text'),
+    transitDate: ($('transit_date') && $('transit_date').value) || ''
+  };
+  mxFlash(btn, 'Notion \u4E2D...');
+  syncRecordToNotion(rec);
+  setTimeout(function(){ mxFlash(btn, '\u2713 \u5DF2\u50B3 Worker'); }, 800);
+}
+function mxOpenDrive(){
+  var u = localStorage.getItem('drive_folder_url') || 'https://drive.google.com/drive/my-drive';
+  window.open(u, '_blank');
+}
+function mxOpenSheet(){
+  var u = localStorage.getItem('sheet_url') || 'https://app.notion.com/p/bdcaf8bcb45045bbb90724444ddfa6d6';
+  window.open(u, '_blank');
+}
+function mxOpenReport(){
+  var u = localStorage.getItem('report_channel_url');
+  if(!u){ alert('\u672A\u8A2D\u5B9A\u5831\u544A\u983B\u9053 URL (?report=<URL> \u5E36\u5165)'); return; }
+  window.open(u, '_blank');
+}
+
+// URL 一次性設定多管道 endpoint
+(function ingestChannels(){
+  try{
+    var p = new URLSearchParams(location.search);
+    var map = {tg_bot:'tg_bot_token', tg_chat:'tg_chat_id', nas:'nas_save_url',
+               drive:'drive_folder_url', sheet:'sheet_url', report:'report_channel_url'};
+    var changed = false;
+    for(var k in map){
+      var v = p.get(k);
+      if(v){ localStorage.setItem(map[k], v); p.delete(k); changed = true; }
+    }
+    if(changed){
+      var clean = location.pathname + (p.toString() ? '?' + p : '') + location.hash;
+      history.replaceState(null, '', clean);
+    }
+  }catch(e){}
+})();
+
+function renderMultiExportPanel(){
+  var html = '';
+  html += '<div class="mx-panel"><details>';
+  html += '<summary>\uD83D\uDCE4 \u8DE8\u5E73\u53F0\u591A\u529F\u80FD\u5831\u544A\u532F\u51FA\u7BA1\u7406\uFF08\u591A\u901A\u8DEF\u51FA\u53E3\u4E2D\u5FC3\uFF09</summary>';
+  html += '<div class="mx-body">';
+  html += '<div class="mx-section-label">\uD83D\uDCC4 \u76F4\u63A5\u52D5\u4F5C\uFF08\u64CD\u4F5C\u7576\u524D\u9019\u4EFD\u5224\u8B80\uFF09</div>';
+  html += '<div class="mx-row">';
+  html += '<button class="mx-btn mx-primary" onclick="mxCopyPlain(this)">\uD83D\uDCCB \u4E00\u9375\u5168\u9801\u8907\u88FD\u7D14\u6587\u5B57</button>';
+  html += '<button class="mx-btn mx-primary" onclick="mxCopyMD(this)">\uD83D\uDCDD \u4E00\u9375\u5168\u9801\u8907\u88FD MD \u683C\u5F0F</button>';
+  html += '<button class="mx-btn mx-primary" onclick="mxExportPDF(this)">\uD83D\uDCD5 \u532F\u51FA PDF \u6A94\u6848\uFF08\u5B8C\u7F8E\u7248\uFF09</button>';
+  html += '</div>';
+  html += '<div class="mx-row">';
+  html += '<button class="mx-btn" onclick="mxDownloadMD(this)">\uD83D\uDCE5 \u4E0B\u8F09 MD \u6A94</button>';
+  html += '<button class="mx-btn" onclick="mxCopySection(this)">\uD83D\uDCCE \u9EDE\u9078\u8907\u88FD MD \u6BB5\u843D</button>';
+  html += '<button class="mx-btn" onclick="saveCurrentRecord(this)">\uD83D\uDCBE \u5132\u5B58\u9019\u6B21\u7D50\u679C</button>';
+  html += '</div>';
+  html += '<div class="mx-section-label">\uD83C\uDF10 \u6574\u5408\u670D\u52D9\uFF08\u8DE8\u5E73\u53F0\u9001\u51FA/\u958B\u555F\uFF09</div>';
+  html += '<div class="mx-row">';
+  html += '<button class="mx-btn" onclick="mxSendTelegram(this)">\u2708 \u50B3\u9001\u5230 Telegram \u983B\u9053</button>';
+  html += '<button class="mx-btn" onclick="mxSaveNAS(this)">\uD83D\uDCBD \u91CD\u5B58 NAS \u8CC7\u6599\u5EAB</button>';
+  html += '<button class="mx-btn" onclick="mxOpenDrive()">\u2601 \u958B\u555F\u96F2\u7AEF\u786C\u789F\u8CC7\u6599\u593E</button>';
+  html += '<button class="mx-btn" onclick="mxSaveNotion(this)">\uD83D\uDCCA \u91CD\u65B0\u5B58\u5165 Notion DB</button>';
+  html += '</div>';
+  html += '<div class="mx-row">';
+  html += '<button class="mx-btn" onclick="mxOpenReport()">\uD83D\uDCE2 \u958B\u555F\u5831\u544A\u983B\u9053</button>';
+  html += '<button class="mx-btn" onclick="mxOpenSheet()">\uD83D\uDD0D \u958B\u555F\u8A66\u7B97\u8868/Notion \u5F8C\u53F0</button>';
+  html += '<button class="mx-btn" onclick="exportRecordsCSV()">\u2B07 \u532F\u51FA\u6B77\u53F2 CSV</button>';
+  html += '</div>';
+  html += '<div class="mx-hint">';
+  html += '\uD83D\uDCA1 \u6BCF\u7B46\u5206\u6790\u53EF\u5132\u5B58\u5230\uFF1ANAS \u6B77\u53F2\u7D00\u9304\u3001Notion DB\u3001Google Drive/\u8A66\u7B97\u8868\u3001Telegram \u624B\u52D5\u50B3\u3002<br>';
+  html += '\u8A2D\u5B9A\u7BA1\u9053\uFF08\u4E00\u6B21\u6027\uFF09\uFF1A\u5728\u7DB2\u5740\u52A0 <code>?tg_bot=xxx&amp;tg_chat=xxx&amp;nas=xxx&amp;drive=xxx&amp;sheet=xxx&amp;report=xxx</code> \u958B\u555F\u5373\u81EA\u52D5\u5B58 localStorage\u3002';
+  html += '</div>';
+  html += '</div></details></div>';
+  return html;
+}
 
 function saveCurrentRecord(btn){
   const u = getUser();

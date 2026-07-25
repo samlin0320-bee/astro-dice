@@ -651,6 +651,27 @@ html[data-theme="light"] .tp-chip.checked{background:#fdf3d8;color:#7a5c00;}
   border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
 html[data-theme="light"] #topic_custom{background:#fff;}
 .tp-hint{font-size:11px;color:var(--muted);margin-top:6px;}
+
+/* ==== 登入遮罩(未登入禁用) ==== */
+#login_gate{
+  position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;text-align:center;
+}
+#login_gate .lg-card{
+  max-width:440px;padding:32px 28px;border-radius:16px;
+  background:linear-gradient(135deg, rgba(154,213,255,.10), rgba(212,175,55,.08));
+  border:1px solid rgba(212,175,55,.5);
+}
+#login_gate h2{color:var(--gold);margin:0 0 14px;font-size:24px;letter-spacing:.05em}
+#login_gate p{color:var(--text);line-height:1.75;margin:0 0 22px;font-size:14px}
+#login_gate button.lg-btn{
+  background:#4285f4;color:#fff;border:0;border-radius:24px;
+  padding:12px 30px;font-size:15px;font-weight:600;cursor:pointer;
+  font-family:inherit;box-shadow:0 4px 12px rgba(66,133,244,.4);
+}
+#login_gate button.lg-btn:hover{background:#3367d6;transform:translateY(-1px);}
+#login_gate .lg-note{color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -1630,6 +1651,7 @@ function init(){
   $('sign_b').value='3';
   toggleSubdie();  // 副骰預設關閉 → 讓副骰欄位一開始就變灰
   updateHistoryCount();
+  requireLoginGate();  // 未登入 → 遮罩
   initGoogleSignIn();  // 必須在 updateUserUI 之前:initialize 先完成才能 renderButton
   updateUserUI();
   bindTopicChips();
@@ -2975,12 +2997,48 @@ function saveCurrentRecord(btn){
   if(all.length > 200) all.pop();
   localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
   updateHistoryCount();
+  syncRecordToNotion(rec);
   // 額外下載一份 MD:檔名 = <問題>_<YYYYMMDD>.md
   exportDownload('md', makeQuestionFileName('md'));
   if(btn){ btn.textContent = '✓ 已儲存 + 下載 MD'; btn.disabled = true;
     setTimeout(()=>{ btn.textContent = '💾 儲存這次結果'; btn.disabled = false; }, 2500); }
 }
 
+
+
+// ==== Notion Sync via Cloudflare Worker(可選) ====
+// URL 帶 ?worker=<URL> 一次性設定,存 localStorage;之後 saveCurrentRecord 會自動 POST
+const WORKER_KEY = 'dices_notion_worker_url';
+(function ingestWorkerUrl(){
+  try{
+    const p = new URLSearchParams(location.search);
+    const w = p.get('worker');
+    if(w){
+      localStorage.setItem(WORKER_KEY, w);
+      p.delete('worker');
+      const clean = location.pathname + (p.toString() ? '?' + p : '') + location.hash;
+      history.replaceState(null, '', clean);
+    }
+  }catch(e){}
+})();
+async function syncRecordToNotion(rec){
+  const url = localStorage.getItem(WORKER_KEY);
+  if(!url) return;  // Worker 未設定,靜默略過
+  try{
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(rec),
+    });
+    if(!res.ok){
+      console.warn('[dices] Notion sync HTTP', res.status);
+    }else{
+      console.log('[dices] synced to Notion');
+    }
+  }catch(e){
+    console.warn('[dices] Notion sync failed:', e.message);
+  }
+}
 
 // 匯出所有歷史紀錄為 CSV(給 Notion Database 「Import CSV」用)
 // Notion DB 已建:https://app.notion.com/p/bdcaf8bcb45045bbb90724444ddfa6d6
@@ -3102,12 +3160,32 @@ function deleteRecord(id){
 }
 
 // Google 登入(GSI credential 流程)
+function requireLoginGate(){
+  if(getUser()) return;
+  if(document.getElementById('login_gate')) return;
+  const g = document.createElement('div');
+  g.id = 'login_gate';
+  g.innerHTML = `<div class="lg-card">
+    <h2>🔐 需要登入才能使用</h2>
+    <p>占星骰子網站進行判讀前,請先用你的 Google 帳號登入。<br>
+       這樣才能:紀錄你的擲骰歷史、跨裝置同步、避免濫用 API 額度。</p>
+    <button class="lg-btn" onclick="loginWithGoogleOAuth()">🔐 用 Google 登入</button>
+    <div class="lg-note">登入後遮罩會自動消失,可正常擲骰</div>
+  </div>`;
+  document.body.appendChild(g);
+}
+function removeLoginGate(){
+  const g = document.getElementById('login_gate');
+  if(g) g.remove();
+}
+
 window.handleGoogleSignIn = function(response){
   try{
     const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
     const user = { email: payload.email, name: payload.name, picture: payload.picture };
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     updateUserUI();
+    removeLoginGate();
     alert('✓ 已登入 ' + user.email + '\n（紀錄將標註你的 email，仍存在此瀏覽器 localStorage）');
   }catch(e){ alert('登入解析失敗：' + e.message); }
 };
@@ -3191,6 +3269,7 @@ function loginWithGoogleOAuth(){
           const user = { email: u.email, name: u.name, picture: u.picture };
           localStorage.setItem(USER_KEY, JSON.stringify(user));
           updateUserUI();
+          removeLoginGate();
         }catch(e){ alert('取使用者資料失敗:' + e.message); }
       },
       error_callback: (err) => {

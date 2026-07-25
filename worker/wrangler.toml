@@ -1,0 +1,12 @@
+name = "dices-log"
+main = "dices-log-worker.js"
+compatibility_date = "2026-01-01"
+
+# Secrets(用 wrangler secret put 設,不要放這裡):
+#   NOTION_TOKEN         — Notion Integration Secret(ntn_ 或 secret_ 開頭)
+#   NOTION_DATABASE_ID   — f4cdd651-f24d-49aa-a4bf-aed017551077
+
+# 可選:綁自訂 domain
+# [[routes]]
+# pattern = "logs.3minstest.com/*"
+# zone_name = "3minstest.com"

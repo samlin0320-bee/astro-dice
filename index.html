@@ -2952,15 +2952,26 @@ function exportDownload(fmt, customName){
   setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
 }
 
-// 產出「問題_日期」格式檔名(Windows / macOS 檔名安全化)
+// 產出「年月日_問題_骰子結果」格式檔名(Windows / macOS 檔名安全化)
 function makeQuestionFileName(ext){
   const q = ($('question').value || '').trim();
   const d = new Date();
   const p2 = n=>String(n).padStart(2, '0');
   const dateStr = `${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}`;
-  // 移除檔名非法字元 <>:"/\|?* 和控制字元、結尾空白/句點
-  const safeQ = q.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[\s.]+$/, '').slice(0, 60) || '未提問';
-  return `${safeQ}_${dateStr}.${ext}`;
+  // 安全化:移除 <>:"/\|?* 控制字元;把中間空白換底線;修結尾空白/句點
+  const safe = s => String(s||'').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, '_').replace(/[\s.]+$/, '');
+  const safeQ = safe(q).slice(0, 40) || '未提問';
+  // 骰子結果:主骰(行星+星座+宮位) + 副骰(有勾才加)
+  const pA = $('planet_a') ? $('planet_a').value : '';
+  const sA = $('sign_a') ? $('sign_a').value : '';
+  const hA = $('house_a') ? $('house_a').value : '';
+  const useSub = $('use_subdie') && $('use_subdie').checked;
+  const pB = useSub && $('planet_b') ? $('planet_b').value : '';
+  const sB = useSub && $('sign_b') ? $('sign_b').value : '';
+  let dice = safe(pA) + safe(sA) + (hA ? hA + '宮' : '');
+  if(useSub && (pB || sB)) dice += '+' + safe(pB) + safe(sB);
+  dice = dice.slice(0, 40) || '未擲骰';
+  return `${dateStr}_${safeQ}_${dice}.${ext}`;
 }
 
 function exportCopy(btn){

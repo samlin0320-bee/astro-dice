@@ -741,7 +741,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       支援三種圖片：實體骰子照片、APP 截圖、表格截圖。辨識後會自動填入下方手動欄位，您可以再微調。
     </div>
     <div class="field" style="margin-bottom:8px">
-      <label>Gemini API Key（<strong style="color:var(--gold)">已內建預設 Key，可直接用</strong>；也可到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">Google AI Studio</a> 建立自己的以走自己額度）</label>
+      <label>Gemini API Key（<strong style="color:var(--gold)">已內建預設 Key，可直接用（<span style='color:#ff9a3c'>會保留紀錄到 Sam 後台</span>）</strong>；也可到 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--gold)">Google AI Studio</a> 建立自己的以走自己額度）</label>
       <input id="api_key" type="password" placeholder="留空使用內建 Key，或貼上自己的 AIza..." />
     </div>
     <div class="field" style="margin-bottom:8px">
@@ -1316,6 +1316,7 @@ async function recognizeImage(){
     result.innerHTML = `✓ 辨識成功（${model} · confidence ${conf}）：${parsed.notes || ''}`;
     result.style.color = '#90ee90';
     setTimeout(()=>switchTab('manual'), 1500);
+    autoLogIfDefaultKey('img-dice-recog');
   }catch(e){
     let msg = e.message;
     if(usingDefault && /401|403|UNAUTHENTICATED|PERMISSION_DENIED|API key not valid/i.test(msg)){
@@ -1466,6 +1467,7 @@ async function handleQuestionImage(file){
     $('question').value = text;
     status.textContent = '✓ 已辨識並填入:' + text.slice(0, 60) + (text.length > 60 ? '...' : '');
     status.style.color = '#90ee90';
+    autoLogIfDefaultKey('img-question-ocr');
   }catch(e){
     status.textContent = '❌ 辨識失敗:' + e.message;
     status.style.color = 'var(--warn)';
@@ -2126,7 +2128,8 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
         <div class="ai-quick-hint">${usedModel} · JSON 解析失敗,原文顯示 · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
     }
     const regen = body.querySelector('.ai-quick-regen');
-    if(regen) regen.onclick = (ev)=>{ ev.preventDefault(); body.innerHTML = `<button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">👉 再問一次</button>`; };
+    if(regen) regen.onclick = (ev)=>{ ev.preventDefault();
+    autoLogIfDefaultKey('AI-quick'); body.innerHTML = `<button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">👉 再問一次</button>`; };
   }catch(e){
     body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ ${e.message}</div>
       <button class="ai-quick-btn" style="margin-top:8px" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">重試</button>`;
@@ -3177,24 +3180,7 @@ function saveCurrentRecord(btn){
   const consensus = getText('.ai-consensus-card .aic-final-text');
   const topics = (typeof getSelectedTopics === 'function' ? getSelectedTopics() : []);
   const customTopic = ($('topic_custom') && $('topic_custom').value || '').trim();
-  const rec = {
-    id: 'r_' + Date.now().toString(36),
-    ts: new Date().toISOString(),
-    user: u ? u.email : '(local)',
-    q: $('question').value,
-    askTime: (typeof getAskTime === 'function' ? getAskTime() : ''),
-    topics: topics.filter(t => t !== customTopic),
-    customTopic,
-    pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
-    useSubdie: $('use_subdie').checked,
-    pB: $('planet_b').value, sB: $('sign_b').value,
-    ascSign: ascMatch ? ascMatch[1] : '',
-    lord:    lordMatch ? lordMatch[1] : '',
-    aiWest: westAdvice,
-    aiVedic: vedicAdvice,
-    aiConsensus: consensus,
-    transitDate: ($('transit_date') && $('transit_date').value) || '',
-  };
+  const rec = makeCurrentRecord('manual-save');
   const all = getRecords();
   all.unshift(rec);
   if(all.length > 200) all.pop();
@@ -3208,6 +3194,54 @@ function saveCurrentRecord(btn){
 }
 
 
+
+
+// ==== 內建 key 判定 + 統一 record 產生 ====
+// 業務規則:
+//   使用「內建 default Gemini key」→ 強制 auto-log(訪客用 Sam 額度,需追蹤)
+//   使用者填了自己的 key → 不 auto-log(訪客用自己額度,尊重隱私)
+function isUsingDefaultKey(){
+  var userKey = ($('api_key') && $('api_key').value.trim()) || '';
+  var savedKey = localStorage.getItem('gemini_api_key') || '';
+  return !userKey && !savedKey && !!DEFAULT_GEMINI_KEY;
+}
+
+function makeCurrentRecord(reason){
+  var u = getUser();
+  var getText = function(sel){ var el = document.querySelector(sel); return el ? (el.innerText || '').trim() : ''; };
+  var rcSub = getText('.rashi-center .rc-sub');
+  var ascMatch = rcSub.match(/上升\s*[^\s]+\s*(\S+)/);
+  var lordMatch = rcSub.match(/命主星\s*[^\s]+\s*(\S+)/);
+  var topics = (typeof getSelectedTopics === 'function' ? getSelectedTopics() : []);
+  var customTopic = ($('topic_custom') && $('topic_custom').value || '').trim();
+  return {
+    id: 'r_' + Date.now().toString(36),
+    ts: new Date().toISOString(),
+    user: u ? u.email : '(local)',
+    q: $('question').value,
+    askTime: (typeof getAskTime === 'function' ? getAskTime() : ''),
+    topics: topics.filter(function(t){ return t !== customTopic; }),
+    customTopic: customTopic,
+    pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
+    useSubdie: $('use_subdie').checked,
+    pB: $('planet_b').value, sB: $('sign_b').value,
+    ascSign: ascMatch ? ascMatch[1] : '',
+    lord: lordMatch ? lordMatch[1] : '',
+    aiWest: getText('.ai-side-western .ai-block:last-child .ai-block-text'),
+    aiVedic: getText('.ai-side-vedic .ai-block:last-child .ai-block-text'),
+    aiConsensus: getText('.ai-consensus-card .aic-final-text'),
+    transitDate: ($('transit_date') && $('transit_date').value) || '',
+    _usingDefaultKey: isUsingDefaultKey(),
+    _autoLogReason: reason || '',
+  };
+}
+
+// 使用內建 key → 強制 auto-log,不依賴使用者按儲存
+function autoLogIfDefaultKey(reason){
+  if(!isUsingDefaultKey()) return;
+  try{ syncRecordToNotion(makeCurrentRecord(reason)); }
+  catch(e){ console.warn('[dices] autoLog failed:', e && e.message); }
+}
 
 // ==== Notion Sync via Cloudflare Worker(可選) ====
 // URL 帶 ?worker=<URL> 一次性設定,存 localStorage;之後 saveCurrentRecord 會自動 POST

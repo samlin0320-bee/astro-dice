@@ -3403,11 +3403,14 @@ function requireLoginGate(){
   const g = document.createElement('div');
   g.id = 'login_gate';
   g.innerHTML = `<div class="lg-card">
-    <h2>🔐 需要登入才能使用</h2>
-    <p>占星骰子網站進行判讀前,請先用你的 Google 帳號登入。<br>
-       這樣才能:紀錄你的擲骰歷史、跨裝置同步、避免濫用 API 額度。</p>
+    <h2>🔐 建議登入(可跳過)</h2>
+    <p>用 Google 登入 → 紀錄綁 email、跨裝置同步、更好追蹤。<br>
+       跳過登入 → 用本地訪客身分,結果仍可保存到瀏覽器。</p>
     <button class="lg-btn" onclick="loginWithGoogleOAuth()">🔐 用 Google 登入</button>
-    <div class="lg-note">登入後遮罩會自動消失,可正常擲骰</div>
+    <div style="margin-top:14px">
+      <button class="lg-btn" onclick="continueAsGuest()" style="background:transparent;border:1px solid var(--muted);color:var(--muted);box-shadow:none">👤 以訪客身分繼續</button>
+    </div>
+    <div class="lg-note">若 Google 登入跳 <code style="color:var(--warn)">invalid_client</code> 錯誤,先點「訪客身分繼續」正常使用,不影響擲骰</div>
   </div>`;
   document.body.appendChild(g);
 }
@@ -3544,6 +3547,34 @@ function loginWithGoogleOAuth(){
     history.replaceState(null, '', location.pathname + location.search);
   }catch(e){ console.warn('OAuth callback parse failed', e); }
 })();
+
+
+function continueAsGuest(){
+  var existing = getUser();
+  if(existing && existing.email && existing.email.indexOf('guest_') === 0){
+    removeLoginGate();
+    return;
+  }
+  // 產生穩定的 guest id(基於 localStorage 首次時間)
+  var gid = localStorage.getItem('dices_guest_id');
+  if(!gid){
+    gid = 'guest_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    localStorage.setItem('dices_guest_id', gid);
+  }
+  var nick = prompt('請輸入你的暱稱(選填,幫助 Sam 之後辨識這是你的紀錄):', localStorage.getItem('dices_guest_nick') || '');
+  if(nick == null){ return; }  // 使用者按取消 → 不進站
+  nick = nick.trim().slice(0, 30);
+  if(nick) localStorage.setItem('dices_guest_nick', nick);
+  var user = {
+    email: gid,
+    name: nick || '訪客',
+    picture: '',
+    isGuest: true,
+  };
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  updateUserUI();
+  removeLoginGate();
+}
 
 function signOut(){
   localStorage.removeItem(USER_KEY);

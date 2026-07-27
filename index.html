@@ -2952,26 +2952,47 @@ function exportDownload(fmt, customName){
   setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
 }
 
-// 產出「年月日_問題_骰子結果」格式檔名(Windows / macOS 檔名安全化)
+// 產出「YYMMDD-題目-行星-星座-N宮-兩派結論」格式檔名
+// 例:260727-只交付給當事人-土星-處女-9宮-只認人當事人.md
 function makeQuestionFileName(ext){
   const q = ($('question').value || '').trim();
   const d = new Date();
   const p2 = n=>String(n).padStart(2, '0');
-  const dateStr = `${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}`;
-  // 安全化:移除 <>:"/\|?* 控制字元;把中間空白換底線;修結尾空白/句點
-  const safe = s => String(s||'').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, '_').replace(/[\s.]+$/, '');
-  const safeQ = safe(q).slice(0, 40) || '未提問';
-  // 骰子結果:主骰(行星+星座+宮位) + 副骰(有勾才加)
-  const pA = $('planet_a') ? $('planet_a').value : '';
-  const sA = $('sign_a') ? $('sign_a').value : '';
-  const hA = $('house_a') ? $('house_a').value : '';
+  const yy = String(d.getFullYear()).slice(-2);
+  const dateStr = `${yy}${p2(d.getMonth()+1)}${p2(d.getDate())}`;
+  // 安全化:清 <>:"/\|?* 控制字元 + emoji;把空白/連字號 collapse 成 _ (避免與外層分隔符 - 混淆)
+  const safe = s => String(s||'')
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+    .replace(/[\p{Extended_Pictographic}️]/gu, '')
+    .replace(/[\s\-]+/g, '_')
+    .replace(/^_+/, '')
+    .replace(/[\s._]+$/, '');
+  // 骰子的行星/星座 select value 是英文 id/數字,要查表拿中文名 (去尾字「座」)
+  const pName = id => (id && typeof findPlanet==='function') ? ((findPlanet(id)||{}).zh || id).replace(/[\/／].*$/, '') : '';
+  const sName = id => { if(id==='' || id==null) return ''; const s = (typeof findSign==='function') ? findSign(id) : null; return s ? (s.zh||'').replace(/座$/, '') : String(id); };
+
+  const safeQ = safe(q).slice(0, 30) || '未提問';
+
+  const pA_id = $('planet_a') ? $('planet_a').value : '';
+  const sA_id = $('sign_a')   ? $('sign_a').value   : '';
+  const hA    = $('house_a')  ? $('house_a').value  : '';
   const useSub = $('use_subdie') && $('use_subdie').checked;
-  const pB = useSub && $('planet_b') ? $('planet_b').value : '';
-  const sB = useSub && $('sign_b') ? $('sign_b').value : '';
-  let dice = safe(pA) + safe(sA) + (hA ? hA + '宮' : '');
-  if(useSub && (pB || sB)) dice += '+' + safe(pB) + safe(sB);
-  dice = dice.slice(0, 40) || '未擲骰';
-  return `${dateStr}_${safeQ}_${dice}.${ext}`;
+  const pB_id = useSub && $('planet_b') ? $('planet_b').value : '';
+  const sB_id = useSub && $('sign_b')   ? $('sign_b').value   : '';
+
+  let dice = [safe(pName(pA_id)), safe(sName(sA_id)), (hA ? hA + '宮' : '')].filter(Boolean).join('-') || '未擲骰';
+  if(useSub && (pB_id || sB_id)){
+    const sub = [safe(pName(pB_id)), safe(sName(sB_id))].filter(Boolean).join('-');
+    if(sub) dice += '+' + sub;
+  }
+  dice = dice.slice(0, 40);
+
+  // 兩派共識結論摘要
+  const conEl = document.querySelector('.ai-consensus-card .aic-final-text');
+  const conText = conEl ? (conEl.innerText || conEl.textContent || '').trim() : '';
+  const consensus = safe(conText).slice(0, 20) || '無結論';
+
+  return `${dateStr}-${safeQ}-${dice}-${consensus}.${ext}`;
 }
 
 function exportCopy(btn){

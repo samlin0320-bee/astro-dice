@@ -3744,26 +3744,45 @@ async function exportShare(){
       return;
     }
   }
-  // 用 Markdown 版本(結構完整,含所有卡片)
+  // 分享的是「檢驗結果本體」不是網址
+  // 為何要先寫剪貼簿:LINE/Messenger/微信 對 Web Share 的 text+url 只取 url,直接分享只會傳網址
+  // 對策:剪貼簿保證拿到完整 MD(貼哪都完整);Web Share 純輔助開分享面板(不帶 url)
   const md = exportMarkdown();
-  const shareText = md.length > 3500
-    ? md.slice(0, 3500) + `\n\n[內容過長已截斷,完整版:${makeQuestionFileName('md')}]`
+  const title = '占星骰子判讀:' + (($('question').value || '').slice(0,30) || '本次擲骰');
+
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(md);
+    copied = true;
+  } catch(e) { /* 剪貼簿失敗仍繼續 */ }
+
+  // Web Share 的 text 有 platform 長度限制(通常 500-1500 字),太長就縮短
+  const shortForShare = md.length > 1500
+    ? md.slice(0, 1500) + '\n\n【內容較長,完整版已複製到剪貼簿,直接貼上即可】'
     : md;
+
   try{
     if(navigator.share){
-      await navigator.share({
-        title: '占星骰子判讀:' + (($('question').value || '').slice(0,30) || '本次擲骰'),
-        text: shareText,
-        url: 'https://dices.3minstest.com/',
-      });
+      // 故意不帶 url:避免 LINE/Messenger 只拿 url 忽略 text
+      await navigator.share({ title, text: shortForShare });
+      if(copied){
+        // 有些平台分享後不會提示;補一句讓 Sam 知道完整版在剪貼簿
+        setTimeout(()=>{ try{ console.log('[dices] 完整判讀已同步複製到剪貼簿'); }catch(_){} }, 100);
+      }
+    }else if(copied){
+      alert('✓ 完整判讀已複製到剪貼簿\n直接貼到 LINE / TG / 訊息 App 即可');
     }else{
-      // 不支援 Web Share → 直接下載完整 MD
+      // 都失敗 → 下載完整 MD 兜底
       exportDownload('md', makeQuestionFileName('md'));
-      alert('此瀏覽器不支援分享 API,已改為下載完整 MD 檔');
+      alert('此瀏覽器不支援分享/剪貼簿,已改為下載 MD 檔');
     }
   }catch(e){
     if(e.name === 'AbortError') return;  // 使用者取消
-    alert('分享失敗:' + e.message);
+    if(copied){
+      alert('分享面板未開啟,但完整判讀已複製到剪貼簿,可直接貼上');
+    }else{
+      alert('分享失敗:' + e.message);
+    }
   }
 }
 </script>

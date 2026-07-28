@@ -42,29 +42,34 @@ def sign_of(longitude_deg: float) -> int:
 
 
 def compute_point(dt: datetime) -> dict:
-    """Compute tropical and sidereal sign positions at a UTC datetime."""
+    """Compute tropical and sidereal sign positions + retrograde flags at a UTC datetime."""
     jd = swe.julday(dt.year, dt.month, dt.day,
                     dt.hour + dt.minute / 60 + dt.second / 3600)
 
     trop_signs = []
     sid_signs = []
+    retros = []  # 1 = retrograde, 0 = direct; 順逆與座標系無關,用 tropical 的 lon_speed 判斷
 
     for name, pid in PLANETS:
-        # Tropical
-        lon_t = swe.calc_ut(jd, pid)[0][0]
-        trop_signs.append(sign_of(lon_t))
+        # Tropical (含 speed):calc_ut 回 ((lon, lat, dist, lon_speed, lat_speed, dist_speed), retflags)
+        result_t = swe.calc_ut(jd, pid)[0]
+        trop_signs.append(sign_of(result_t[0]))
+        retros.append(1 if result_t[3] < 0 else 0)
         # Sidereal Lahiri
         lon_s = swe.calc_ut(jd, pid, swe.FLG_SIDEREAL)[0][0]
         sid_signs.append(sign_of(lon_s))
 
-    # Ketu = Rahu + 180
-    trop_signs.append(sign_of((swe.calc_ut(jd, swe.MEAN_NODE)[0][0] + 180)))
-    sid_signs.append(sign_of((swe.calc_ut(jd, swe.MEAN_NODE, swe.FLG_SIDEREAL)[0][0] + 180)))
+    # Ketu = Rahu + 180;逆行狀態與 Rahu 同(mean node 幾乎恆為 R)
+    rahu_result = swe.calc_ut(jd, swe.MEAN_NODE)[0]
+    trop_signs.append(sign_of(rahu_result[0] + 180))
+    sid_signs.append(sign_of(swe.calc_ut(jd, swe.MEAN_NODE, swe.FLG_SIDEREAL)[0][0] + 180))
+    retros.append(1 if rahu_result[3] < 0 else 0)  # ketu 與 rahu 同狀態
 
     return {
         't': int(dt.timestamp()),
         'T': trop_signs,
         'S': sid_signs,
+        'R': retros,
     }
 
 
@@ -92,7 +97,7 @@ def main():
         'sidereal_system': 'Lahiri',
         'resolution_hours': step_hours,
         'planets_order': PLANET_NAMES,
-        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度). 6h resolution, absolute range 2018-01-01 → 2051-01-01 (33y).',
+        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度), R = retrograde 0/1 per planet (逆行). 6h resolution, absolute range 2018-01-01 → 2051-01-01 (33y).',
         'points': points,
     }
 

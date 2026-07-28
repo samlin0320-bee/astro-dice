@@ -1648,18 +1648,36 @@ function loadCurrentTransits(silentIfNoEphem){
 
   const system = $('zodiac_system').value; // 'T' or 'S'
   const signs = pt[system];
+  const retros = pt.R || null;  // 逆行陣列(星曆升級後才有;沒有就優雅降級)
   const order = EPHEM.planets_order;
 
+  // 逆行狀態存全域,generateInterpretation 讀取後給 AI + 顯示卡用
+  window.__transitRetros = {};
   order.forEach((pid, i)=>{
     const sel = $('t_' + pid);
     if(sel) sel.value = signs[i];
+    // label 加逆行標記(每次 load 時重繪)
+    const labelEl = sel && sel.previousElementSibling;
+    if(labelEl && labelEl.tagName === 'LABEL'){
+      // 先移除舊標記,再依 retros[i] 決定要不要加
+      labelEl.innerHTML = labelEl.innerHTML.replace(/\s*<span class="retro-badge">.*?<\/span>/, '');
+      if(retros && retros[i] === 1){
+        labelEl.insertAdjacentHTML('beforeend',
+          ' <span class="retro-badge" title="逆行 Retrograde" style="display:inline-block;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:700;color:#fff;background:#c9302c;border-radius:3px;letter-spacing:.5px">R</span>');
+        window.__transitRetros[pid] = true;
+      }
+    }
   });
 
   const pointDate = new Date(pt.t * 1000);
   const sysLabel = system==='S' ? '恆星 Lahiri' : '迴歸黃道';
   const isNow = Math.abs(targetSec - Math.floor(Date.now()/1000)) < 60*60*6;
   const dateLabel = pointDate.toLocaleString('zh-TW',{year:'numeric',month:'short',day:'numeric',hour:'2-digit'});
-  $('ephem_status').innerHTML = `<span style="color:var(--gold)">✓ 已帶入 ${dateLabel}（${sysLabel}${isNow?'，最接近現在':''}）</span>`;
+  const retroCount = retros ? retros.filter((r,i)=>r===1 && order[i]!=='rahu' && order[i]!=='ketu').length : null;
+  const retroLine = retroCount !== null
+    ? `,${retroCount>0 ? '<span style="color:#c9302c;font-weight:700">逆行 '+retroCount+' 顆</span>' : '無行星逆行'}`
+    : '';
+  $('ephem_status').innerHTML = `<span style="color:var(--gold)">✓ 已帶入 ${dateLabel}（${sysLabel}${isNow?'，最接近現在':''}${retroLine}）</span>`;
 }
 
 // ============ 初始化 ============
@@ -1734,7 +1752,7 @@ const NOTEBOOK_NAME = {
 
 function buildPromptWestern(ctx){
   const transitsLine = ctx.transits.length
-    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
+    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮${t.isRetro?'，逆行 R':''}）`).join('、')
     : '（未填）';
   const subdieLine = ctx.useSubdie
     ? `- 副骰：${ctx.pB.zh} ${ctx.sB.zh} 第 ${ctx.house_b} 宮（整宮制推算）\n`
@@ -1768,7 +1786,7 @@ ${ctx.useSubdie ? '5' : '4'}. 針對${ctx.question ? `「${ctx.question}」這�
 
 function buildPromptVedic(ctx){
   const transitsLine = ctx.transits.length
-    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮）`).join('、')
+    ? ctx.transits.map(t=>`${t.name} 在 ${t.sign.zh}（第 ${t.house} 宮${t.isRetro?'，Vakri 逆行':''}）`).join('、')
     : '（未填）';
   const subdieLine = ctx.useSubdie
     ? `- 副骰：${ctx.pB.zh}（${ctx.pB.vedic}）在 ${ctx.sB.zh} 第 ${ctx.house_b} 宮\n`
@@ -1849,7 +1867,8 @@ function renderRashiChart(asc, placements){
     const planetsHTML = here.map(p => {
       const pl = findPlanet(p.pid);
       const srcCls = SRC_CLS_RC[p.source] || 'rp-src-main';
-      return `<span class="rc-planet rp-${p.pid} ${srcCls}" title="${pl.zh} · ${p.source}">${pl.sym}${pl.zh.charAt(0)}</span>`;
+      const retro = p.isRetro ? '<sup class="rp-retro" style="color:#ffcf00;font-size:8px;margin-left:1px" title="逆行">℞</sup>' : '';
+      return `<span class="rc-planet rp-${p.pid} ${srcCls}" title="${pl.zh} · ${p.source}${p.isRetro?' · 逆行':''}">${pl.sym}${pl.zh.charAt(0)}${retro}</span>`;
     }).join('');
 
     cells += `
@@ -1942,7 +1961,7 @@ function renderAIQuickRead(ctx){
     askTime: getAskTime(),
     topics: getSelectedTopics(),
     transitDate: ctx.transitDateLabel || '',
-    transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house})),
+    transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house, isRetro: !!t.isRetro})),
   };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   return `
@@ -1984,7 +2003,7 @@ async function runAIQuick(btn){
     : '副骰：（未啟用，此次為單顆主骰判讀）';
   const twoDiceLabel = hasSubdie ? `${pName(payload.pA)} + ${pName(payload.pB)}` : `${pName(payload.pA)}（單骰）`;
   const transitLine = (payload.transits && payload.transits.length)
-    ? `${payload.transits.map(t=>`${t.name}在${t.sign}(第${t.house}宮)`).join('、')}`
+    ? `${payload.transits.map(t=>`${t.name}在${t.sign}(第${t.house}宮${t.isRetro?' 逆行R':''})`).join('、')}`
     : '（未帶入當前行運）';
   const transitAvailable = !!(payload.transits && payload.transits.length);
 
@@ -2708,7 +2727,8 @@ function run(){
   const lord1 = TRADITIONAL_RULER[asc];
   const pLord = findPlanet(lord1);
 
-  // 行運
+  // 行運(帶逆行狀態,由 loadCurrentTransits 存進 window.__transitRetros)
+  const retros = window.__transitRetros || {};
   const transits = [];
   [['t_sun','運行太陽','sun'],['t_moon','運行月亮','moon'],['t_mercury','運行水星','mercury'],
    ['t_venus','運行金星','venus'],['t_mars','運行火星','mars'],['t_jupiter','運行木星','jupiter'],
@@ -2719,7 +2739,7 @@ function run(){
     if(v!==''){
       const s = findSign(v);
       const h = houseOfSign(v, asc);
-      transits.push({name, pid, sign:s, house:h});
+      transits.push({name, pid, sign:s, house:h, isRetro: !!retros[pid]});
     }
   });
 
@@ -2732,7 +2752,7 @@ function run(){
   const placements = [
     {pid:planet_a, sign:parseInt(sign_a), house:house_a, source:'主骰'},
     ...(useSubdie ? [{pid:planet_b, sign:parseInt(sign_b), house:house_b, source:'副骰'}] : []),
-    ...transits.map(t=>({pid:t.pid, sign:t.sign.id, house:t.house, source:t.name})),
+    ...transits.map(t=>({pid:t.pid, sign:t.sign.id, house:t.house, source:t.name, isRetro:!!t.isRetro})),
   ];
 
   // ---------- 西洋判讀 ----------

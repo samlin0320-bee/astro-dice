@@ -4,7 +4,8 @@ compatibility_date = "2026-01-01"
 
 # Secrets(用 wrangler secret put 設,不要放這裡):
 #   NOTION_TOKEN         — Notion Integration Secret(ntn_ 或 secret_ 開頭)
-#   NOTION_DATABASE_ID   — f4cdd651-f24d-49aa-a4bf-aed017551077
+#   NOTION_DATABASE_ID   — bdcaf8bcb45045bbb90724444ddfa6d6  ← 用「database id」不是 data source id!
+#     (舊版誤填 f4cdd651... = data source id,2022-06-28 API 會 404;2026-07-29 已修正)
 
 # 可選:綁自訂 domain
 # [[routes]]

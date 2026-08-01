@@ -3338,6 +3338,9 @@ function autoLogIfDefaultKey(reason){
 // ==== Notion Sync via Cloudflare Worker(可選) ====
 // URL 帶 ?worker=<URL> 一次性設定,存 localStorage;之後 saveCurrentRecord 會自動 POST
 const WORKER_KEY = 'dices_notion_worker_url';
+// 已上線的預設 Worker(2026-07-29 修好 DATABASE_ID);未用 ?worker= 覆蓋時走這個
+const DEFAULT_WORKER_URL = 'https://dices-log.samminstest.workers.dev';
+function getWorkerUrl(){ return localStorage.getItem(WORKER_KEY) || DEFAULT_WORKER_URL; }
 (function ingestWorkerUrl(){
   try{
     const p = new URLSearchParams(location.search);
@@ -3350,8 +3353,31 @@ const WORKER_KEY = 'dices_notion_worker_url';
     }
   }catch(e){}
 })();
+// 一鍵把本機所有歷史紀錄補推到 Notion(逐筆,含 200ms 間隔避免打爆)
+async function backfillAllToNotion(btn){
+  const all = getRecords();
+  if(!all.length){ alert('本機沒有歷史紀錄可補推'); return; }
+  if(!confirm(`要把本機 ${all.length} 筆歷史紀錄全部推到 Notion DB 嗎?\n(重複推會產生重複列,建議只在第一次補歷史時用)`)) return;
+  const origText = btn ? btn.textContent : '';
+  let ok = 0, fail = 0;
+  for(let i = 0; i < all.length; i++){
+    if(btn){ btn.textContent = `⏳ 推送中 ${i+1}/${all.length}`; btn.disabled = true; }
+    try{
+      const res = await fetch(getWorkerUrl(), {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(all[i]),
+      });
+      if(res.ok) ok++; else fail++;
+    }catch(e){ fail++; }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  if(btn){ btn.textContent = `✓ 完成 ${ok} 筆${fail?(' / 失敗 '+fail):''}`;
+    setTimeout(()=>{ btn.textContent = origText; btn.disabled = false; }, 4000); }
+  alert(`補推完成:成功 ${ok} 筆${fail?(',失敗 '+fail+' 筆(可能 Worker 未設定或網路問題)'):''}`);
+}
+
 async function syncRecordToNotion(rec){
-  const url = localStorage.getItem(WORKER_KEY);
+  const url = getWorkerUrl();
   if(!url) return;  // Worker 未設定,靜默略過
   try{
     const res = await fetch(url, {
@@ -3445,6 +3471,7 @@ function renderHistory(){
   let inner = `<span class="hp-close" onclick="toggleHistory()">✕</span><h3>📜 歷史紀錄（${all.length}）</h3>
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
       <button class="user-chip" onclick="exportRecordsCSV()" title="產出 Notion DB 可 Import 的 CSV">⬇ 匯出 CSV → Notion</button>
+      <button class="user-chip" onclick="backfillAllToNotion(this)" title="把本機所有歷史紀錄一次補推到 Notion DB">🔁 補推全部到 Notion</button>
       <button class="user-chip" onclick="openNotionAdminDB()" title="打開 Sam 專屬 Notion DB 後台">🗄 開 Notion 後台</button>
     </div>`;
   if(all.length === 0){

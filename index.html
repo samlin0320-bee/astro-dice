@@ -3090,6 +3090,18 @@ function mxDownloadMD(btn){
 }
 function mxExportPDF(btn){
   mxFlash(btn, '\uD83D\uDDA8 \u958B\u5217\u5370...');
+  // \u700F\u89BD\u5668\u300C\u53E6\u5B58 PDF\u300D\u7684\u9810\u8A2D\u6A94\u540D = document.title,\u4E0D\u7D93 makeQuestionFileName
+  // \u2192 \u5217\u5370\u524D\u66AB\u6539 title \u6210\u76EE\u6A19\u6A94\u540D(\u53BB\u526F\u6A94\u540D),\u5370\u5B8C(afterprint)\u9084\u539F
+  const origTitle = document.title;
+  const pdfName = makeQuestionFileName('pdf').replace(/\.pdf$/i, '');
+  document.title = pdfName;
+  const restore = function(){
+    document.title = origTitle;
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  // \u4FDD\u96AA:8 \u79D2\u5F8C\u4E0D\u8AD6\u6709\u6C92\u6709 afterprint \u90FD\u9084\u539F(\u6709\u4E9B\u700F\u89BD\u5668\u53D6\u6D88\u5217\u5370\u4E0D\u89F8\u767C afterprint)
+  setTimeout(restore, 8000);
   setTimeout(function(){ window.print(); }, 200);
 }
 function mxCopySection(btn){

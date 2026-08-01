@@ -1203,11 +1203,24 @@ function setupImageInput(){
     dz.style.borderColor='var(--border)';
     handleFile(e.dataTransfer.files[0]);
   });
-  // Ctrl+V 貼上
+  // Ctrl+V 貼上圖片(全站通用):
+  //   骰子圖片面板開著 → 骰子辨識;否則(含問題卡) → 問題圖片 OCR 自動填問題
+  //   沒有圖片(純文字)→ 不攔截,讓瀏覽器預設貼上正常運作
   document.addEventListener('paste', e=>{
+    const cd = e.clipboardData || window.clipboardData;
+    if(!cd) return;
+    const item = [...(cd.items || [])].find(i=>i.type && i.type.startsWith('image/'));
+    if(!item) return;  // 純文字貼上 → 交給瀏覽器預設處理
+    const file = item.getAsFile();
+    if(!file) return;
     if(!$('panel_image').classList.contains('hidden')){
-      const item = [...e.clipboardData.items].find(i=>i.type.startsWith('image/'));
-      if(item) handleFile(item.getAsFile());
+      // 骰子圖片辨識分頁 → 貼進骰子預覽
+      e.preventDefault();
+      handleFile(file);
+    }else if(typeof handleQuestionImage === 'function'){
+      // 其他任何情況 → 當作「問題圖片」丟給 Gemini OCR 填問題
+      e.preventDefault();
+      handleQuestionImage(file);
     }
   });
 

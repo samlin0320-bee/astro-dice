@@ -415,6 +415,10 @@ html[data-theme="light"] .house-meanings-card tr:nth-child(even) td{background:r
 .rc-planet.rp-saturn {background:#2a3a6b;color:#fff;border-color:#1a2848;}
 .rc-planet.rp-rahu   {background:#5a5a5a;color:#fff;border-color:#3a3a3a;}
 .rc-planet.rp-ketu   {background:#8a5a3a;color:#fff;border-color:#5a3a20;}
+/* 外行星(天海冥)— 西洋慣用色,虛點框標示非傳統九曜 */
+.rc-planet.rp-uranus {background:#1a9ba0;color:#fff;border-color:#0f6b6f;border-style:dotted;}
+.rc-planet.rp-neptune{background:#3f5fc4;color:#fff;border-color:#28408f;border-style:dotted;}
+.rc-planet.rp-pluto  {background:#7a3d6b;color:#fff;border-color:#521a45;border-style:dotted;}
 /* 主/副/運 視覺區分(替代原本靠 M/B/T 文字混疊) */
 .rc-planet.rp-src-main{}  /* 主骰:實心邊框(預設) */
 .rc-planet.rp-src-sub{border-style:dashed;opacity:.85;}  /* 副骰:虛線 */
@@ -458,6 +462,9 @@ html[data-theme="light"] .rc-planet.rp-venus  {background:#e8e0d5;color:#3a2a1a;
 html[data-theme="light"] .rc-planet.rp-saturn {background:#233258;color:#fff;}
 html[data-theme="light"] .rc-planet.rp-rahu   {background:#4a4a4a;color:#fff;}
 html[data-theme="light"] .rc-planet.rp-ketu   {background:#6b4020;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-uranus {background:#137a7e;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-neptune{background:#334fa8;color:#fff;}
+html[data-theme="light"] .rc-planet.rp-pluto  {background:#642f58;color:#fff;}
 html[data-theme="light"] .rashi-center{background:linear-gradient(135deg,#eaf5ff,#fdf6e3);}
 
 /* 圖例 */
@@ -1846,8 +1853,10 @@ const RASHI_LAYOUT = {
   8: {r:4,c:1}, 7:{r:4,c:2}, 6:{r:4,c:3}, 5:{r:4,c:4},
 };
 const ELEM_CLS_RC = {'火':'rc-fire','土':'rc-earth','風':'rc-air','水':'rc-water'};
-// 印度九曜(Navagraha):傳統南印度盤只顯這 9 顆,不含 U/N/P 外行星
+// 印度九曜(Navagraha):傳統南印度盤 9 顆
 const VEDIC_GRAHAS = ['sun','moon','mars','mercury','jupiter','venus','saturn','rahu','ketu'];
+// Rashi 盤實際顯示清單:九曜 + 外行星(天海冥,虛點框標示非傳統)
+const RASHI_DISPLAY = [...VEDIC_GRAHAS, 'uranus', 'neptune', 'pluto'];
 const SRC_CLS_RC = {'主骰':'rp-src-main','副骰':'rp-src-sub','行運':'rp-src-transit'};
 
 function renderRashiChart(asc, placements){
@@ -1864,8 +1873,8 @@ function renderRashiChart(asc, placements){
     if(isTrikona) cls += ' rc-trikona';
     if(house === 1) cls += ' rc-asc';
 
-    // 只顯示印度九曜,過濾外行星(U/N/P)— Rashi 盤是 Vedic 純血
-    const here = placements.filter(p => p.house === house && VEDIC_GRAHAS.includes(p.pid));
+    // 九曜 + 外行星(天海冥);外行星用虛點框 + 西洋色區隔傳統九曜
+    const here = placements.filter(p => p.house === house && RASHI_DISPLAY.includes(p.pid));
     const planetsHTML = here.map(p => {
       const pl = findPlanet(p.pid);
       const srcCls = SRC_CLS_RC[p.source] || 'rp-src-main';
@@ -1910,6 +1919,10 @@ function renderRashiChart(asc, placements){
       <span class="rl-item"><span class="rl-sw" style="background:#2e8a52;border-radius:50%"></span>水 Budha</span>
       <span class="rl-item"><span class="rl-sw" style="background:#5a5a5a;border-radius:50%"></span>羅睺</span>
       <span class="rl-item"><span class="rl-sw" style="background:#8a5a3a;border-radius:50%"></span>計都</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#1a9ba0;border-radius:50%;border:1px dotted #fff"></span>天 Uranus</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#3f5fc4;border-radius:50%;border:1px dotted #fff"></span>海 Neptune</span>
+      <span class="rl-item"><span class="rl-sw" style="background:#7a3d6b;border-radius:50%;border:1px dotted #fff"></span>冥 Pluto</span>
+      <span class="rl-item">虛點框=外行星(非傳統九曜)</span>
       <span class="rl-item">紅框=6/8/12 凶宮</span>
       <span class="rl-item">金條=5/9 三分宮</span>
       <span class="rl-item">金框=命宮 1</span>

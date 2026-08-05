@@ -2105,6 +2105,7 @@ function renderAIQuickRead(ctx){
     transitDate: ctx.transitDateLabel || '',
     transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house, isRetro: !!t.isRetro})),
     threeEngines: threeEnginesText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB}),
+    reception: receptionText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB, house_b:ctx.house_b}),
   };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   return `
@@ -2168,6 +2169,10 @@ ${transitAvailable ? `日期:${payload.transitDate}` : ''}
 ${payload.threeEngines || '(單骰,無計數相位;副骰啟用後可算你與對方的角度關係)'}
 ※ 計數相位吉凶:大吉(120°三分,天助順流)、吉(60°六合,主動爭取)、凶(90°四分卡關/180°對立拉扯)、弱凶(150°補十二消耗)、中性(0°合相同一件事)。右半上升段=我主動推進,左半消退段=回應收尾。
 ※ 時間引擎:慢行星定「這件事多大多久」,快行星定「何時觸發」。
+
+【容納/互容/交換(這會改寫吉凶,務必套用)】
+${payload.reception || '(單骰,無容納關係)'}
+※ 容納會使兩星關係增吉、即使凶相也減弱(像贈禮,主宰星給容納星好處)。互容/交換(印度 Parivartana 互垣)會讓原本弱陷狀態消失、轉為吉利;但凶凶互容若落 6/8/12 陷宮,能力有限、有時反而更糟。判讀吉凶時請把這層加權進去。
 
 【問題】
 ${payload.question || '(未特別提問,泛泛看今天/近期整體)'}
@@ -2886,6 +2891,116 @@ function threeEnginesText(ctx){
   return s;
 }
 
+// ============ 容納／互容／交換(Parivartana) 雙版偵測 ============
+// 西洋:容納(一方)/互容(廟旺互容)/相容(互垣);印度:交換(Parivartana 互垣,僅傳統七曜)
+const BENEFIC_PLANETS = ['jupiter','venus','mercury','moon'];  // 天生吉星(水月為中性偏吉)
+const MALEFIC_PLANETS = ['mars','saturn','sun','rahu','ketu']; // 天生凶星
+function _planetJi(id){ return BENEFIC_PLANETS.includes(id) ? '吉' : (MALEFIC_PLANETS.includes(id) ? '凶' : '中'); }
+function _signRulers(signId, includeModern){
+  const rs = [TRADITIONAL_RULER[signId]];
+  if(includeModern && MODERN_RULER[signId] && MODERN_RULER[signId] !== TRADITIONAL_RULER[signId]) rs.push(MODERN_RULER[signId]);
+  return rs;
+}
+// signId 對 hostId 而言是「客位尊貴」嗎?回 '廟'(本垣)/'旺'(旺宮)/null
+function _dignityOfGuest(signId, hostId, includeModern){
+  if(_signRulers(signId, includeModern).includes(hostId)) return '廟';
+  if(EXALTATION[hostId] === parseInt(signId)) return '旺';
+  return null;
+}
+// A(在 signA) 與 B(在 signB) 的容納關係。includeModern=true 走西洋(含天海冥守護)
+function detectReception(aId, signAId, bId, signBId, includeModern){
+  const aReceivesB = _dignityOfGuest(signBId, aId, includeModern); // B 落在 A 的廟/旺 → A 容納 B
+  const bReceivesA = _dignityOfGuest(signAId, bId, includeModern); // A 落在 B 的廟/旺 → B 容納 A
+  const mutual = !!(aReceivesB && bReceivesA);
+  const isExchange = _signRulers(signBId, includeModern).includes(aId) && _signRulers(signAId, includeModern).includes(bId); // 互垣(雙本垣)
+  return { aReceivesB, bReceivesA, mutual, isExchange };
+}
+
+function renderReception(ctx){
+  const {pA, sA, house_a, useSubdie, pB, sB, house_b} = ctx;
+  if(!(useSubdie && pB && sB)){
+    return `<div class="card te-card">
+      <div class="card-title">🤝 容納 / 互容 / 交換（西洋 × 印度）</div>
+      <p class="te-line muted">需要「副骰(所問的人/事/物)」才能判斷兩星之間的容納關係。<br>用「🎲 骰五顆」或勾「啟用副骰」後就會自動偵測。</p>
+    </div>`;
+  }
+  const jiA = _planetJi(pA.id), jiB = _planetJi(pB.id);
+  // Ptolemaic 相位聯繫?(計數 1/3/4/5/7/9/10/11 是托勒密相位 → 強化容納)
+  const cnt = countAspect(sA.id, sB.id).count;
+  const hasAspect = [1,3,4,5,7,9,10,11].includes(cnt);
+  const dushtana = h => [6,8,12].includes(parseInt(h));  // 陷宮(印度凶宮)
+
+  function oneSide(system){
+    const modern = (system === 'western');
+    const r = detectReception(pA.id, sA.id, pB.id, sB.id, modern);
+    const label = modern ? '西洋觀點' : '印度觀點';
+    const exchangeName = modern ? '相容（互垣）' : '交換 Parivartana（互垣）';
+    let body = '';
+    if(r.isExchange){
+      // 相容/交換
+      let extra;
+      if(modern){
+        extra = '兩星各自落在對方守護的星座 → <b>完美融合</b>,帶來額外積極力量與特殊才華;原本的弱陷狀態會消失,轉為吉利。';
+      }else{
+        const bothGood = !dushtana(house_a) && !dushtana(house_b);
+        extra = bothGood
+          ? '兩星互落對方本垣(राशि परिवर्तन)=<b>大交換 Maha Parivartana</b>,彼此加持、力量倍增,是強力吉兆。'
+          : '兩星互落對方本垣,但有一方落在 6/8/12 陷宮 → 屬<b>困頓交換 Dainya</b>,雖有連結但帶消耗/障礙,需化解。';
+      }
+      body = `<div class="te-line"><b style="color:#2e9d5a">✓ 成立「${exchangeName}」</b></div><div class="te-line">${extra}</div>`;
+    }else if(r.mutual){
+      // 互容(廟旺,非雙本垣)
+      const t = `${r.bReceivesA}${r.aReceivesB}`; // 例 廟旺 / 旺旺 / 廟廟
+      let jj;
+      if(jiA==='吉' && jiB==='吉') jj = '<b>吉吉互容</b> → 吉上加吉。';
+      else if(jiA==='凶' && jiB==='凶') jj = dushtana(house_a)||dushtana(house_b)
+        ? '<b>凶凶互容</b>,能減凶;但有一方落陷宮,兩星狀態不佳、能力有限,給予作用有限,<b>有時反而更糟</b>(如兩個窮困的人親近,得不到支援還要倒貼)。'
+        : '<b>凶凶互容</b> → 減少凶性,彼此扶持。';
+      else jj = '<b>吉凶互容</b> → 吉星拉抬凶星,凶性減弱、關係增吉。';
+      body = `<div class="te-line"><b style="color:#2e9d5a">✓ 成立「互容」（${t}）</b></div>
+        <div class="te-line">${pA.zh}落${pB.zh}的${r.bReceivesA}位、${pB.zh}落${pA.zh}的${r.aReceivesB}位,彼此互為尊貴 → 原弱陷消失,轉吉利。</div>
+        <div class="te-line">${jj}</div>`;
+    }else if(r.aReceivesB || r.bReceivesA){
+      // 單向容納
+      const host = r.aReceivesB ? pA : pB;
+      const guest = r.aReceivesB ? pB : pA;
+      const dig = r.aReceivesB ? r.aReceivesB : r.bReceivesA;
+      body = `<div class="te-line"><b style="color:#b0902a">◐ 單向「容納」</b></div>
+        <div class="te-line"><b>${guest.zh}</b> 落在 <b>${host.zh}</b> 守護/旺的星座(${dig}位) → <b>${host.zh}</b> 容納 <b>${guest.zh}</b>,像贈禮般給它好處:增吉、或使凶相減弱。</div>`;
+    }else{
+      body = `<div class="te-line muted">兩星之間無容納關係(彼此不在對方的廟/旺星座)。</div>`;
+    }
+    // 相位強化提示
+    if((r.isExchange || r.mutual || r.aReceivesB || r.bReceivesA) && hasAspect){
+      body += `<div class="te-line muted" style="font-size:12px">＋ 兩星之間有相位聯繫(第 ${cnt} 格) → 容納狀態<b>更強化</b>。</div>`;
+    }
+    const clr = modern ? 'var(--western)' : 'var(--vedic)';
+    return `<div class="te-block"><div class="te-h" style="color:${clr}">${label}</div>${body}</div>`;
+  }
+
+  return `<div class="card te-card">
+    <div class="card-title">🤝 容納 / 互容 / 交換（西洋 × 印度）</div>
+    <p class="te-line muted" style="margin-top:0">主骰 <b>${pA.zh}(${sA.zh},${jiA}星)</b> ｜ 副骰 <b>${pB.zh}(${sB.zh},${jiB}星)</b> — 容納會使兩星關係增吉,即使凶相也能減弱。</p>
+    ${oneSide('western')}${oneSide('vedic')}
+  </div>`;
+}
+
+// 給 AI 用的容納純文字摘要
+function receptionText(ctx){
+  const {pA, sA, useSubdie, pB, sB, house_a, house_b} = ctx;
+  if(!(useSubdie && pB && sB)) return '';
+  const w = detectReception(pA.id, sA.id, pB.id, sB.id, true);
+  const v = detectReception(pA.id, sA.id, pB.id, sB.id, false);
+  let s = '容納關係:';
+  if(v.isExchange) s += `印度成立「交換 Parivartana 互垣」(${pA.zh}與${pB.zh}互落對方本垣,弱陷轉吉、力量倍增)。`;
+  else if(w.mutual) s += `西洋成立「互容」(${pA.zh}落${pB.zh}的${w.bReceivesA}位、${pB.zh}落${pA.zh}的${w.aReceivesB}位,弱陷消失轉吉)。`;
+  else if(w.aReceivesB || w.bReceivesA){
+    const host = w.aReceivesB ? pA.zh : pB.zh, guest = w.aReceivesB ? pB.zh : pA.zh;
+    s += `單向容納(${host}容納${guest},給予好處/減凶)。`;
+  }else s += '兩星無容納(不在對方廟旺)。';
+  return s;
+}
+
 function aspectsHTML(placements, mainPid, subPid){
   const aspects = [];
   for(let i=0; i<placements.length; i++){
@@ -3144,6 +3259,7 @@ function run(){
       </div>
     </div>
     ${renderThreeEngines({pA, sA, house_a, useSubdie, pB, sB, house_b, transits, transitDateLabel, question})}
+    ${renderReception({pA, sA, house_a, useSubdie, pB, sB, house_b})}
     ${houseChartHTML(asc, placements)}
     ${flyingHousesHTML(asc, getSelectedTopics())}
     ${aspectsHTML(placements, pA.id, (useSubdie && pB) ? pB.id : null)}

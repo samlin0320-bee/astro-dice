@@ -825,6 +825,22 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
     </div>
   </div>
 
+  <div class="card" id="card_selfroll">
+    <div class="card-title">🎰 幫我骰（線上擲骰）</div>
+    <div class="muted" style="margin-bottom:10px">
+      沒有實體骰?讓網站幫你擲。<b>三骰</b>=只看主盤(行星・星座・宮位);
+      <b>五骰</b>=再加副骰兩顆,<b style="color:var(--gold)">代表所問的「人／事／物」</b>,判讀你與對方之間產生的關係。
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn" onclick="rollAstroDice(3)">🎲 骰三顆（主盤）</button>
+      <button type="button" class="btn" onclick="rollAstroDice(5)">🎲 骰五顆（主+副）</button>
+      <button type="button" class="btn-ghost" id="btn_reroll" onclick="reRollDice()" title="保留上次結果,用同樣顆數再骰一次" disabled>🔁 複骰（再骰一次）</button>
+      <button type="button" class="btn-ghost" id="btn_reverify" onclick="compareWithLastRoll()" title="把這次跟上次的結果並排對照、算一致度" disabled>⚖ 跟上次複驗</button>
+    </div>
+    <div id="roll_result" class="muted" style="margin-top:10px;min-height:1.4em"></div>
+    <div id="reverify_panel"></div>
+  </div>
+
   <div class="card">
     <div class="card-title">🎲 主盤三骰 — 決定基準宮位</div>
     <div class="row">
@@ -850,7 +866,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
       </label>
     </div>
-    <div class="muted" style="margin-bottom:12px">副骰的宮位會根據主盤推算自動代入（整宮制 Whole Sign）</div>
+    <div class="muted" style="margin-bottom:12px">副骰 = <b style="color:var(--gold)">所問的「人／事／物」</b>（對方、標的、事件本身）。宮位依主盤推算自動代入（整宮制 Whole Sign），用來看你與對方之間的相位關係。</div>
     <div class="row" id="subdie_fields">
       <div class="field">
         <label>骰 4 · 行星 B</label>
@@ -1119,6 +1135,96 @@ function toggleSubdie(){
   const on = $('use_subdie').checked;
   $('subdie_fields').style.opacity = on ? '1' : '.35';
   $('subdie_fields').style.pointerEvents = on ? 'auto' : 'none';
+}
+
+// ============ 線上擲骰 + 複骰 + 跟上次複驗 ============
+let __lastRoll = null;    // 上一次擲骰快照(給複驗對照)
+let __lastRollMode = 3;   // 上次擲了幾顆(給複骰沿用)
+
+function _pZh(id){ return (PLANETS.find(p=>p.id===id)||{}).zh || id || '—'; }
+function _sZh(v){ return (v!=='' && v!=null && SIGNS[v]) ? SIGNS[v].zh : '—'; }
+function _snapshotDice(){
+  return {
+    pA:$('planet_a').value, sA:$('sign_a').value, hA:$('house_a').value,
+    useSub:$('use_subdie').checked,
+    pB:$('planet_b').value, sB:$('sign_b').value,
+  };
+}
+
+// count = 3(只主盤) 或 5(主+副)
+function rollAstroDice(count){
+  // 骰之前先把現值存成「上次」,供複驗
+  __lastRoll = _snapshotDice();
+  __lastRollMode = count;
+  const rnd = id => { const el = $(id); if(el && el.options.length) el.selectedIndex = Math.floor(Math.random()*el.options.length); };
+  rnd('planet_a'); rnd('sign_a'); rnd('house_a');
+  if(count === 5){
+    $('use_subdie').checked = true; toggleSubdie();
+    rnd('planet_b'); rnd('sign_b');
+  }else{
+    $('use_subdie').checked = false; toggleSubdie();
+  }
+  const rr = $('btn_reroll'), rv = $('btn_reverify');
+  if(rr) rr.disabled = false;
+  if(rv) rv.disabled = false;
+  _showRollResult(count);
+}
+
+function reRollDice(){ rollAstroDice(__lastRollMode || 3); }
+
+function _showRollResult(count){
+  const el = $('roll_result'); if(!el) return;
+  const c = _snapshotDice();
+  let s = `🎲 本次:主骰 <b style="color:var(--gold)">${_pZh(c.pA)}・${_sZh(c.sA)}・${c.hA}宮</b>`;
+  if(count === 5) s += ` ＋ 副骰(人/事/物) <b style="color:var(--gold)">${_pZh(c.pB)}・${_sZh(c.sB)}</b>`;
+  s += ' — 往下按「產生判讀」看解讀';
+  el.innerHTML = s;
+}
+
+// 跟上次擲骰並排對照 + 一致度判定(卜卦「複驗」概念:同問題兩次是否指向同一件事)
+function compareWithLastRoll(){
+  const panel = $('reverify_panel'); if(!panel) return;
+  if(!__lastRoll){
+    panel.innerHTML = '<div class="muted" style="margin-top:10px">還沒有上一次紀錄。先「骰一次」→ 再「複骰」,就能跟上次對照。</div>';
+    return;
+  }
+  const cur = _snapshotDice();
+  const rows = [
+    ['主骰行星', _pZh(__lastRoll.pA), _pZh(cur.pA), __lastRoll.pA === cur.pA],
+    ['主骰星座', _sZh(__lastRoll.sA), _sZh(cur.sA), __lastRoll.sA === cur.sA],
+    ['基準宮位', (__lastRoll.hA||'?')+'宮', (cur.hA||'?')+'宮', String(__lastRoll.hA) === String(cur.hA)],
+  ];
+  if(__lastRoll.useSub && cur.useSub){
+    rows.push(['副骰行星', _pZh(__lastRoll.pB), _pZh(cur.pB), __lastRoll.pB === cur.pB]);
+    rows.push(['副骰星座', _sZh(__lastRoll.sB), _sZh(cur.sB), __lastRoll.sB === cur.sB]);
+  }
+  const same = rows.filter(r => r[3]).length;
+  const total = rows.length;
+  const pct = Math.round(same / total * 100);
+  let verdict, vc;
+  if(pct === 100){ verdict = '完全一致 — 訊號非常穩定,兩次指向同一件事,可信度高。'; vc = '#3a9d5a'; }
+  else if(pct >= 60){ verdict = '多數一致 — 主要訊號穩定,少數變動處值得留意。'; vc = '#c9a017'; }
+  else if(pct >= 34){ verdict = '部分一致 — 訊號不太穩,可能問題太模糊,建議把問題問更具體再骰。'; vc = '#d47a17'; }
+  else{ verdict = '幾乎不同 — 訊號很雜,通常代表「時機未到」或「問題不清楚」,別急著下結論。'; vc = '#c44'; }
+  panel.innerHTML = `
+    <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px">
+      <div style="font-weight:600;color:var(--gold);margin-bottom:8px">⚖ 複驗對照（上次 vs 本次）</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:var(--muted)">
+          <th style="text-align:left;padding:5px">項目</th>
+          <th style="padding:5px">上次</th><th style="padding:5px">本次</th><th style="padding:5px">一致?</th>
+        </tr></thead>
+        <tbody>${rows.map(r=>`<tr style="border-top:1px solid var(--border)">
+          <td style="padding:5px;color:var(--muted)">${r[0]}</td>
+          <td style="padding:5px;text-align:center">${r[1]}</td>
+          <td style="padding:5px;text-align:center">${r[2]}</td>
+          <td style="padding:5px;text-align:center">${r[3] ? '<span style="color:#3a9d5a;font-weight:700">✓</span>' : '<span style="color:#c44;font-weight:700">✗</span>'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div style="margin-top:10px;font-size:13px">
+        一致度 <b style="color:${vc}">${same}/${total}（${pct}%）</b> — <span style="color:${vc}">${verdict}</span>
+      </div>
+    </div>`;
 }
 
 // ============ Tab 切換 ============

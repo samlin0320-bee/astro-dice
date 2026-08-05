@@ -563,6 +563,14 @@ html[data-theme="light"] .ai-consensus-card{
 html[data-theme="light"] .aic-intersect .aic-label{color:#1a6b1a;}
 html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg, transparent 60%, #fdedb8 60%);}
 
+/* ============ 三引擎判讀卡 ============ */
+.te-card{background:linear-gradient(135deg, rgba(154,213,255,.06), rgba(212,175,55,.05));}
+.te-block{padding:12px 0;border-top:1px dashed var(--border);}
+.te-block:first-of-type{border-top:none;padding-top:4px;}
+.te-h{font-weight:700;color:var(--gold);margin-bottom:8px;font-size:14px;letter-spacing:.02em;}
+.te-line{margin:5px 0;line-height:1.6;}
+html[data-theme="light"] .te-card{background:linear-gradient(135deg,#eef7ff,#fdf6e3);}
+
 /* ============ 相位表:卦象主導行星色強調 ============ */
 .aspect-table tr.aspect-key td:first-child{
   box-shadow:inset 5px 0 0 var(--key-color, #d4a017);
@@ -2096,6 +2104,7 @@ function renderAIQuickRead(ctx){
     topics: getSelectedTopics(),
     transitDate: ctx.transitDateLabel || '',
     transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house, isRetro: !!t.isRetro})),
+    threeEngines: threeEnginesText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB}),
   };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   return `
@@ -2154,6 +2163,11 @@ ${subLine}
 【當前天上真實星象(行運)】
 ${transitAvailable ? `日期:${payload.transitDate}` : ''}
 行運行星位置:${transitLine}
+
+【三引擎計算結果(請務必融入判讀,這是本系統核心)】
+${payload.threeEngines || '(單骰,無計數相位;副骰啟用後可算你與對方的角度關係)'}
+※ 計數相位吉凶:大吉(120°三分,天助順流)、吉(60°六合,主動爭取)、凶(90°四分卡關/180°對立拉扯)、弱凶(150°補十二消耗)、中性(0°合相同一件事)。右半上升段=我主動推進,左半消退段=回應收尾。
+※ 時間引擎:慢行星定「這件事多大多久」,快行星定「何時觸發」。
 
 【問題】
 ${payload.question || '(未特別提問,泛泛看今天/近期整體)'}
@@ -2729,6 +2743,149 @@ const PLANET_COLOR = {
   uranus:'#5ab0f0', neptune:'#4a7ac8', pluto:'#8b2e6e',
 };
 
+// ============ 三引擎判讀:計數相位 / 行星週期時間 / 行運三層 ============
+// 計數相位表:從我方行星星座開始(=第1格),順星座數到對方星座
+const COUNT_ASPECT = {
+  1:  {angle:'0° 合相',        key:'集中', nature:'中性偏強', good:'neutral', desc:'能量疊加、同一件事、新起點'},
+  2:  {angle:'30° 十二分相',   key:'增加', nature:'微弱',    good:'weak',    desc:'相鄰、資源牽連'},
+  3:  {angle:'60° 六合',       key:'轉機', nature:'吉',      good:'good',    desc:'機會,須主動把握'},
+  4:  {angle:'90° 四分',       key:'陷落', nature:'凶',      good:'bad',     desc:'阻力、卡關、張力'},
+  5:  {angle:'120° 三分',      key:'強旺', nature:'大吉',    good:'vgood',   desc:'天助、自然順流(我順勢而上)'},
+  6:  {angle:'150° 補十二分相', key:'消耗', nature:'弱凶',   good:'weakbad', desc:'勉強、耗損、需調整'},
+  7:  {angle:'180° 對相',      key:'對立', nature:'凶',      good:'bad',     desc:'拉扯、關係、平衡課題(對稱軸)'},
+  8:  {angle:'150° 補十二分相', key:'虧損', nature:'弱凶',   good:'weakbad', desc:'消耗、不協調'},
+  9:  {angle:'120° 三分',      key:'提升', nature:'大吉',    good:'vgood',   desc:'回饋、成果回到我身上'},
+  10: {angle:'90° 四分',       key:'限制', nature:'凶',      good:'bad',     desc:'阻力、限制'},
+  11: {angle:'60° 六合',       key:'改變', nature:'吉',      good:'good',    desc:'機會,主動爭取'},
+  12: {angle:'30° 十二分相',   key:'補充', nature:'微弱',    good:'weak',    desc:'相鄰、資源牽連'},
+};
+const COUNT_GOOD_COLOR = {vgood:'#2e9d5a', good:'#5ab07a', neutral:'#b0902a', weak:'#8a8a8a', weakbad:'#d47a17', bad:'#c9433c'};
+
+// 行星停留一個星座的週期(時間引擎)
+const PLANET_PERIOD = {
+  moon:    {stay:'約 2.5 天',   meaning:'數天內見分曉、情緒短期波動', rank:1},
+  mercury: {stay:'約 2–3 週',   meaning:'消息、溝通,數週內',          rank:2},
+  venus:   {stay:'約 20–25 天',  meaning:'感情／金錢短運',             rank:3},
+  sun:     {stay:'約 1 個月',    meaning:'一個月的主題',               rank:4},
+  mars:    {stay:'約 1.5–2 個月', meaning:'行動能量約兩個月一波',       rank:5},
+  rahu:    {stay:'約 1.5 年',    meaning:'命運方向的擺盪(逆行)',       rank:6},
+  ketu:    {stay:'約 1.5 年',    meaning:'命運方向的擺盪(逆行)',       rank:6},
+  jupiter: {stay:'約 1 年',      meaning:'一年的運勢主題',             rank:7},
+  saturn:  {stay:'約 2.5 年',    meaning:'長期課題／責任',             rank:8},
+  uranus:  {stay:'約 7 年',      meaning:'世代級突變',                 rank:9},
+  neptune: {stay:'約 14 年',     meaning:'長期消融、理想化',           rank:10},
+  pluto:   {stay:'約 12–21 年',  meaning:'深層轉化(天蠍最快、金牛最慢)', rank:11},
+};
+
+// 計算計數相位:從 signA(=1) 數到 signB,回 {count, info}
+function countAspect(signAId, signBId){
+  const count = ((parseInt(signBId) - parseInt(signAId)) % 12 + 12) % 12 + 1;
+  return {count, info: COUNT_ASPECT[count]};
+}
+
+function renderThreeEngines(ctx){
+  const {pA, sA, house_a, useSubdie, pB, sB, house_b, transits, transitDateLabel, question} = ctx;
+  const pClr = id => PLANET_COLOR[id] || 'var(--gold)';
+
+  // ---- 引擎一:計數相位 ----
+  let eng1;
+  if(useSubdie && pB && sB){
+    const {count, info} = countAspect(sA.id, sB.id);
+    const gc = COUNT_GOOD_COLOR[info.good];
+    // 上升/消退段
+    let phase;
+    if(count === 1) phase = '起點格 — 兩股能量疊在同一件事上,是全新開端。';
+    else if(count === 7) phase = '對稱軸 — 正對面的拉扯／關係／平衡課題。';
+    else if(count >= 2 && count <= 6) phase = '<b style="color:#2e9d5a">右半・上升段(2–6)</b> — 我方主動推進,從播種到收成,主動權在你手上。';
+    else phase = '<b style="color:#c9772a">左半・消退段(8–12)</b> — 事情已到對方那頭,你在回應或收尾,重點是接招與整合。';
+    eng1 = `
+      <div class="te-block">
+        <div class="te-h">① 相位引擎 · 計數法（免相位骰）</div>
+        <p class="te-line">從我方 <b style="color:${pClr(pA.id)}">${pA.zh}（${sA.zh}）</b> 起算第 1 格,順著星座數到對方 <b style="color:${pClr(pB.id)}">${pB.zh}（${sB.zh}）</b> →
+          <b style="color:${gc};font-size:1.15em">第 ${count} 格</b></p>
+        <p class="te-line"><b style="color:${gc}">${info.angle} · 「${info.key}」· ${info.nature}</b> — ${info.desc}</p>
+        <p class="te-line muted">${phase}</p>
+        <p class="te-line muted" style="font-size:12px">三合(120°)天生就順、不費力;六合(60°)要主動爭取才有的順。</p>
+      </div>`;
+  }else{
+    eng1 = `
+      <div class="te-block">
+        <div class="te-h">① 相位引擎 · 計數法（免相位骰）</div>
+        <p class="te-line muted">需要「副骰(所問的人/事/物)」才能算你與對方的計數相位。<br>回上方勾選「啟用副骰」或用「🎲 骰五顆」,就會自動算出角度與吉凶。</p>
+      </div>`;
+  }
+
+  // ---- 引擎二:行星週期時間 ----
+  const rolled = [{p:pA, tag:'主骰(我方)'}];
+  if(useSubdie && pB) rolled.push({p:pB, tag:'副骰(人/事/物)'});
+  const periodRows = rolled.map(r=>{
+    const pd = PLANET_PERIOD[r.p.id] || {stay:'—', meaning:'(外行星,長期背景)', rank:99};
+    return `<tr>
+      <td style="padding:4px 6px"><b style="color:${pClr(r.p.id)}">${r.p.sym} ${r.p.zh}</b> <span class="muted" style="font-size:11px">${r.tag}</span></td>
+      <td style="padding:4px 6px;text-align:center">${pd.stay}</td>
+      <td style="padding:4px 6px">${pd.meaning}</td>
+    </tr>`;
+  }).join('');
+  let timeVerdict = '';
+  if(rolled.length === 2){
+    const rk = r => (PLANET_PERIOD[r.p.id]||{rank:99}).rank;
+    const slow = rk(rolled[0]) >= rk(rolled[1]) ? rolled[0] : rolled[1];
+    const fast = slow === rolled[0] ? rolled[1] : rolled[0];
+    timeVerdict = `<p class="te-line" style="margin-top:8px">⏳ 慢的 <b style="color:${pClr(slow.p.id)}">${slow.p.zh}</b> 定「這件事多大、拖多久」;快的 <b style="color:${pClr(fast.p.id)}">${fast.p.zh}</b> 定「何時被觸發」。</p>`;
+  }
+  const eng2 = `
+    <div class="te-block">
+      <div class="te-h">② 時間引擎 · 行星週期＝時間骰</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr class="muted"><th style="text-align:left;padding:4px 6px">行星</th><th style="padding:4px 6px">停留一星座</th><th style="text-align:left;padding:4px 6px">卜卦時間意義</th></tr></thead>
+        <tbody>${periodRows}</tbody>
+      </table>
+      ${timeVerdict}
+      <p class="te-line muted" style="font-size:12px;margin-top:6px">🕐 當日／擇時問題再加最快一層:上升點 ASC 每 4 分鐘走 1 度、約 2 小時換一星座,一天 12 個上升 — 問「今天幾點成」時 ASC 是你的秒針。</p>
+    </div>`;
+
+  // ---- 引擎三:行運三層 ----
+  const transitOf = pid => (transits||[]).find(t => t.pid === pid);
+  const tA = transitOf(pA.id), tB = useSubdie && pB ? transitOf(pB.id) : null;
+  const layer3parts = [];
+  if(tA) layer3parts.push(`天上 <b style="color:${pClr(pA.id)}">${pA.zh}</b> 實走到 <b>${tA.sign.zh}（第 ${tA.house} 宮）${tA.isRetro?' 逆行':''}</b>`);
+  if(tB) layer3parts.push(`<b style="color:${pClr(pB.id)}">${pB.zh}</b> 走到 <b>${tB.sign.zh}（第 ${tB.house} 宮）${tB.isRetro?' 逆行':''}</b>`);
+  const layer3 = layer3parts.length
+    ? `已帶入行運（${transitDateLabel||'現在'}）:${layer3parts.join('、')}。`
+    : `<span class="muted">尚未帶入行運。到上方「🌌 當前行運」按「帶入行運」,就能疊上天上真實星象定觸發點。</span>`;
+  const cAsp = (useSubdie && pB && sB) ? countAspect(sA.id, sB.id) : null;
+  const eng3 = `
+    <div class="te-block">
+      <div class="te-h">③ 行運引擎 · 三層讀法（骰子＝角色，天上＝舞台）</div>
+      <p class="te-line"><b>① 骰面本義</b>:<b style="color:${pClr(pA.id)}">${pA.zh}</b>(能量) ＋ <b>${sA.zh}</b>(調性) ＋ <b>第 ${house_a} 宮</b>(領域)。</p>
+      <p class="te-line"><b>② 計數相位</b>:${cAsp ? `${pA.zh}↔${pB.zh} 第 ${cAsp.count} 格 ${cAsp.info.angle}「${cAsp.info.key}」${cAsp.info.nature}` : '<span class="muted">(需副骰)</span>'}</p>
+      <p class="te-line"><b>③ 行運觸發</b>:${layer3}</p>
+      <p class="te-line muted" style="font-size:12px;margin-top:6px">慢行星的合相＝時代舞台(如木土合 20 年＝世代開端、木海剋＝集體易迷失找救世主);骰子＝這齣戲裡你的角色。</p>
+    </div>`;
+
+  return `
+    <div class="card te-card">
+      <div class="card-title">🧭 三引擎判讀（計數相位 · 行星週期 · 行運三層）</div>
+      ${eng1}${eng2}${eng3}
+    </div>`;
+}
+
+// 給 AI 用的純文字版三引擎摘要
+function threeEnginesText(ctx){
+  const {pA, sA, house_a, useSubdie, pB, sB} = ctx;
+  let s = '';
+  if(useSubdie && pB && sB){
+    const {count, info} = countAspect(sA.id, sB.id);
+    const phase = count===1?'合相起點':count===7?'對立軸':(count>=2&&count<=6?'右半上升段(我主動推進)':'左半消退段(回應收尾)');
+    s += `計數相位:${pA.zh}(${sA.zh})→${pB.zh}(${sB.zh})=第${count}格 ${info.angle}「${info.key}」${info.nature}(${info.desc});盤面位置=${phase}。`;
+  }
+  const pdA = PLANET_PERIOD[pA.id];
+  if(pdA) s += ` 時間:主骰${pA.zh} ${pdA.stay}(${pdA.meaning})`;
+  if(useSubdie && pB){ const pdB = PLANET_PERIOD[pB.id]; if(pdB) s += `、副骰${pB.zh} ${pdB.stay}(${pdB.meaning})`; }
+  s += '。';
+  return s;
+}
+
 function aspectsHTML(placements, mainPid, subPid){
   const aspects = [];
   for(let i=0; i<placements.length; i++){
@@ -2986,6 +3143,7 @@ function run(){
         </div>
       </div>
     </div>
+    ${renderThreeEngines({pA, sA, house_a, useSubdie, pB, sB, house_b, transits, transitDateLabel, question})}
     ${houseChartHTML(asc, placements)}
     ${flyingHousesHTML(asc, getSelectedTopics())}
     ${aspectsHTML(placements, pA.id, (useSubdie && pB) ? pB.id : null)}

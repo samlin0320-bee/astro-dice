@@ -3444,14 +3444,22 @@ let GOOGLE_CLIENT_ID = '527208434591-in05qk4a6kn4f84qo8cr77nckk6tqpv3.apps.googl
     const p = new URLSearchParams(location.search);
     const gid = p.get('gid') || p.get('google_client_id');
     if(gid){
+      // 本次 URL 明確帶 ?gid= → 當次覆蓋並記住
+      GOOGLE_CLIENT_ID = gid;
       localStorage.setItem('google_client_id', gid);
       p.delete('gid'); p.delete('google_client_id');
       const clean = location.pathname + (p.toString() ? '?' + p : '') + location.hash;
       history.replaceState(null, '', clean);
+    }else{
+      // 沒帶 gid:一律以內建正確值為準。
+      // 自我修復:若 localStorage 存了跟內建「不同」的舊 client_id(常是過期/打錯的 ?gid= 殘留,
+      // 會導致 Google 回 invalid_client「OAuth client not found」),就清掉它回到內建有效值。
+      const stored = localStorage.getItem('google_client_id');
+      if(stored && stored !== GOOGLE_CLIENT_ID){
+        localStorage.removeItem('google_client_id');
+        console.warn('[dices] 清除過期的 google_client_id 殘留:', stored, '→ 回到內建');
+      }
     }
-    // URL 或 localStorage 有值就覆蓋硬編的 default
-    const stored = localStorage.getItem('google_client_id');
-    if(stored) GOOGLE_CLIENT_ID = stored;
   }catch(e){}
 })();
 

@@ -79,17 +79,69 @@ h1{
 .btn-ghost{background:transparent;border:1px solid var(--gold);color:var(--gold);padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;margin-left:8px}
 .center{text-align:center;margin:24px 0}
 .dice-display{
-  display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:16px 0;
+  display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin:22px 0;
+  perspective:900px;
 }
 .die{
-  background:var(--bg);border:2px solid var(--gold);
-  border-radius:12px;width:96px;height:96px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;
+  width:104px;height:104px;border-radius:18px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255,255,255,.20), transparent 56%),
+    linear-gradient(145deg, #2b2454 0%, #191333 100%);
+  border:1.5px solid rgba(212,175,55,.55);
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.38),
+    0 0 0 1px rgba(212,175,55,.15),
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 -7px 16px rgba(0,0,0,.38);
+  animation:die-in .7s cubic-bezier(.2,1.35,.35,1) both;
+  transition:transform .2s ease, box-shadow .2s ease;
 }
-.die .label{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}
-.die-symbol{font-size:36px;line-height:1;color:var(--gold)}
-.die.b{border-color:var(--western)}
-.die.b .die-symbol{color:var(--western)}
+.die::after{  /* 頂部玻璃高光 */
+  content:'';position:absolute;inset:0;border-radius:18px;pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.14), transparent 42%);
+}
+.die:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 14px 30px rgba(0,0,0,.42),0 0 18px rgba(212,175,55,.35),inset 0 1px 0 rgba(255,255,255,.18),inset 0 -7px 16px rgba(0,0,0,.38);}
+.die .label{font-size:11px;color:var(--muted);margin-top:2px;text-align:center;font-weight:500;line-height:1.25}
+.die-symbol{font-size:44px;line-height:1;color:var(--gold);font-weight:600;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.45));}
+.die.b{
+  border-color:rgba(96,166,232,.6);
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255,255,255,.18), transparent 56%),
+    linear-gradient(145deg, #1f2d52 0%, #131c39 100%);
+  box-shadow:0 10px 24px rgba(0,0,0,.38),0 0 0 1px rgba(96,166,232,.18),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -7px 16px rgba(0,0,0,.38);
+}
+.die.b .die-symbol{color:#8fbaf0}
+
+/* 擲骰進場:每顆錯開,從上方翻滾落定並回彈 */
+@keyframes die-in{
+  0%  {opacity:0;transform:translateY(-46px) rotateX(-95deg) rotateZ(-12deg) scale(.55);}
+  55% {opacity:1;transform:translateY(8px)  rotateX(18deg)  rotateZ(4deg)   scale(1.08);}
+  75% {transform:translateY(-3px) rotateX(-6deg) scale(.99);}
+  100%{opacity:1;transform:translateY(0)   rotateX(0)      rotateZ(0)      scale(1);}
+}
+.dice-display .die:nth-child(1){animation-delay:0s}
+.dice-display .die:nth-child(2){animation-delay:.11s}
+.dice-display .die:nth-child(3){animation-delay:.22s}
+.dice-display .die:nth-child(4){animation-delay:.34s}
+.dice-display .die:nth-child(5){animation-delay:.46s}
+@media (prefers-reduced-motion:reduce){ .die{animation:none} }
+
+/* 亮主題:改成米金 / 天藍瓷面 */
+html[data-theme="light"] .die{
+  background:radial-gradient(circle at 32% 24%, #fff, transparent 58%),linear-gradient(145deg,#fff8e4,#f1e6c2);
+  border-color:rgba(160,120,20,.5);
+  box-shadow:0 8px 18px rgba(120,90,20,.16),0 0 0 1px rgba(160,120,20,.12),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -6px 13px rgba(180,150,80,.2);
+}
+html[data-theme="light"] .die-symbol{color:#8a6a00}
+html[data-theme="light"] .die.b{
+  background:radial-gradient(circle at 32% 24%, #fff, transparent 58%),linear-gradient(145deg,#eaf3ff,#d3e3f7);
+  border-color:rgba(50,100,175,.5);
+  box-shadow:0 8px 18px rgba(30,70,140,.14),0 0 0 1px rgba(50,100,175,.14),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -6px 13px rgba(120,150,200,.22);
+}
+html[data-theme="light"] .die.b .die-symbol{color:#2f5aa8}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:800px){.two-col{grid-template-columns:1fr}}
 .col-western,.col-vedic{padding:12px 14px;border-radius:8px;background:rgba(0,0,0,.15)}

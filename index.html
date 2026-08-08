@@ -127,7 +127,24 @@ h1{
 .dice-display .die:nth-child(3){animation-delay:.22s}
 .dice-display .die:nth-child(4){animation-delay:.34s}
 .dice-display .die:nth-child(5){animation-delay:.46s}
-@media (prefers-reduced-motion:reduce){ .die{animation:none} }
+/* 擲骰過程:抖動+翻滾,符號快速跳動 */
+.die.rolling{
+  animation:die-tumble .38s linear infinite;
+  border-color:rgba(212,175,55,.85);
+  box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 22px rgba(212,175,55,.45),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -7px 16px rgba(0,0,0,.38);
+}
+.die.rolling.b{border-color:rgba(96,166,232,.9);box-shadow:0 10px 24px rgba(0,0,0,.4),0 0 22px rgba(96,166,232,.5),inset 0 1px 0 rgba(255,255,255,.16),inset 0 -7px 16px rgba(0,0,0,.38);}
+.die.rolling .die-symbol{opacity:.9;animation:sym-flick .13s linear infinite;}
+.die.rolling .label{opacity:.7}
+@keyframes die-tumble{
+  0%  {transform:translateY(0)   rotate(-7deg) scale(1);}
+  25% {transform:translateY(-9px) rotate(5deg)  scale(1.04);}
+  50% {transform:translateY(2px)  rotate(-4deg) scale(.98);}
+  75% {transform:translateY(-6px) rotate(6deg)  scale(1.03);}
+  100%{transform:translateY(0)   rotate(-7deg) scale(1);}
+}
+@keyframes sym-flick{ 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.14) rotate(4deg);opacity:1} }
+@media (prefers-reduced-motion:reduce){ .die{animation:none} .die.rolling{animation:none} .die.rolling .die-symbol{animation:none} }
 
 /* 亮主題:改成米金 / 天藍瓷面 */
 html[data-theme="light"] .die{
@@ -897,6 +914,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       <button type="button" class="btn-ghost" id="btn_reroll" onclick="reRollDice()" title="保留上次結果,用同樣顆數再骰一次" disabled>🔁 複骰（再骰一次）</button>
       <button type="button" class="btn-ghost" id="btn_reverify" onclick="compareWithLastRoll()" title="把這次跟上次的結果並排對照、算一致度" disabled>⚖ 跟上次複驗</button>
     </div>
+    <div id="roll_stage" class="dice-display" style="display:none;margin:16px 0"></div>
     <div id="roll_result" class="muted" style="margin-top:10px;min-height:1.4em"></div>
     <div id="reverify_panel"></div>
   </div>
@@ -1212,23 +1230,83 @@ function _snapshotDice(){
 }
 
 // count = 3(只主盤) 或 5(主+副)
+let __rollTimer = null;
 function rollAstroDice(count){
   // 骰之前先把現值存成「上次」,供複驗
   __lastRoll = _snapshotDice();
   __lastRollMode = count;
   const rnd = id => { const el = $(id); if(el && el.options.length) el.selectedIndex = Math.floor(Math.random()*el.options.length); };
-  rnd('planet_a'); rnd('sign_a'); rnd('house_a');
-  if(count === 5){
-    $('use_subdie').checked = true; toggleSubdie();
-    rnd('planet_b'); rnd('sign_b');
-  }else{
-    $('use_subdie').checked = false; toggleSubdie();
+
+  // 先算好最終值(但先不套到下拉,等滾完再套 → 有「正在擲」的過程感)
+  const finalIdx = {
+    planet_a: Math.floor(Math.random()*$('planet_a').options.length),
+    sign_a:   Math.floor(Math.random()*$('sign_a').options.length),
+    house_a:  Math.floor(Math.random()*$('house_a').options.length),
+    planet_b: count===5 ? Math.floor(Math.random()*$('planet_b').options.length) : null,
+    sign_b:   count===5 ? Math.floor(Math.random()*$('sign_b').options.length) : null,
+  };
+
+  // 建滾動舞台:count 顆骰,滾動時符號快速亂跳 + 抖動
+  const stage = $('roll_stage');
+  const pSyms = PLANETS.map(p=>p.sym), sSyms = SIGNS.map(s=>s.sym);
+  const slots = count === 5
+    ? [{t:'p',cls:''},{t:'s',cls:''},{t:'h',cls:''},{t:'p',cls:'b'},{t:'s',cls:'b'}]
+    : [{t:'p',cls:''},{t:'s',cls:''},{t:'h',cls:''}];
+  if(stage){
+    stage.style.display = 'flex';
+    stage.innerHTML = slots.map((sl,i)=>
+      `<div class="die ${sl.cls} rolling" style="animation-delay:${i*0.05}s"><span class="die-symbol roll-sym"></span><span class="label">擲骰中…</span></div>`
+    ).join('');
+    stage.scrollIntoView({behavior:'smooth', block:'center'});
   }
-  const rr = $('btn_reroll'), rv = $('btn_reverify');
-  if(rr) rr.disabled = false;
-  if(rv) rv.disabled = false;
-  _showRollResult(count);
+  const rndSym = t => t==='p' ? pSyms[Math.floor(Math.random()*pSyms.length)]
+                    : t==='s' ? sSyms[Math.floor(Math.random()*sSyms.length)]
+                    : String(Math.floor(Math.random()*12)+1);
+
+  // 滾動階段:每 65ms 換一輪隨機符號
+  clearInterval(__rollTimer);
+  const symEls = stage ? [...stage.querySelectorAll('.roll-sym')] : [];
+  const tick = ()=>{ symEls.forEach((el,i)=> el.textContent = rndSym(slots[i].t)); };
+  tick();
+  __rollTimer = setInterval(tick, 65);
+
+  // 鎖住按鈕避免連點
+  const rollBtns = [...document.querySelectorAll('#card_selfroll .btn, #card_selfroll .btn-ghost')];
+  rollBtns.forEach(b=> b.disabled = true);
+
+  // ~950ms 後落定
+  setTimeout(()=>{
+    clearInterval(__rollTimer);
+    // 套用最終值到下拉
+    $('planet_a').selectedIndex = finalIdx.planet_a;
+    $('sign_a').selectedIndex   = finalIdx.sign_a;
+    $('house_a').selectedIndex  = finalIdx.house_a;
+    if(count === 5){
+      $('use_subdie').checked = true; toggleSubdie();
+      $('planet_b').selectedIndex = finalIdx.planet_b;
+      $('sign_b').selectedIndex   = finalIdx.sign_b;
+    }else{
+      $('use_subdie').checked = false; toggleSubdie();
+    }
+    // 舞台落定:換掉滾動 class → 播 die-in 落定動畫,填最終符號+標籤
+    if(stage){
+      const c = _snapshotDice();
+      const cells = count === 5
+        ? [[_pSym(c.pA),_pZh(c.pA)],[_sSym(c.sA),_sZh(c.sA)],[c.hA,'第 '+c.hA+' 宮'],[_pSym(c.pB),_pZh(c.pB)],[_sSym(c.sB),_sZh(c.sB)]]
+        : [[_pSym(c.pA),_pZh(c.pA)],[_sSym(c.sA),_sZh(c.sA)],[c.hA,'第 '+c.hA+' 宮']];
+      stage.innerHTML = slots.map((sl,i)=>
+        `<div class="die ${sl.cls}" style="animation-delay:${i*0.08}s"><span class="die-symbol">${cells[i][0]}</span><span class="label">${cells[i][1]}</span></div>`
+      ).join('');
+    }
+    rollBtns.forEach(b=> b.disabled = false);
+    const rr = $('btn_reroll'), rv = $('btn_reverify');
+    if(rr) rr.disabled = false;
+    if(rv) rv.disabled = false;
+    _showRollResult(count);
+  }, 950);
 }
+function _pSym(id){ return (PLANETS.find(p=>p.id===id)||{}).sym || '?'; }
+function _sSym(v){ return (v!=='' && v!=null && SIGNS[v]) ? SIGNS[v].sym : '?'; }
 
 function reRollDice(){ rollAstroDice(__lastRollMode || 3); }
 

@@ -51,6 +51,21 @@
   .cta a{display:inline-block;background:var(--card);border:1px solid var(--gold);color:var(--gold);
     text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:700;font-size:16px}
   .cta a:hover{background:var(--gold);color:#2a1a05}
+  /* 下拉式選單(accordion) */
+  details.acc{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:10px 0;overflow:hidden;}
+  details.acc>summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:15px;color:var(--gold-soft);
+    list-style:none;display:flex;align-items:center;gap:8px;user-select:none;transition:background .15s;}
+  details.acc>summary::-webkit-details-marker{display:none}
+  details.acc>summary::before{content:'▸';color:var(--gold);transition:transform .2s;font-size:13px}
+  details.acc[open]>summary::before{transform:rotate(90deg)}
+  details.acc>summary:hover{background:rgba(212,175,55,.08)}
+  details.acc .acc-body{padding:4px 20px 18px;border-top:1px solid var(--border);}
+  .ex-h{font-weight:700;margin:14px 0 4px;}
+  .ex-h.w{color:var(--western)} .ex-h.v{color:var(--vedic)} .ex-h.c{color:var(--gold)}
+  .ex-sub{color:var(--gold-soft);font-weight:600;font-size:13px;margin:10px 0 2px}
+  .ex-dice{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+  .ex-dice .d{background:var(--bg2);border:1px solid var(--gold);border-radius:10px;padding:8px 14px;text-align:center;min-width:78px}
+  .ex-dice .d .s{font-size:22px;color:var(--gold)} .ex-dice .d .l{font-size:12px;color:var(--muted)}
   @media print{ body{background:#fff;color:#000} }
 </style>
 </head>
@@ -88,7 +103,46 @@
     </div></div>
   </div>
 
-  <h2>二、怎麼問，答案才準？（最重要）</h2>
+  <h2>二、登入 Gmail 說明書</h2>
+  <p>登入是<b>選填</b>的 —— 不登入也能完整使用（用訪客身分）。登入的好處是：紀錄綁定你的 email、跨裝置同步、方便日後查你自己的擲骰歷史。</p>
+  <div class="card">
+    <div class="step"><div class="n">1</div><div class="t">
+      點右上角 <span class="pill">🔐 用 Google 登入</span>。
+    </div></div>
+    <div class="step"><div class="n">2</div><div class="t">
+      跳出 Google 視窗 → <b>選你的 Gmail 帳號</b> → 允許。回到網站右上角會顯示你的頭像＝登入成功。
+    </div></div>
+    <div class="step"><div class="n">3</div><div class="t">
+      不想登入？點 <span class="pill">👤 以訪客身分繼續</span>，一樣能擲骰、判讀、存紀錄到瀏覽器。
+    </div></div>
+  </div>
+
+  <h3>🛠 登入卡住了？照這個排除</h3>
+  <details class="acc">
+    <summary>出現「授權錯誤 / invalid_client / OAuth client was not found」</summary>
+    <div class="acc-body">
+      <p>這幾乎都是<b>瀏覽器快取到舊版設定</b>造成的。解法：</p>
+      <ul>
+        <li><b>硬重整</b>：在頁面按 <span class="pill">Ctrl + Shift + R</span>（Mac：⌘ + Shift + R）重新載入，新版會自動清掉舊設定，再點一次登入即可。</li>
+        <li>還是不行 → 關掉分頁重開一次 <a href="https://dices.3minstest.com/" style="color:var(--gold)">dices.3minstest.com</a>。</li>
+        <li>趕時間 → 直接點 <span class="pill">👤 以訪客身分繼續</span>，不影響任何判讀功能。</li>
+      </ul>
+    </div>
+  </details>
+  <details class="acc">
+    <summary>出現「這個應用程式未經 Google 驗證」的警告</summary>
+    <div class="acc-body">
+      <p>這是正常的（本站只讀你的基本 email／名稱，不碰你其他資料）。點 <b>「進階」→「前往 dices.3minstest.com（不安全）」</b> 繼續即可。若不放心，改用訪客身分一樣能用。</p>
+    </div>
+  </details>
+  <details class="acc">
+    <summary>手機上登入視窗被擋住</summary>
+    <div class="acc-body">
+      <p>手機瀏覽器有時會擋彈出視窗。到瀏覽器設定允許本站彈出視窗，或改用電腦登入；不然直接用訪客身分即可。</p>
+    </div>
+  </details>
+
+  <h2>三、怎麼問，答案才準？（最重要）</h2>
   <p>卜卦占星回答的是「<b>具體、當下、有真實牽掛</b>」的問題。問得越具體，判讀越能對焦。</p>
 
   <h3>✅ 好問題長這樣（照範例）</h3>
@@ -119,7 +173,7 @@
   <div class="tip">💡 <b>提問公式</b>：<b>【具體對象／地點】＋【你真正擔心的事】＋（往哪個方向？／何時？）</b><br>
   例：「我跟○○這段感情還走得下去嗎？該主動還是等待？大概什麼時候會明朗？」</div>
 
-  <h2>三、五骰＝我 vs 對方，看關係</h2>
+  <h2>四、五骰＝我 vs 對方，看關係</h2>
   <div class="card">
     <p><b>三骰（主盤）</b>：行星＋星座＋宮位，代表「這件事的核心能量」。</p>
     <p><b>五骰（主＋副）</b>：多兩顆副骰，<b style="color:var(--gold)">代表所問的「人／事／物」</b>（對方、標的、事件本身）。系統會自動算：</p>
@@ -130,7 +184,7 @@
     </ul>
   </div>
 
-  <h2>四、判讀結果有哪些區塊</h2>
+  <h2>五、判讀結果有哪些區塊</h2>
   <table>
     <thead><tr><th>區塊</th><th>看什麼</th></tr></thead>
     <tbody>
@@ -144,11 +198,74 @@
 
   <div class="tip">⚠ <b>閱讀提醒</b>：印度占星與西洋占星的宮位意義<b>不同</b>，請分開讀。例：第 6 宮在印度是敵人／債務／疾病（凶宮），在西洋是健康／工作／瑣事 — 兩套不可互通套用。</div>
 
-  <h2>五、完整範例（強烈建議先看）</h2>
-  <div class="hero">
-    <p style="margin-top:0;color:var(--muted)">下載這份 9 頁 PDF，對照上面的教學，你就完全懂怎麼用了：</p>
-    <a class="dl-btn" href="example-reading.pdf" download="範例-占星骰子五骰判讀.pdf">📥 下載完整範例 PDF</a>
-  </div>
+  <h2>六、完整範例（點下拉展開看）</h2>
+  <p class="muted" style="margin-top:0">這是一次真實判讀。點下面每個標題展開，對照前面的教學就完全懂了。也可 <a href="example-reading.pdf" download="範例-占星骰子五骰判讀.pdf" style="color:var(--gold)">📥 下載完整 PDF（9 頁）</a>。</p>
+
+  <details class="acc" open>
+    <summary>💭 這次問的問題</summary>
+    <div class="acc-body">
+      <div class="example-quote">「請問待在<b>台北市萬華區成都路81號13樓</b>是安全的嗎？我現在待的地方安全嗎？<b>要往哪個方向</b>才是安全的？<b>何時</b>才會完全沒事？」</div>
+      <p class="muted" style="font-size:13px;margin-bottom:0">↑ 具體地點＋真實擔憂＋方向＋時間 —— 這就是標準的好卜卦問法。</p>
+    </div>
+  </details>
+
+  <details class="acc" open>
+    <summary>🎲 骰出的結果</summary>
+    <div class="acc-body">
+      <div class="ex-dice">
+        <div class="d"><div class="s">☋</div><div class="l">南交點/計都</div></div>
+        <div class="d"><div class="s">♐</div><div class="l">射手座</div></div>
+        <div class="d"><div class="s">7</div><div class="l">第 7 宮</div></div>
+      </div>
+      <p style="text-align:center;color:var(--muted);font-size:13px">推算上升 ♊ 雙子座 · 命主星 ☿ 水星 · 行運日期 2026/7/24</p>
+    </div>
+  </details>
+
+  <details class="acc">
+    <summary>🌐 西洋派 Western 判讀</summary>
+    <div class="acc-body">
+      <div class="ex-sub">🎲 雙星互動</div>
+      <p>南交點在第 7 宮代表你正受困於過去的人際糾葛或法律合約，是消耗能量、被他人牽制的「債務」位置。射手座暗示這件事可能涉及遠方、法律或某種過度擴張的承諾。</p>
+      <div class="ex-sub">⭐ 命主星關係</div>
+      <p>命主星水星在第 2 宮，與第 7 宮南交點拉扯 —— 你的安全感與財務現狀正被這段關係或案件調查侵蝕，容易因溝通誤會而焦慮。</p>
+      <div class="ex-sub">🌌 天上呼應</div>
+      <p>行運火星與天王星都在第 1 宮（雙子），極度不穩定，代表警察或公權力可能突然找上門，或環境有突發肢體衝突風險。月亮在第 6 宮天蠍暗示背後有深層調查或監視。</p>
+      <div class="ex-sub">💡 建議</div>
+      <p>現在待的地方不安全，火天合相在命宮會引發突發意外。建議<b>立即離開 13 樓，往南方或西南方移動，避開高處</b>，並在 7 月底前保持低調。🚨</p>
+    </div>
+  </details>
+
+  <details class="acc">
+    <summary>🕉 印度派 Vedic 判讀</summary>
+    <div class="acc-body">
+      <div class="ex-sub">🎲 雙星互動</div>
+      <p>計都（Ketu）落第 7 宮（Kendra），強烈的「切斷」能量，代表合夥關係或對外接觸正在瓦解。計都在射手由木星守護，暗示與過去業力、法律訴訟或宗教官司有關。</p>
+      <div class="ex-sub">⭐ 命主星關係</div>
+      <p>命主星水星與計都並非良友，判斷力被遮蔽，容易在應對警察調查時做錯決定、導致自我孤立。</p>
+      <div class="ex-sub">🌌 天上呼應</div>
+      <p>行運羅睺在第 10 宮（事業／公權力）對沖第 4 宮（家／安全感）的計都，典型的「居所動盪」相位，公權力介入壓力大；第 6 宮天蠍月亮顯示敵人或警察在暗處。</p>
+      <div class="ex-sub">💡 建議</div>
+      <p>目前居住地磁場混亂、不利躲避。建議<b>往東北方（木星方位）尋求長輩或法律專業人士的庇護</b>。要到 2026 年 8 月中旬木星能量穩定後，危機才會逐漸解除。🕉️</p>
+    </div>
+  </details>
+
+  <details class="acc">
+    <summary>🌈 兩派共識 · 最終建議</summary>
+    <div class="acc-body">
+      <div class="ex-h c">✓ 兩派共通點</div>
+      <ul>
+        <li>目前 13 樓與人際環境高風險，公權力（警察／調查）介入機率極高。</li>
+        <li>你現在心理狀態不穩定，容易因錯誤資訊或過往業力債務而陷入困境。</li>
+        <li>搬離現址是必要的（第 4 宮與第 1 宮都顯示不穩定變動能量）。</li>
+      </ul>
+      <div class="ex-h c">⚖ 兩派分歧</div>
+      <p>西洋強調突發意外與肢體衝突（火天合相）；印度更強調長期業力與公權力壓迫（羅睺計都軸線）。</p>
+      <div class="ex-h c">💡 綜合建議</div>
+      <p>現在待的地方不安全，請立刻撤離。🏃 物理上往「西南方」或「東北方」較能避開衝突。針對警察調查，尋求專業法律協助而非私下解決。預計 8 月中旬後、當行運月亮與火星遠離敏感位置，才能真正平靜沒事。</p>
+    </div>
+  </details>
+
+  <p class="muted" style="font-size:13px;margin-top:14px">此範例還含南印度方格盤、12 宮位表、三引擎、全相位分類等，完整版看 <a href="example-reading.pdf" download="範例-占星骰子五骰判讀.pdf" style="color:var(--gold)">PDF</a>。</p>
 
   <div class="cta">
     <a href="https://dices.3minstest.com/">🎲 開始我的第一次擲骰 →</a>

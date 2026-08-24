@@ -3932,26 +3932,56 @@ function makeCurrentRecord(reason){
   };
 }
 
-// 每筆判讀都記錄(不論用內建 key 或使用者自填 key) — 2026-08 依 Sam 指示拿掉「只內建 key 才記」限制
-// 每次判讀剛好記一筆:產生判讀後排一個延遲記錄;若 15 秒內按了 AI 深解就取消延遲、
-// 直接記「含 AI 的完整一筆」。避免重複列,也不需 Worker update。
+// 每筆判讀都自動記錄(不論用內建 key 或自填 key) — 2026-08 拿掉「只內建 key 才記」限制
+// 雙保險:① 產生判讀「當下立刻」存進 localStorage(本機永不遺失,AI 完成後回填)
+//         ② 同時自動記進 Notion(產生判讀即記;AI 深解完成再記完整版)
 window.__logTimer = null;
 window.__readingLogged = false;
+window.__localReadingId = null;
 function autoLogIfDefaultKey(reason){
-  // 名稱保留相容,行為已改為「一律記錄」
   try{ syncRecordToNotion(makeCurrentRecord(reason)); }
   catch(e){ console.warn('[dices] autoLog failed:', e && e.message); }
 }
-// 產生判讀後呼叫:排 15 秒延遲記錄(沒按 AI 也保證記到)
+// 產生判讀當下:立刻存 localStorage(本機備份)並記住 id,供 AI 完成後回填
+function saveReadingLocal(){
+  try{
+    var rec = makeCurrentRecord('auto-產生判讀');
+    window.__localReadingId = rec.id;
+    var all = getRecords();
+    all.unshift(rec);
+    if(all.length > 200) all.pop();
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+    updateHistoryCount();
+  }catch(e){ console.warn('[dices] local save failed:', e && e.message); }
+}
+// AI 深解完成:把本機那筆的 AI 三段回填(localStorage 備份也有 AI)
+function updateLocalReadingAI(){
+  try{
+    if(!window.__localReadingId) return;
+    var all = getRecords();
+    var full = makeCurrentRecord('auto-AI');
+    for(var i=0;i<all.length;i++){
+      if(all[i].id === window.__localReadingId){
+        all[i].aiWest = full.aiWest; all[i].aiVedic = full.aiVedic; all[i].aiConsensus = full.aiConsensus;
+        all[i].ascSign = full.ascSign; all[i].lord = full.lord;
+        break;
+      }
+    }
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+  }catch(e){}
+}
+// 產生判讀後呼叫:立刻本機備份 + 排 15 秒 Notion 記錄(沒按 AI 也保證記到)
 function scheduleReadingLog(){
+  saveReadingLocal();  // 本機當下立刻存,永不遺失
   clearTimeout(window.__logTimer);
   window.__readingLogged = false;
   window.__logTimer = setTimeout(function(){
     if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('產生判讀'); }
   }, 15000);
 }
-// AI 深解完成後呼叫:取消延遲、直接記完整含 AI 的一筆
+// AI 深解完成後呼叫:回填本機備份的 AI + 取消延遲、記完整含 AI 的一筆到 Notion
 function logReadingWithAI(){
+  updateLocalReadingAI();  // localStorage 備份也補上 AI
   clearTimeout(window.__logTimer);
   if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('AI-quick'); }
 }

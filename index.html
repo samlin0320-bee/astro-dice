@@ -919,8 +919,10 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <label style="margin:0;font-size:12px;color:var(--muted);white-space:nowrap">🕐 <strong style="color:var(--gold)">發問時間</strong>：</label>
         <input id="ask_time" type="datetime-local" style="width:auto;padding:6px 10px" />
         <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="setAskTimeNow()" title="填入目前時間">🕒 NOW</button>
+        <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:12px;border-color:var(--gold);color:var(--gold)" onclick="castHoraryChart(this)" title="用發問時刻的真實星象起盤,並自動帶入行運">🔮 時間卜卦（用此刻起盤）</button>
         <span class="muted" style="font-size:11px">(卜卦占星:問問題那一刻的星象是判讀關鍵。留空=不帶入時間)</span>
       </div>
+      <div id="horary_result"></div>
       <div class="topic-picker">
         <div class="tp-title">🏷 <strong>特殊議題</strong>（選填,多選；點按鈕勾選/取消）</div>
         <div class="tp-chips" id="topic_chips">
@@ -2068,6 +2070,79 @@ function nakOf(signIdx, ds10){
   var idx = Math.floor(lon / (360 / 27));
   return (idx >= 0 && idx < 27) ? idx : null;
 }
+// ============ 時間卜卦(Horary):用發問時刻的真實星象起盤 ============
+// 卜卦占星核心:問問題那一刻的天象就是答案。這裡用發問時刻查星曆,
+// 並以「該時刻上升星座」為盤主軸(ASC 每約 2 小時換一星座,一天 12 個上升)。
+function castHoraryChart(btn){
+  var box = $('horary_result');
+  var v = ($('ask_time') && $('ask_time').value) || '';
+  if(!v){
+    // 沒填就用現在
+    setAskTimeNow();
+    v = ($('ask_time') && $('ask_time').value) || '';
+  }
+  if(!EPHEM || !EPHEM.points){
+    if(box) box.innerHTML = '<div class="muted" style="color:var(--warn);margin-top:8px">星曆尚未載入,無法起盤</div>';
+    return;
+  }
+  var t = Math.floor(new Date(v).getTime()/1000);
+  if(EPHEM_RANGE && (t < EPHEM_RANGE.firstSec || t > EPHEM_RANGE.lastSec)){
+    if(box) box.innerHTML = '<div class="muted" style="color:var(--warn);margin-top:8px">發問時刻超出星曆範圍</div>';
+    return;
+  }
+  var pt = findClosestPoint(t);
+  if(!pt){ if(box) box.innerHTML = '<div class="muted" style="color:var(--warn)">找不到星曆點</div>'; return; }
+
+  // 把該時刻的行運帶進下方 12 個行運欄位(依目前選的黃道系統)
+  var system = $('zodiac_system') ? $('zodiac_system').value : 'T';
+  var signs = pt[system] || pt.T;
+  var order = EPHEM.planets_order;
+  window.__transitRetros = {};
+  order.forEach(function(pid, i){
+    var sel = $('t_' + pid);
+    if(sel) sel.value = signs[i];
+    if(pt.R && pt.R[i] === 1) window.__transitRetros[pid] = true;
+  });
+  // 同步行運日期欄位 = 發問時刻
+  if($('transit_date')) $('transit_date').value = v;
+
+  // 估算該時刻的上升星座(ASC):以太陽位置 + 時角粗估(每 2 小時換一宮)
+  var d = new Date(v);
+  var hour = d.getHours() + d.getMinutes()/60;
+  var sunSign = (pt[system] || pt.T)[0];              // 太陽所在星座
+  // 日出約 6:00 時上升≈太陽星座;之後每 2 小時進一個星座
+  var ascIdx = Math.floor((((hour - 6) / 2) + sunSign) % 12 + 12) % 12;
+  var ascSign = SIGNS[ascIdx];
+  var ascLord = findPlanet(TRADITIONAL_RULER[ascIdx]);
+  // 月亮(卜卦最重要的共同象徵星)
+  var moonIdx = order.indexOf('moon');
+  var moonSign = moonIdx >= 0 ? SIGNS[(pt[system]||pt.T)[moonIdx]] : null;
+  var moonDeg = (moonIdx >= 0 && pt.DS && pt.D) ? fmtDeg(system === 'S' ? pt.DS[moonIdx] : pt.D[moonIdx]) : '';
+  var moonNak = (moonIdx >= 0 && pt.DS) ? nakOf(pt.S[moonIdx], pt.DS[moonIdx]) : null;
+  var retroList = order.map(function(pid,i){ return (pt.R && pt.R[i]===1) ? (findPlanet(pid)||{}).zh : null; })
+                       .filter(function(x){ return x && x !== '北交點/羅睺' && x !== '南交點/計都'; });
+
+  var sysLabel = system === 'S' ? '印度恆星 Lahiri' : '西洋迴歸黃道';
+  var dLabel = new Date(pt.t*1000).toLocaleString('zh-TW',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  if(box){
+    box.innerHTML =
+      '<div class="card te-card" style="margin-top:10px">' +
+      '<div class="card-title">🔮 時間卜卦盤（發問時刻星象）</div>' +
+      '<p class="te-line"><b>發問時刻</b>：' + d.toLocaleString('zh-TW') + '　<span class="muted">（星曆取樣 ' + dLabel + '、' + sysLabel + '）</span></p>' +
+      '<p class="te-line"><b>推估上升 ASC</b>：<b style="color:var(--gold)">' + ascSign.sym + ' ' + ascSign.zh + '</b>　·　<b>盤主星</b>：<b style="color:var(--gold)">' + ascLord.sym + ' ' + ascLord.zh + '</b>' +
+      '<span class="muted" style="font-size:11px">（ASC 每約 2 小時換一星座,此為粗估;精算需出生/發問地經緯度）</span></p>' +
+      (moonSign ? '<p class="te-line"><b>月亮</b>（卜卦共同象徵星）：<b style="color:var(--gold)">' + moonSign.sym + ' ' + moonSign.zh + ' ' + moonDeg + '</b>' +
+        (moonNak != null ? '　✨ ' + NAKSHATRA[moonNak] : '') + '</p>' : '') +
+      '<p class="te-line"><b>逆行行星</b>：' + (retroList.length ? '<span style="color:#c9302c;font-weight:700">' + retroList.join('、') + '</span>　<span class="muted" style="font-size:11px">(卜卦中逆行常表示「事情倒退/重來/尚未成熟」)</span>' : '<span class="muted">無（除交點外）</span>') + '</p>' +
+      '<p class="te-line muted" style="font-size:12px">✓ 已把發問時刻的 12 顆行星位置帶入下方「當前行運」,可直接按「產生判讀」讓 AI 一併參考。</p>' +
+      '</div>';
+  }
+  if(btn) mxFlash ? mxFlash(btn, '✓ 已起盤') : null;
+  // 更新行運狀態列
+  var tl = $('transit_loaded');
+  if(tl) tl.innerHTML = '<span style="color:var(--good,#6ee7a0);font-weight:600">✓ 已帶入發問時刻行運</span> — ' + dLabel + '（' + sysLabel + '）';
+}
+
 // 行運顯示選項(可複選):W=西洋迴歸 S=印度恆星 D=度數 N=星宿;預設 W+S,記憶使用者選擇
 const SKY_OPTS_KEY = 'dices_skynow_opts';
 function getSkyOpts(){
@@ -2078,7 +2153,7 @@ function getSkyOpts(){
       if(Array.isArray(arr) && arr.length) return arr;
     }
   }catch(e){}
-  return ['W','S'];   // 預設:西洋+印度
+  return ['W'];   // 預設:單獨西洋迴歸
 }
 function toggleSkyOpt(o){
   let opts = getSkyOpts();

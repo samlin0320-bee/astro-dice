@@ -643,6 +643,16 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .time-summary:hover{color:var(--gold)}
 /* 行運卡:度數獨立樣式,跟星座拉開 */
 .sky-line .deg{color:var(--muted);font-size:11px;margin-left:4px;}
+/* ============ 卜卦法則檢查卡 ============ */
+.hr-card{background:linear-gradient(135deg,rgba(212,175,55,.07),rgba(154,213,255,.04));}
+.hr-sec{padding:10px 0;border-top:1px dashed var(--border);}
+.hr-sec:first-of-type{border-top:none}
+.hr-h{font-weight:700;color:var(--gold);margin-bottom:6px;font-size:14px;}
+.hr-line{margin:4px 0;line-height:1.65;font-size:13.5px;}
+.hr-warn{margin:4px 0 0;padding-left:20px;}
+.hr-warn li{margin:4px 0;color:#e8a49f;font-size:13px;line-height:1.6;}
+.hr-note{margin-top:10px;padding:8px 12px;background:rgba(154,213,255,.08);border:1px solid rgba(154,213,255,.25);
+  border-radius:8px;font-size:12px;color:var(--muted);}
 /* ============ 元素 × 模式矩陣 ============ */
 .em-table{width:100%;border-collapse:separate;border-spacing:4px;margin:10px 0;}
 .em-table th,.em-table td{border-radius:8px;padding:8px 6px;text-align:center;vertical-align:middle;}
@@ -2047,11 +2057,15 @@ function loadCurrentTransits(silentIfNoEphem){
 
   // 逆行狀態存全域,generateInterpretation 讀取後給 AI + 顯示卡用
   window.__transitRetros = {};
+  window.__transitDegs = {};   // 行星度數(卜卦法則:燃燒路徑/緊要度數用)
   order.forEach((pid, i)=>{
     const sel = $('t_' + pid);
     if(sel) sel.value = signs[i];
     // label 加逆行標記(每次 load 時重繪)
     const labelEl = sel && sel.previousElementSibling;
+    // 存度數(依目前黃道系統)
+    var degArr = (system === 'S') ? (pt.DS || null) : (pt.D || null);
+    if(degArr) window.__transitDegs[pid] = degArr[i] / 10;
     if(labelEl && labelEl.tagName === 'LABEL'){
       // 先移除舊標記(含屬性,g 全清),再依 retros[i] 決定要不要加 — 修每按一次疊一個 R 的 bug
       labelEl.innerHTML = labelEl.innerHTML.replace(/\s*<span class="retro-badge"[^>]*>.*?<\/span>/g, '');
@@ -2502,6 +2516,189 @@ const ELEM_MEAN = {
 };
 const ELEM_CLS_EM = { '火': 'em-fire', '土': 'em-earth', '風': 'em-air', '水': 'em-water' };
 
+// ============ 卜卦占星法則檢查（依 2021占星講義 4階技巧篇 · 卜卦占星學心法）============
+// 核心:①盤的有效性 ②徵象星 ③入相/離相 ④判斷警告 ⑤事件能否完成
+// 資料來源:使用者教材「卜卦占星學心法/判斷的警告/事件能否完成的判斷」
+
+// 緊要度數(28月宮交接點):啟動 0/13/26,固定 9/21,變動 4/17
+const CRITICAL_DEG = {
+  '本位': [0, 13, 26],
+  '固定': [9, 21],
+  '變動': [4, 17],
+};
+
+// 燃燒路徑 Via Combusta:天秤 15° ~ 天蠍 15°
+function inViaCombusta(signIdx, deg){
+  if(signIdx === 6 && deg >= 15) return true;   // 天秤後半
+  if(signIdx === 7 && deg <= 15) return true;   // 天蠍前半
+  return false;
+}
+
+// 檢查是否落在緊要度數(±1度)
+function isCriticalDeg(signIdx, deg){
+  var sg = SIGNS[signIdx];
+  if(!sg) return false;
+  var list = CRITICAL_DEG[sg.mode] || [];
+  for(var i = 0; i < list.length; i++){
+    if(Math.abs(deg - list[i]) <= 1) return true;
+  }
+  return false;
+}
+
+function renderHoraryRules(ctx){
+  var asc = ctx.asc, placements = ctx.placements || [], transits = ctx.transits || [];
+  var ascSign = SIGNS[asc];
+  var lordId = TRADITIONAL_RULER[asc];
+  var lord = findPlanet(lordId);
+  var items = [];   // {level:'ok'|'warn'|'bad', title, desc}
+
+  // ── ① 盤的有效性:命宮度數(前3度/末3度) ──
+  // 骰子盤沒有精確 ASC 度數,改用「主骰是否落 6/8/12」與「命主是否有力」概略判斷
+  var mainP = placements.filter(function(p){ return p.source === '主骰'; })[0];
+  var subP = placements.filter(function(p){ return p.source === '副骰'; })[0];
+
+  // ── ② 徵象星 ──
+  // 問卜者:1宮主(命主星)、1宮內行星、月亮
+  var moonT = transits.filter(function(t){ return t.pid === 'moon'; })[0];
+  var inFirst = placements.filter(function(p){ return p.house === 1; });
+  var sigLines = [];
+  sigLines.push('<b>問卜者徵象</b>：命主星 <b style="color:var(--gold)">' + (lord ? lord.sym + lord.zh : '?') + '</b>（' + ascSign.zh + '守護）'
+    + (inFirst.length ? '、1宮內：' + inFirst.map(function(p){ var pl = findPlanet(p.pid); return pl ? pl.zh : p.pid; }).join('、') : '')
+    + (moonT ? '、共同徵象星 <b>☽月亮</b>（' + moonT.sign.zh + ' 第' + moonT.house + '宮）' : '、共同徵象星 ☽月亮（未帶入行運）'));
+  if(subP){
+    var subPl = findPlanet(subP.pid);
+    sigLines.push('<b>問事徵象</b>：副骰 <b style="color:#9ad5ff">' + (subPl ? subPl.sym + subPl.zh : '?') + '</b>（第 ' + subP.house + ' 宮）— 代表所問的人／事／物');
+  }else{
+    sigLines.push('<b>問事徵象</b>：<span class="muted">未啟用副骰。啟用後可判斷「你 vs 對方」的入相/離相與能否完成</span>');
+  }
+
+  // ── ③ 主副骰相位(入相/離相 用計數相位近似) ──
+  var aspectLine = '';
+  if(mainP && subP){
+    var ca = countAspect(mainP.sign, subP.sign);
+    var good = ['vgood','good'].indexOf(ca.info.good) >= 0;
+    var bad = ['bad','weakbad'].indexOf(ca.info.good) >= 0;
+    var ans = ca.count === 1 ? '合相 — 看合的是吉星(日金木=Yes)還是凶星(火土冥=No)'
+            : good ? '<b style="color:#2e9d5a">吉相位（60/120）→ 答案傾向 Yes</b>'
+            : bad ? '<b style="color:#c9433c">凶相位（90/180）→ 答案傾向 No</b>'
+            : '微弱相位（30/150）→ 訊號不明確,需看其他因子';
+    // 右半=入相(未來)、左半=離相(已發生)
+    var phase = (ca.count >= 2 && ca.count <= 6)
+      ? '<b>入相位</b>（事情在往前推進,代表<b>將來</b>會發生）'
+      : (ca.count >= 8 && ca.count <= 12)
+      ? '<b>離相位</b>（事情已過峰值,代表<b>已發生</b>或正在遠離）'
+      : (ca.count === 1 ? '合相（同一件事）' : '對沖（正面拉扯）');
+    aspectLine = '<div class="hr-line">第 ' + ca.count + ' 格 ' + ca.info.angle + '「' + ca.info.key + '」— ' + ans + '</div>'
+               + '<div class="hr-line muted">' + phase + '　<span style="font-size:11px">（卜卦以入相位為主:離相=已發生的事,入相=將來的事）</span></div>';
+  }
+
+  // ── ④ 判斷的警告 ──
+  var warns = [];
+  // 土星在1宮
+  var satIn1 = placements.filter(function(p){ return p.pid === 'saturn' && p.house === 1; }).length > 0;
+  if(satIn1) warns.push('土星在 1 宮 — 問卜者本身有狀況/不信任,通常問題沒有好結果');
+  // 土星逆行
+  var satRetro = transits.filter(function(t){ return t.pid === 'saturn' && t.isRetro; }).length > 0;
+  if(satRetro) warns.push('土星逆行 — 事情倒退/重來,尚未成熟');
+  // 土星在7宮 或 7宮主
+  var satIn7 = placements.filter(function(p){ return p.pid === 'saturn' && p.house === 7; }).length > 0;
+  if(satIn7) warns.push('土星在 7 宮 — 判斷本身容易出問題（除非所問即與 7 宮相關）');
+  var lord7 = TRADITIONAL_RULER[(asc + 6) % 12];
+  if(lord7 === 'saturn') warns.push('土星為 7 宮主 — 解讀者判斷易失準');
+  // 水星逆行
+  var merRetro = transits.filter(function(t){ return t.pid === 'mercury' && t.isRetro; }).length > 0;
+  if(merRetro) warns.push('水星逆行 — 想法/訊息容易出問題,資訊可能有誤');
+  // 徵象星在燃燒路徑(需度數,用行運度數)
+  var viaList = [];
+  transits.forEach(function(t){
+    if(t.deg != null && inViaCombusta(t.sign.id, t.deg)){
+      var pl = findPlanet(t.pid);
+      if(pl && ['sun','moon','mercury','venus','mars','jupiter','saturn'].indexOf(t.pid) >= 0) viaList.push(pl.zh);
+    }
+  });
+  if(viaList.length) warns.push('燃燒路徑 Via Combusta（天秤15°–天蠍15°）：' + viaList.join('、') + ' — 有不可預期因素,易誤判');
+  // 緊要度數
+  var critList = [];
+  transits.forEach(function(t){
+    if(t.deg != null && isCriticalDeg(t.sign.id, t.deg)){
+      var pl = findPlanet(t.pid);
+      if(pl && ['sun','moon','mercury','venus','mars','jupiter','saturn'].indexOf(t.pid) >= 0) critList.push(pl.zh + ' ' + Math.round(t.deg) + '°');
+    }
+  });
+  if(critList.length) warns.push('緊要度數（28月宮交接點）：' + critList.join('、') + ' — 事情很快出現新趨勢');
+  // 逆行行星總覽
+  var retroAll = transits.filter(function(t){ return t.isRetro && t.pid !== 'rahu' && t.pid !== 'ketu'; })
+                         .map(function(t){ var pl = findPlanet(t.pid); return pl ? pl.zh : t.pid; });
+
+  // ── ⑤ 事件能否完成 ──
+  var completeLines = [];
+  if(mainP && subP){
+    var ca2 = countAspect(mainP.sign, subP.sign);
+    var houseType = function(h){ return [1,4,7,10].indexOf(h) >= 0 ? '始宮' : ([2,5,8,11].indexOf(h) >= 0 ? '續宮' : '果宮'); };
+    var ht = houseType(subP.house);
+    var speed = ht === '始宮' ? '<b style="color:#2e9d5a">容易完成、時間快</b>'
+              : ht === '續宮' ? '<b style="color:#b0902a">會完成但花時間較久</b>'
+              : '<b style="color:#c9772a">時間最久,且容易有不確定性</b>';
+    completeLines.push('對方（副骰）落 <b>第 ' + subP.house + ' 宮 ' + ht + '</b> → ' + speed);
+    if(['vgood','good'].indexOf(ca2.info.good) >= 0){
+      completeLines.push('<b style="color:#2e9d5a">✓ 兩者吉相（三合/六合）</b> — 事情最易完成,若廟旺更強');
+    }else if(ca2.count === 4 || ca2.count === 10){
+      completeLines.push('<b style="color:#c9433c">△ 四分相</b> — 會完成但過程辛苦');
+    }else if(ca2.count === 7){
+      completeLines.push('<b style="color:#c9433c">✗ 對沖</b> — 拉扯、對立,常需妥協或放棄一方');
+    }else if(ca2.count === 1){
+      completeLines.push('<b>○ 合相</b> — 若在始宮且廟旺,事情容易完成');
+    }
+    // 互容/容納救援(呼叫既有偵測)
+    if(typeof detectReception === 'function' && ctx.sA && ctx.sB){
+      var rc = detectReception(mainP.pid, ctx.sA.id, subP.pid, ctx.sB.id, true);
+      if(rc.isExchange || rc.mutual){
+        completeLines.push('<b style="color:#2e9d5a">✓ 互容/交換</b> — 即使關係困難,仍有暗中管道調和,能促使事情完成');
+      }else if(rc.aReceivesB || rc.bReceivesA){
+        completeLines.push('<b style="color:#b0902a">◐ 單向容納</b> — 有一方願意給好處,凶相可減弱');
+      }
+    }
+  }
+
+  var html = '<div class="card hr-card">' +
+    '<div class="card-title">🔮 卜卦占星法則檢查（徵象星 · 入相離相 · 判斷警告）</div>' +
+    '<p class="muted" style="margin-top:0;font-size:12px">依卜卦占星學心法：問卜者=1宮主+月亮、問事=副骰/事件宮主；<b>入相位看未來、離相位看已發生</b>；吉相=Yes、凶相=No。</p>' +
+    '<div class="hr-sec"><div class="hr-h">① 徵象星 Significators</div>' + sigLines.map(function(l){ return '<div class="hr-line">' + l + '</div>'; }).join('') + '</div>' +
+    (aspectLine ? '<div class="hr-sec"><div class="hr-h">② 主副骰關係（入相/離相 · Yes or No）</div>' + aspectLine + '</div>' : '') +
+    (completeLines.length ? '<div class="hr-sec"><div class="hr-h">③ 事件能否完成</div>' + completeLines.map(function(l){ return '<div class="hr-line">' + l + '</div>'; }).join('') + '</div>' : '') +
+    '<div class="hr-sec"><div class="hr-h">④ 判斷的警告 ' + (warns.length ? '<span style="color:#c9433c">（' + warns.length + ' 項）</span>' : '<span style="color:#2e9d5a">（無）</span>') + '</div>' +
+      (warns.length ? '<ul class="hr-warn">' + warns.map(function(w){ return '<li>' + w + '</li>'; }).join('') + '</ul>'
+                    : '<div class="hr-line muted">未偵測到常見的判斷警告訊號,此盤可正常論斷。</div>') +
+      (retroAll.length ? '<div class="hr-line muted" style="font-size:12px">逆行行星：<b style="color:#c9302c">' + retroAll.join('、') + '</b>（卜卦中逆行常表示事情倒退/重來/尚未成熟）</div>' : '') +
+    '</div>' +
+    '<div class="hr-note">💡 卜卦占星是「觸機」工具,規則為參考。有感應的盤最準 — 若這張盤跟你的問題有明顯對應（如問旅遊上升就開射手）,可信度就高。</div>' +
+    '</div>';
+  return html;
+}
+
+// 給 AI 的卜卦法則摘要
+function horaryRulesText(ctx){
+  var asc = ctx.asc, placements = ctx.placements || [], transits = ctx.transits || [];
+  var lord = findPlanet(TRADITIONAL_RULER[asc]);
+  var mainP = placements.filter(function(p){ return p.source === '主骰'; })[0];
+  var subP = placements.filter(function(p){ return p.source === '副骰'; })[0];
+  var s = '卜卦法則:問卜者徵象=命主星' + (lord ? lord.zh : '?') + '+月亮;';
+  if(mainP && subP){
+    var ca = countAspect(mainP.sign, subP.sign);
+    var yn = ['vgood','good'].indexOf(ca.info.good) >= 0 ? '吉相位→答案傾向Yes'
+           : ['bad','weakbad'].indexOf(ca.info.good) >= 0 ? '凶相位→答案傾向No' : '中性/微弱';
+    var phase = (ca.count >= 2 && ca.count <= 6) ? '入相位(將來的事)' : (ca.count >= 8 ? '離相位(已發生的事)' : '合相/對沖');
+    var ht = [1,4,7,10].indexOf(subP.house) >= 0 ? '始宮(容易快速完成)' : ([2,5,8,11].indexOf(subP.house) >= 0 ? '續宮(花時間較久)' : '果宮(最久且不確定)');
+    s += '主副骰第' + ca.count + '格' + ca.info.angle + ',' + yn + ',' + phase + ';事件宮位屬' + ht + '。';
+  }
+  var w = [];
+  if(placements.filter(function(p){ return p.pid==='saturn' && p.house===1; }).length) w.push('土星在1宮(問卜者有狀況)');
+  if(transits.filter(function(t){ return t.pid==='saturn' && t.isRetro; }).length) w.push('土星逆行');
+  if(transits.filter(function(t){ return t.pid==='mercury' && t.isRetro; }).length) w.push('水星逆行(訊息易誤)');
+  if(w.length) s += ' 判斷警告:' + w.join('、') + '。';
+  return s;
+}
+
 function renderElementMatrix(asc, placements){
   // 建 4x3 對照:每個 (元素,模式) 對應唯一星座
   var cellOf = {};
@@ -2731,6 +2928,7 @@ function renderAIQuickRead(ctx){
     transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house, isRetro: !!t.isRetro})),
     threeEngines: threeEnginesText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB}),
     reception: receptionText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB, house_b:ctx.house_b}),
+    horary: (typeof horaryRulesText === 'function' && ctx.ascSign) ? horaryRulesText({asc: ctx.ascSign.id, placements: ctx.placements || [], transits: ctx.transits || []}) : '',
   };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   return `
@@ -2794,6 +2992,11 @@ ${transitAvailable ? `日期:${payload.transitDate}` : ''}
 ${payload.threeEngines || '(單骰,無計數相位;副骰啟用後可算你與對方的角度關係)'}
 ※ 計數相位吉凶:大吉(120°三分,天助順流)、吉(60°六合,主動爭取)、凶(90°四分卡關/180°對立拉扯)、弱凶(150°補十二消耗)、中性(0°合相同一件事)。右半上升段=我主動推進,左半消退段=回應收尾。
 ※ 時間引擎:慢行星定「這件事多大多久」,快行星定「何時觸發」。
+
+【卜卦占星法則(正統 Horary 規則,判斷 Yes/No 與時機的依據)】
+${payload.horary || '(單骰,無主副骰關係可判)'}
+※ 卜卦鐵則:①問卜者=命主星+月亮,問事=副骰/事件宮主 ②以「入相位」為主(離相=已發生,入相=將來) ③問卜者與問事徵象星成吉相(60/120)→答案 Yes;凶相(90/180)→答案 No;與日金木合相→Yes,與火土冥合相→No ④事件宮位落始宮=快速完成、續宮=較久、果宮=最久且不確定 ⑤土星在1宮/逆行、水星逆行、徵象星在燃燒路徑(天秤15°-天蠍15°)=判斷警告,結果易生變 ⑥互容/容納可救援困難相位。
+請用這套規則明確回答「能不能/會不會」與「大概何時」。
 
 【容納/互容/交換(這會改寫吉凶,務必套用)】
 ${payload.reception || '(單骰,無容納關係)'}
@@ -3733,7 +3936,7 @@ function run(){
     if(v!==''){
       const s = findSign(v);
       const h = houseOfSign(v, asc);
-      transits.push({name, pid, sign:s, house:h, isRetro: !!retros[pid]});
+      transits.push({name, pid, sign:s, house:h, isRetro: !!retros[pid], deg: (window.__transitDegs||{})[pid]});
     }
   });
 
@@ -3828,7 +4031,7 @@ function run(){
         ${transits.length ? ` · 行運日期 <strong style="color:var(--gold)">${transitDateLabel}</strong>` : ''}
       </p>
     </div>
-    ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel})}
+    ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel, placements})}
     ${renderMultiExportPanel()}
     ${renderRashiChart(asc, placements)}
     ${renderElementMatrix(asc, placements)}
@@ -3849,6 +4052,7 @@ function run(){
     </div>
     ${renderThreeEngines({pA, sA, house_a, useSubdie, pB, sB, house_b, transits, transitDateLabel, question})}
     ${renderReception({pA, sA, house_a, useSubdie, pB, sB, house_b})}
+    ${renderHoraryRules({asc, placements, transits, sA, sB, useSubdie})}
     ${houseChartHTML(asc, placements)}
     ${flyingHousesHTML(asc, getSelectedTopics())}
     ${aspectsHTML(placements, pA.id, (useSubdie && pB) ? pB.id : null)}

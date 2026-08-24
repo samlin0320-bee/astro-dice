@@ -53,6 +53,26 @@ export default {
       return json({ error: 'server not configured (NOTION_TOKEN / NOTION_DATABASE_ID missing)' }, 500);
     }
 
+    // ── 更新既有紀錄(action:'update') — AI 深解完成後補上 AI 三段到同一筆 ──
+    if (rec && rec.action === 'update' && rec.pageId) {
+      const up = {};
+      if (rec.aiWest) up['AI 西洋建議'] = { rich_text: [{ text: { content: truncate(rec.aiWest, 2000) } }] };
+      if (rec.aiVedic) up['AI 印度建議'] = { rich_text: [{ text: { content: truncate(rec.aiVedic, 2000) } }] };
+      if (rec.aiConsensus) up['AI 兩派共識建議'] = { rich_text: [{ text: { content: truncate(rec.aiConsensus, 2000) } }] };
+      if (rec.ascSign) up['推算上升'] = { select: { name: rec.ascSign } };
+      if (rec.lord) up['命主星'] = { select: { name: rec.lord } };
+      const upResp = await fetch(`https://api.notion.com/v1/pages/${rec.pageId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ properties: up }),
+      });
+      if (!upResp.ok) {
+        const et = await upResp.text();
+        return json({ error: 'notion update', status: upResp.status, detail: et.slice(0, 300) }, 502);
+      }
+      return json({ ok: true, updated: rec.pageId });
+    }
+
     // Build Notion page properties from record
     const props = buildProperties(rec);
 

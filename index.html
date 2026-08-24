@@ -1612,7 +1612,7 @@ async function recognizeImage(){
     result.innerHTML = `✓ 辨識成功（${model} · confidence ${conf}）：${parsed.notes || ''}`;
     result.style.color = '#90ee90';
     setTimeout(()=>switchTab('manual'), 1500);
-    autoLogIfDefaultKey('img-dice-recog');
+    // 不在此記錄(僅辨識步驟);真正記錄在「產生判讀」統一處理
   }catch(e){
     let msg = e.message;
     if(usingDefault && /401|403|UNAUTHENTICATED|PERMISSION_DENIED|API key not valid/i.test(msg)){
@@ -1763,7 +1763,7 @@ async function handleQuestionImage(file){
     $('question').value = text;
     status.textContent = '✓ 已辨識並填入:' + text.slice(0, 60) + (text.length > 60 ? '...' : '');
     status.style.color = '#90ee90';
-    autoLogIfDefaultKey('img-question-ocr');
+    // 不在此記錄(僅 OCR 步驟);真正記錄在「產生判讀」統一處理
   }catch(e){
     status.textContent = '❌ 辨識失敗:' + e.message;
     status.style.color = 'var(--warn)';
@@ -3479,6 +3479,9 @@ function run(){
   out.classList.remove('hidden');
   out.innerHTML = html;
   out.scrollIntoView({behavior:'smooth', block:'start'});
+  // 每次產生判讀就記一筆(用內建 key 時);AI 深解完成會更新同一筆補 AI
+  window.__lastLoggedPageId = null;
+  autoLogIfDefaultKey('產生判讀');
 }
 
 init();
@@ -3929,10 +3932,23 @@ function makeCurrentRecord(reason){
 }
 
 // 使用內建 key → 強制 auto-log,不依賴使用者按儲存
-function autoLogIfDefaultKey(reason){
+// 每次「產生判讀」記一筆(存 pageId);AI 深解完成後 update 同一筆補 AI,避免重複列
+window.__lastLoggedPageId = null;
+async function autoLogIfDefaultKey(reason){
   if(!isUsingDefaultKey()) return;
-  try{ syncRecordToNotion(makeCurrentRecord(reason)); }
-  catch(e){ console.warn('[dices] autoLog failed:', e && e.message); }
+  try{
+    if(reason === 'AI-quick' && window.__lastLoggedPageId){
+      // 已有本次判讀的紀錄 → 更新同一筆補上 AI(不新增列)
+      var rec = makeCurrentRecord(reason);
+      await fetch(getWorkerUrl(), { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'update', pageId: window.__lastLoggedPageId,
+          aiWest: rec.aiWest, aiVedic: rec.aiVedic, aiConsensus: rec.aiConsensus,
+          ascSign: rec.ascSign, lord: rec.lord }) });
+      return;
+    }
+    var pageId = await syncRecordToNotion(makeCurrentRecord(reason));
+    if(reason === '產生判讀') window.__lastLoggedPageId = pageId;  // 記住本次判讀的列,供 AI 更新
+  }catch(e){ console.warn('[dices] autoLog failed:', e && e.message); }
 }
 
 // ==== Notion Sync via Cloudflare Worker(可選) ====
@@ -3978,20 +3994,23 @@ async function backfillAllToNotion(btn){
 
 async function syncRecordToNotion(rec){
   const url = getWorkerUrl();
-  if(!url) return;  // Worker 未設定,靜默略過
+  if(!url) return null;  // Worker 未設定,靜默略過
   try{
     const res = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(rec),
     });
-    if(!res.ok){
-      console.warn('[dices] Notion sync HTTP', res.status);
-    }else{
-      console.log('[dices] synced to Notion');
+    const d = await res.json().catch(function(){ return {}; });
+    if(!res.ok || !d.ok){
+      console.warn('[dices] Notion sync HTTP', res.status, d && d.error);
+      return null;
     }
+    console.log('[dices] synced to Notion', d.id);
+    return d.id || null;  // 回傳 Notion page id,供 AI 更新用
   }catch(e){
     console.warn('[dices] Notion sync failed:', e.message);
+    return null;
   }
 }
 

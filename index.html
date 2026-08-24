@@ -632,6 +632,32 @@ html[data-theme="light"] .ai-consensus-card{
 html[data-theme="light"] .aic-intersect .aic-label{color:#1a6b1a;}
 html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg, transparent 60%, #fdedb8 60%);}
 
+/* ============ 元素 × 模式矩陣 ============ */
+.em-table{width:100%;border-collapse:separate;border-spacing:4px;margin:10px 0;}
+.em-table th,.em-table td{border-radius:8px;padding:8px 6px;text-align:center;vertical-align:middle;}
+.em-corner{background:transparent;color:var(--muted);font-size:11px;font-weight:600;}
+.em-mode{background:rgba(212,175,55,.14);color:var(--gold);font-size:13px;font-weight:700;line-height:1.4;}
+.em-elem{font-size:15px;font-weight:800;width:64px;line-height:1.4;}
+.em-sub{font-size:10px;color:var(--muted);font-weight:400;}
+.em-cnt{font-size:10px;color:var(--muted);font-weight:600;}
+.em-cell{border:1px solid var(--border);min-height:58px;transition:all .15s;}
+.em-cell.em-has{border-width:2px;}
+.em-sign{font-size:13px;font-weight:700;color:var(--text);}
+.em-house{font-size:10px;color:var(--muted);margin-top:1px;}
+.em-planets{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:4px;}
+.em-planet{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+  border-radius:5px;font-size:12px;font-weight:700;border:1px solid;}
+.ep-main{background:rgba(212,175,55,.85);color:#2a1a05;border-color:#a07800;}
+.ep-sub{background:rgba(96,166,232,.75);color:#08131f;border-color:#3a7fc0;border-style:dashed;}
+.ep-transit{background:rgba(255,255,255,.18);color:var(--text);border-color:var(--border);}
+.em-fire{background:rgba(255,90,60,.14)} .em-earth{background:rgba(220,180,60,.14)}
+.em-air{background:rgba(100,170,230,.14)} .em-water{background:rgba(80,180,180,.14)}
+.em-cell.em-dush{box-shadow:inset 0 0 0 2px rgba(201,67,60,.6);}
+.em-cell.em-asc{box-shadow:inset 0 0 0 2px var(--gold);}
+.em-verdict{background:rgba(212,175,55,.08);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-top:10px;font-size:13px;}
+.em-legend{display:flex;gap:10px;justify-content:center;margin-top:8px;font-size:11px;color:var(--muted);align-items:center;}
+html[data-theme="light"] .em-fire{background:#ffdcd0} html[data-theme="light"] .em-earth{background:#fff2c8}
+html[data-theme="light"] .em-air{background:#d5e6f5} html[data-theme="light"] .em-water{background:#c8e6e6}
 /* ============ 步驟編號引導 ============ */
 .step-no{display:inline-flex;align-items:center;justify-content:center;
   min-width:22px;height:22px;padding:0 6px;margin-right:8px;border-radius:11px;
@@ -2444,6 +2470,94 @@ const VEDIC_GRAHAS = ['sun','moon','mars','mercury','jupiter','venus','saturn','
 const RASHI_DISPLAY = [...VEDIC_GRAHAS, 'uranus', 'neptune', 'pluto'];
 const SRC_CLS_RC = {'主骰':'rp-src-main','副骰':'rp-src-sub','行運':'rp-src-transit'};
 
+// ============ 元素 × 模式矩陣（4 元素 × 3 模式）— 看能量分布/好牌壞牌 ============
+// 火土風水 × 始宮(本位)/續宮(固定)/果宮(變動),把 12 星座排成 4x3,行星落點一眼看出集中在哪
+const ELEM_ORDER = ['火', '土', '風', '水'];
+const MODE_ORDER = ['本位', '固定', '變動'];
+const MODE_HOUSE = { '本位': '始宮 Angular', '固定': '續宮 Succedent', '變動': '果宮 Cadent' };
+const MODE_MEAN = {
+  '本位': '開創・啟動・主動出擊（事情剛發生/要推動）',
+  '固定': '穩定・持續・不易改變（事情已定型/僵持）',
+  '變動': '調整・流動・容易變卦（事情還在變/會轉向）',
+};
+const ELEM_MEAN = {
+  '火': '行動力・熱情・衝勁（做了再說）',
+  '土': '務實・資源・落地（看得到摸得到）',
+  '風': '思考・溝通・關係（想跟說）',
+  '水': '情感・直覺・潛意識（感覺與連結）',
+};
+const ELEM_CLS_EM = { '火': 'em-fire', '土': 'em-earth', '風': 'em-air', '水': 'em-water' };
+
+function renderElementMatrix(asc, placements){
+  // 建 4x3 對照:每個 (元素,模式) 對應唯一星座
+  var cellOf = {};
+  for(var i = 0; i < 12; i++){
+    var sg = SIGNS[i];
+    cellOf[sg.element + '|' + sg.mode] = i;
+  }
+  // 統計每格的行星
+  var byCell = {};
+  var elemCount = { '火':0, '土':0, '風':0, '水':0 };
+  var modeCount = { '本位':0, '固定':0, '變動':0 };
+  (placements || []).forEach(function(p){
+    var sg = SIGNS[p.sign];
+    if(!sg) return;
+    var key = sg.element + '|' + sg.mode;
+    if(!byCell[key]) byCell[key] = [];
+    byCell[key].push(p);
+    elemCount[sg.element] = (elemCount[sg.element] || 0) + 1;
+    modeCount[sg.mode] = (modeCount[sg.mode] || 0) + 1;
+  });
+
+  // 表頭
+  var html = '<table class="em-table"><thead><tr><th class="em-corner">元素＼模式</th>';
+  MODE_ORDER.forEach(function(m){
+    html += '<th class="em-mode" title="' + MODE_MEAN[m] + '">' + m + '<br><span class="em-sub">' + MODE_HOUSE[m] + '</span><br><span class="em-cnt">' + (modeCount[m] || 0) + ' 星</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  ELEM_ORDER.forEach(function(el){
+    html += '<tr><th class="em-elem ' + ELEM_CLS_EM[el] + '" title="' + ELEM_MEAN[el] + '">' + el + '<br><span class="em-cnt">' + (elemCount[el] || 0) + ' 星</span></th>';
+    MODE_ORDER.forEach(function(mo){
+      var key = el + '|' + mo;
+      var signIdx = cellOf[key];
+      var sg = SIGNS[signIdx];
+      var house = houseOfSign(signIdx, asc);
+      var pls = byCell[key] || [];
+      var dush = [6, 8, 12].indexOf(house) >= 0;
+      var cls = 'em-cell ' + ELEM_CLS_EM[el] + (pls.length ? ' em-has' : '') + (dush ? ' em-dush' : '') + (house === 1 ? ' em-asc' : '');
+      var chips = pls.map(function(p){
+        var pl = findPlanet(p.pid);
+        var srcCls = { '主骰':'ep-main', '副骰':'ep-sub' }[p.source] || 'ep-transit';
+        var retro = p.isRetro ? '<sup style="color:#ffcf00;font-size:8px">℞</sup>' : '';
+        return '<span class="em-planet ' + srcCls + '" title="' + (pl ? pl.zh : p.pid) + ' · ' + p.source + '">' + (pl ? pl.sym : '?') + retro + '</span>';
+      }).join('');
+      html += '<td class="' + cls + '"><div class="em-sign">' + sg.sym + ' ' + sg.zh.replace('座','') + '</div>' +
+              '<div class="em-house">第 ' + house + ' 宮</div>' +
+              (chips ? '<div class="em-planets">' + chips + '</div>' : '') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  // 判讀提示:哪個元素/模式最集中
+  var topElem = ELEM_ORDER.slice().sort(function(a,b){ return (elemCount[b]||0) - (elemCount[a]||0); })[0];
+  var topMode = MODE_ORDER.slice().sort(function(a,b){ return (modeCount[b]||0) - (modeCount[a]||0); })[0];
+  var emptyElems = ELEM_ORDER.filter(function(e){ return !elemCount[e]; });
+  var verdict = '<div class="em-verdict">' +
+    '<div><b style="color:var(--gold)">能量集中</b>：<b>' + topElem + '象</b>（' + (elemCount[topElem]||0) + ' 星）· <b>' + topMode + '宮</b>（' + (modeCount[topMode]||0) + ' 星）</div>' +
+    '<div class="muted" style="font-size:12px;margin-top:4px">→ ' + ELEM_MEAN[topElem] + '　＋　' + MODE_MEAN[topMode] + '</div>' +
+    (emptyElems.length ? '<div class="muted" style="font-size:12px;margin-top:4px">⚠ <b>缺少</b>：' + emptyElems.join('、') + '象 — 這方面能量薄弱,是這件事的盲點</div>' : '') +
+    '</div>';
+
+  return '<div class="card">' +
+    '<div class="card-title">🧩 元素 × 模式矩陣（4 元素 × 3 模式 — 一眼看能量分布）</div>' +
+    '<p class="muted" style="margin-top:0;font-size:12px">直欄=模式(始/續/果宮)、橫列=元素(火土風水)。行星集中在哪一格/哪一象,就是這件事的主軸。<span style="color:#c9433c">紅底=6/8/12 凶宮</span>、<span style="color:var(--gold)">金框=命宮</span>。</p>' +
+    html + verdict +
+    '<div class="em-legend"><span class="em-planet ep-main">●</span>主骰　<span class="em-planet ep-sub">●</span>副骰　<span class="em-planet ep-transit">●</span>行運</div>' +
+    '</div>';
+}
+
 function renderRashiChart(asc, placements){
   let cells = '';
   for(let signId = 0; signId < 12; signId++){
@@ -3703,6 +3817,7 @@ function run(){
     ${renderAIQuickRead({pA, sA, house_a, pB, sB, house_b, ascSign, pLord, transits, question, useSubdie, transitDateLabel})}
     ${renderMultiExportPanel()}
     ${renderRashiChart(asc, placements)}
+    ${renderElementMatrix(asc, placements)}
     ${renderHouseMeanings()}
     ${warnHTML}
     <div class="card">

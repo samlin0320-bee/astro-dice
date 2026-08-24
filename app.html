@@ -632,6 +632,13 @@ html[data-theme="light"] .ai-consensus-card{
 html[data-theme="light"] .aic-intersect .aic-label{color:#1a6b1a;}
 html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg, transparent 60%, #fdedb8 60%);}
 
+/* ============ 步驟編號引導 ============ */
+.step-no{display:inline-flex;align-items:center;justify-content:center;
+  min-width:22px;height:22px;padding:0 6px;margin-right:8px;border-radius:11px;
+  background:var(--gold);color:#2a1a05;font-size:12px;font-weight:800;flex:0 0 auto;}
+.step-no.on-btn{background:rgba(255,255,255,.9);color:#2a1a05;margin-right:6px;}
+.step-tip{font-size:11px;color:var(--muted);font-weight:400;margin-left:8px;}
+@media(max-width:640px){ .step-tip{display:block;margin-left:30px;margin-top:2px} }
 /* ============ 此刻天上行運卡(問題上方) ============ */
 .sky-card{padding:0;overflow:hidden;background:linear-gradient(135deg,rgba(154,213,255,.07),rgba(255,154,60,.05));}
 .sky-summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:15px;color:var(--gold);
@@ -907,7 +914,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </details>
 
   <div class="card">
-    <div class="card-title">💭 問題（選填）</div>
+    <div class="card-title"><span class="step-no">1</span>💭 問題（選填）<span class="step-tip">← 先打你的問題,越具體越準</span></div>
     <div class="field">
       <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">
         <input id="question" placeholder="例:這筆錢能不能討回來?" style="flex:1;min-width:200px" />
@@ -961,7 +968,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </div>
 
   <div class="card" id="card_selfroll">
-    <div class="card-title">🎰 幫我骰（線上擲骰）</div>
+    <div class="card-title"><span class="step-no">2</span>🎰 幫我骰（線上擲骰）<span class="step-tip">← 沒實體骰?按這裡幫你擲</span></div>
     <div class="muted" style="margin-bottom:10px">
       沒有實體骰?讓網站幫你擲。<b>三骰</b>=只看主盤(行星・星座・宮位);
       <b>五骰</b>=再加副骰兩顆,<b style="color:var(--gold)">代表所問的「人／事／物」</b>,判讀你與對方之間產生的關係。
@@ -978,7 +985,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </div>
 
   <div class="card">
-    <div class="card-title">🎲 主盤三骰 — 決定基準宮位</div>
+    <div class="card-title"><span class="step-no">3</span>🎲 主盤三骰 — 決定基準宮位<span class="step-tip">← 有實體骰就直接填這裡</span></div>
     <div class="row">
       <div class="field">
         <label>骰 1 · 行星 A</label>
@@ -997,7 +1004,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
 
   <div class="card" id="card_subdie">
     <div class="card-title" style="display:flex;align-items:center;gap:8px">
-      🎲 副骰兩顆 — 相位 / 命主飛宮判讀
+      <span class="step-no">3b</span>🎲 副骰兩顆 — 相位 / 命主飛宮判讀
       <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
         <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
       </label>
@@ -1016,7 +1023,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </div>
 
   <div class="card">
-    <div class="card-title">🌌 當前行運（選填，填越多判讀越精準）</div>
+    <div class="card-title"><span class="step-no">4</span>🌌 當前行運（選填，填越多判讀越精準）<span class="step-tip">← 按「帶入行運」自動填</span></div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn-ghost" onclick="loadCurrentTransits()">🌐 帶入行運</button>
       <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
@@ -1054,7 +1061,8 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </div>
 
   <div class="center">
-    <button class="btn" onclick="run()">產生判讀 →</button>
+    <button class="btn btn-primary-step" onclick="run()"><span class="step-no on-btn">5</span>產生判讀 →</button>
+    <div class="muted" style="font-size:12px;margin-top:6px">按下後會出現結果,再往下找 <b style="color:var(--gold)">「🔮 AI 雙派白話深解」</b> 按鈕點一下,才會產生 AI 判讀 👇</div>
     <button class="btn-ghost" onclick="reset()">清空</button>
   </div>
 

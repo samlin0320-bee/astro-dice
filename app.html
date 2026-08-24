@@ -632,6 +632,22 @@ html[data-theme="light"] .ai-consensus-card{
 html[data-theme="light"] .aic-intersect .aic-label{color:#1a6b1a;}
 html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg, transparent 60%, #fdedb8 60%);}
 
+/* ============ 此刻天上行運卡(問題上方) ============ */
+.sky-card{padding:0;overflow:hidden;background:linear-gradient(135deg,rgba(154,213,255,.07),rgba(255,154,60,.05));}
+.sky-summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:15px;color:var(--gold);
+  list-style:none;display:flex;align-items:center;gap:8px;user-select:none;flex-wrap:wrap;}
+.sky-summary::-webkit-details-marker{display:none}
+.sky-summary::before{content:'▸';color:var(--gold);transition:transform .2s;font-size:13px}
+.sky-card[open] .sky-summary::before{transform:rotate(90deg)}
+.sky-summary:hover{background:rgba(212,175,55,.08)}
+.sky-body{padding:2px 18px 16px;border-top:1px solid var(--border);}
+.sky-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px;}
+.sky-p{background:var(--bg2,rgba(0,0,0,.15));border:1px solid var(--border);border-radius:9px;padding:8px 10px;}
+.sky-p .pn{font-weight:700;font-size:13px;margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.sky-p .rr{font-size:9px;font-weight:700;color:#fff;background:#c9302c;border-radius:3px;padding:0 4px;}
+.sky-p .row2{display:flex;justify-content:space-between;gap:6px;font-size:12px;}
+.sky-p .w{color:var(--western)} .sky-p .v{color:var(--vedic)}
+html[data-theme="light"] .sky-p{background:#f4f0fb;}
 /* ============ 三引擎判讀卡 ============ */
 .te-card{background:linear-gradient(135deg, rgba(154,213,255,.06), rgba(212,175,55,.05));}
 .te-block{padding:12px 0;border-top:1px dashed var(--border);}
@@ -860,6 +876,14 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       </div>
     </div>
   </div>
+
+  <details class="card sky-card" id="sky_now">
+    <summary class="sky-summary">🌌 此刻天上行運（開網頁時間）· <span style="color:var(--western)">西洋</span> × <span style="color:var(--vedic)">印度</span></summary>
+    <div class="sky-body">
+      <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
+      <div class="muted" style="font-size:11px;margin-top:8px">此為打開網頁當下的天象快照。要用在判讀請到下方「🌌 當前行運」按「帶入行運」。<span style="color:var(--vedic)">印度（恆星）看因果業力</span>，股市/財務類問題可參考。</div>
+    </div>
+  </details>
 
   <div class="card">
     <div class="card-title">💭 問題（選填）</div>
@@ -1871,10 +1895,13 @@ async function loadEphemeris(){
     status.style.color = 'var(--gold)';
     // 預設日期輸入框 = 現在
     resetTransitDate();
+    // 星曆好了 → 渲染「此刻天上行運」快照卡
+    renderSkyNow();
   }catch(e){
     EPHEM = null;
     status.textContent = '星曆未載入（' + e.message + '）— 行運仍可手動填';
     status.style.color = 'var(--warn)';
+    const g = $('sky_now_grid'); if(g) g.textContent = '星曆未載入,無法顯示此刻行運';
   }
 }
 
@@ -1958,6 +1985,41 @@ function loadCurrentTransits(silentIfNoEphem){
   }
 }
 
+// ============ 此刻天上行運(問題上方,西洋×印度並列) ============
+const SKY_OPEN_KEY = 'dices_skynow_open';
+function renderSkyNow(){
+  const grid = $('sky_now_grid'); if(!grid) return;
+  if(!EPHEM || !EPHEM.points){ grid.textContent = '星曆未載入'; return; }
+  const nowSec = Math.floor(Date.now()/1000);
+  const pt = findClosestPoint(nowSec);
+  if(!pt){ grid.textContent = '找不到星曆點'; return; }
+  const order = EPHEM.planets_order;
+  const T = pt.T, S = pt.S, R = pt.R || null;
+  const cells = order.map((pid, i)=>{
+    const pl = findPlanet(pid);
+    const retro = (R && R[i] === 1) ? '<span class="rr">R</span>' : '';
+    const wSign = (SIGNS[T[i]]||{}).zh || '?';
+    const vSign = (SIGNS[S[i]]||{}).zh || '?';
+    return `<div class="sky-p">
+      <div class="pn">${pl ? pl.sym+' '+pl.zh : pid} ${retro}</div>
+      <div class="row2"><span class="w">西 ${wSign}</span><span class="v">印 ${vSign}</span></div>
+    </div>`;
+  }).join('');
+  const d = new Date(pt.t*1000);
+  const dLabel = d.toLocaleString('zh-TW',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  grid.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：${dLabel}（最接近現在）</div><div class="sky-grid">${cells}</div>`;
+}
+// 記憶開/收狀態(預設開)
+function initSkyNow(){
+  const el = $('sky_now'); if(!el) return;
+  const saved = localStorage.getItem(SKY_OPEN_KEY);
+  el.open = (saved === null) ? true : (saved === '1');  // 預設開,之後記憶上次
+  if(!el.dataset.bound){  // 只綁一次,避免 reset 重複 init 疊 listener
+    el.dataset.bound = '1';
+    el.addEventListener('toggle', ()=>{ try{ localStorage.setItem(SKY_OPEN_KEY, el.open ? '1' : '0'); }catch(e){} });
+  }
+}
+
 // ============ 初始化 ============
 function init(){
   const planetOpts = PLANETS.map(p=>({value:p.id, label:`${p.sym} ${p.zh}`}));
@@ -1973,6 +2035,7 @@ function init(){
    't_uranus','t_neptune','t_pluto','t_rahu','t_ketu'].forEach(id=>{
     populateSelect(id, signOpts, true);
   });
+  initSkyNow();
   loadEphemeris();
   setupImageInput();
   setupVoice();

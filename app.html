@@ -3932,19 +3932,18 @@ function makeCurrentRecord(reason){
   };
 }
 
-// 使用內建 key → 強制 auto-log,不依賴使用者按儲存
+// 每筆判讀都記錄(不論用內建 key 或使用者自填 key) — 2026-08 依 Sam 指示拿掉「只內建 key 才記」限制
 // 每次判讀剛好記一筆:產生判讀後排一個延遲記錄;若 15 秒內按了 AI 深解就取消延遲、
 // 直接記「含 AI 的完整一筆」。避免重複列,也不需 Worker update。
 window.__logTimer = null;
 window.__readingLogged = false;
 function autoLogIfDefaultKey(reason){
-  if(!isUsingDefaultKey()) return;
+  // 名稱保留相容,行為已改為「一律記錄」
   try{ syncRecordToNotion(makeCurrentRecord(reason)); }
   catch(e){ console.warn('[dices] autoLog failed:', e && e.message); }
 }
 // 產生判讀後呼叫:排 15 秒延遲記錄(沒按 AI 也保證記到)
 function scheduleReadingLog(){
-  if(!isUsingDefaultKey()) return;
   clearTimeout(window.__logTimer);
   window.__readingLogged = false;
   window.__logTimer = setTimeout(function(){
@@ -3953,7 +3952,6 @@ function scheduleReadingLog(){
 }
 // AI 深解完成後呼叫:取消延遲、直接記完整含 AI 的一筆
 function logReadingWithAI(){
-  if(!isUsingDefaultKey()) return;
   clearTimeout(window.__logTimer);
   if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('AI-quick'); }
 }

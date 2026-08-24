@@ -970,11 +970,14 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
         <label style="margin:0">星曆系統：</label>
         <select id="zodiac_system" style="width:auto;padding:6px 10px" onchange="loadCurrentTransits(true)">
+          <option value="T" selected>迴歸黃道（西洋）</option>
           <option value="S">恆星 Lahiri（印度）</option>
-          <option value="T">迴歸黃道（西洋）</option>
         </select>
       </div>
       <span class="muted" id="ephem_status">星曆載入中...</span>
+    </div>
+    <div class="muted" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:rgba(255,154,60,.08);border:1px solid rgba(255,154,60,.3);border-radius:8px">
+      💡 <b style="color:var(--western)">西洋（迴歸黃道）</b>看現實事件、當下時機；<b style="color:var(--vedic)">印度（恆星 Lahiri）</b>看<b>因果業力</b> —— <b style="color:var(--vedic)">股市、財務、投資</b>這類「前因後果／時機成敗」的問題，建議切到印度盤參考。
     </div>
     <div class="row">
       <div class="field"><label>☉ 太陽 在</label><select id="t_sun"></select></div>
@@ -990,6 +993,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       <div class="field"><label>☊ 羅睺 在</label><select id="t_rahu"></select></div>
       <div class="field"><label>☋ 計都 在</label><select id="t_ketu"></select></div>
     </div>
+    <div id="transit_loaded" class="muted" style="margin-top:12px;min-height:1.3em;font-size:13px"></div>
   </div>
 
   <div class="center">
@@ -1927,8 +1931,8 @@ function loadCurrentTransits(silentIfNoEphem){
     // label 加逆行標記(每次 load 時重繪)
     const labelEl = sel && sel.previousElementSibling;
     if(labelEl && labelEl.tagName === 'LABEL'){
-      // 先移除舊標記,再依 retros[i] 決定要不要加
-      labelEl.innerHTML = labelEl.innerHTML.replace(/\s*<span class="retro-badge">.*?<\/span>/, '');
+      // 先移除舊標記(含屬性,g 全清),再依 retros[i] 決定要不要加 — 修每按一次疊一個 R 的 bug
+      labelEl.innerHTML = labelEl.innerHTML.replace(/\s*<span class="retro-badge"[^>]*>.*?<\/span>/g, '');
       if(retros && retros[i] === 1){
         labelEl.insertAdjacentHTML('beforeend',
           ' <span class="retro-badge" title="逆行 Retrograde" style="display:inline-block;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:700;color:#fff;background:#c9302c;border-radius:3px;letter-spacing:.5px">R</span>');
@@ -1946,6 +1950,12 @@ function loadCurrentTransits(silentIfNoEphem){
     ? `,${retroCount>0 ? '<span style="color:#c9302c;font-weight:700">逆行 '+retroCount+' 顆</span>' : '無行星逆行'}`
     : '';
   $('ephem_status').innerHTML = `<span style="color:var(--gold)">✓ 已帶入 ${dateLabel}（${sysLabel}${isNow?'，最接近現在':''}${retroLine}）</span>`;
+  // 下方欄位也顯示明確「已帶入」訊息(每次覆蓋,不累加)
+  const tl = $('transit_loaded');
+  if(tl){
+    const retroTxt = retroCount ? `　逆行 ${retroCount} 顆` : '';
+    tl.innerHTML = `<span style="color:var(--good,#6ee7a0);font-weight:600">✓ 已帶入行運</span> — <b>${sysLabel}</b>系統・<b>${dateLabel}</b>${isNow?'（最接近現在）':''}${retroTxt}。上方 12 顆行星位置已自動填好,可按「產生判讀」。`;
+  }
 }
 
 // ============ 初始化 ============

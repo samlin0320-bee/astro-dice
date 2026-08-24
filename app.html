@@ -3677,12 +3677,29 @@ function getRecords(){ try{ return JSON.parse(localStorage.getItem(RECORDS_KEY) 
 
 
 // ==== 跨平台匯出面板 helpers ====
-function mxFlash(btn, msg){
+function mxFlash(btn, msg, holdMs){
   if(!btn) return;
-  const orig = btn.innerHTML;
+  // 記住最初文字(避免「傳送中→成功」連續呼叫時把中間態當成原文)
+  if(!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
+  // 清掉前一個還原計時器,否則成功訊息會被舊 timer 提早清掉
+  if(btn._flashTimer){ clearTimeout(btn._flashTimer); btn._flashTimer = null; }
+  var ok = /✓|已傳|已複製|已下載|已存/.test(msg);
+  var bad = /❌|失敗|錯誤/.test(msg);
+  var busy = /中\.\.\.|中…/.test(msg);
   btn.innerHTML = msg;
   btn.disabled = true;
-  setTimeout(function(){ btn.innerHTML = orig; btn.disabled = false; }, 2200);
+  // 顏色回饋:成功綠、失敗紅
+  btn.style.color = ok ? '#2e9d5a' : (bad ? '#c9433c' : '');
+  btn.style.borderColor = ok ? '#2e9d5a' : (bad ? '#c9433c' : '');
+  btn.style.fontWeight = (ok || bad) ? '700' : '';
+  if(busy) return;  // 「傳送中…」不自動還原,等最終結果覆蓋
+  var hold = holdMs || (bad ? 6000 : 4000);
+  btn._flashTimer = setTimeout(function(){
+    btn.innerHTML = btn.dataset.origHtml;
+    btn.disabled = false;
+    btn.style.color = ''; btn.style.borderColor = ''; btn.style.fontWeight = '';
+    btn._flashTimer = null;
+  }, hold);
 }
 function mxCopyMD(btn){
   navigator.clipboard.writeText(exportMarkdown()).then(function(){

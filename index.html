@@ -632,6 +632,17 @@ html[data-theme="light"] .ai-consensus-card{
 html[data-theme="light"] .aic-intersect .aic-label{color:#1a6b1a;}
 html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg, transparent 60%, #fdedb8 60%);}
 
+.sky-sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px;}
+/* 時間卜卦收折 */
+.time-fold{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+.time-summary{cursor:pointer;font-size:13px;color:var(--text);list-style:none;
+  display:flex;align-items:center;gap:6px;user-select:none;padding:4px 0;}
+.time-summary::-webkit-details-marker{display:none}
+.time-summary::before{content:'▸';color:var(--gold);transition:transform .2s;font-size:12px}
+.time-fold[open] .time-summary::before{transform:rotate(90deg)}
+.time-summary:hover{color:var(--gold)}
+/* 行運卡:度數獨立樣式,跟星座拉開 */
+.sky-line .deg{color:var(--muted);font-size:11px;margin-left:4px;}
 /* ============ 元素 × 模式矩陣 ============ */
 .em-table{width:100%;border-collapse:separate;border-spacing:4px;margin:10px 0;}
 .em-table th,.em-table td{border-radius:8px;padding:8px 6px;text-align:center;vertical-align:middle;}
@@ -930,7 +941,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </div>
 
   <details class="card sky-card" id="sky_now">
-    <summary class="sky-summary">🌌 此刻天上行運（開網頁時間）· 可切換 <span style="color:var(--western)">西洋迴歸</span> / <span style="color:var(--vedic)">印度恆星</span></summary>
+    <summary class="sky-summary">🌌 此刻天上行運<span class="sky-sub">（開網頁時間快照）</span></summary>
     <div class="sky-body">
       <div class="sky-modes">
         <button type="button" class="sky-mode" data-opt="W" onclick="toggleSkyOpt('W')">☀ 西洋迴歸</button>
@@ -957,6 +968,8 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
                onchange="handleQuestionImage(this.files[0])" />
       </div>
       <div id="q_voice_status" class="muted" style="margin-top:6px;min-height:1em"></div>
+      <details class="time-fold" id="time_fold">
+      <summary class="time-summary">🕐 <b style="color:var(--gold)">發問時間 / 時間卜卦</b><span class="sky-sub">（選填 · 點開設定時刻並起盤）</span></summary>
       <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <label style="margin:0;font-size:12px;color:var(--muted);white-space:nowrap">🕐 <strong style="color:var(--gold)">發問時間</strong>：</label>
         <input id="ask_time" type="datetime-local" style="width:auto;padding:6px 10px" />
@@ -984,6 +997,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <span class="muted" style="font-size:11px">（2018–2050 · 選完自動填入上方,再按「時間卜卦」起盤）</span>
       </div>
       <div id="horary_result"></div>
+      </details>
       <div class="topic-picker">
         <div class="tp-title"><span class="step-no">1A</span>🏷 <strong>特殊議題</strong>（選填,多選；點按鈕勾選/取消）<span class="step-tip">← 勾了 AI 會針對該面向側重</span></div>
         <div class="tp-chips" id="topic_chips">
@@ -2085,12 +2099,12 @@ function renderSkyNow(){
     const rows = [];
     if(showW){
       let t = ((SIGNS[T[i]]||{}).zh || '?');
-      if(showD && hasDeg) t += ' ' + fmtDeg(D[i]);
+      if(showD && hasDeg) t += '  ' + fmtDeg(D[i]);
       rows.push('<div class="sky-line w">' + t + '</div>');
     }
     if(showS){
       let t = '印 ' + ((SIGNS[S[i]]||{}).zh || '?');
-      if(showD && hasDeg) t += ' ' + fmtDeg(DS[i]);
+      if(showD && hasDeg) t += '  ' + fmtDeg(DS[i]);
       rows.push('<div class="sky-line v">' + t + '</div>');
     }
     if(showN && hasNak){

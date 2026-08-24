@@ -959,7 +959,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       </div>
       <div id="horary_result"></div>
       <div class="topic-picker">
-        <div class="tp-title">🏷 <strong>特殊議題</strong>（選填,多選；點按鈕勾選/取消）</div>
+        <div class="tp-title"><span class="step-no">1A</span>🏷 <strong>特殊議題</strong>（選填,多選；點按鈕勾選/取消）<span class="step-tip">← 勾了 AI 會針對該面向側重</span></div>
         <div class="tp-chips" id="topic_chips">
           <label class="tp-chip"><input type="checkbox" value="愛情 / 感情 / 婚姻"><span>💕 愛情</span></label>
           <label class="tp-chip"><input type="checkbox" value="事業 / 工作 / 職涯"><span>💼 事業</span></label>
@@ -1018,7 +1018,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
 
   <div class="card" id="card_subdie">
     <div class="card-title" style="display:flex;align-items:center;gap:8px">
-      <span class="step-no">3b</span>🎲 副骰兩顆 — 相位 / 命主飛宮判讀
+      <span class="step-no">3A</span>🎲 副骰兩顆 — 相位 / 命主飛宮判讀
       <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
         <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
       </label>
@@ -2058,7 +2058,7 @@ function renderSkyNow(){
     const retro = (R && R[i] === 1) ? '<span class="rr">R</span>' : '';
     const rows = [];
     if(showW){
-      let t = '西 ' + ((SIGNS[T[i]]||{}).zh || '?');
+      let t = ((SIGNS[T[i]]||{}).zh || '?');
       if(showD && hasDeg) t += ' ' + fmtDeg(D[i]);
       rows.push('<div class="sky-line w">' + t + '</div>');
     }
@@ -2250,7 +2250,7 @@ function getSkyOpts(){
       if(Array.isArray(arr) && arr.length) return arr;
     }
   }catch(e){}
-  return ['W'];   // 預設:單獨西洋迴歸
+  return ['W','D'];   // 預設:西洋迴歸 + 度數
 }
 function toggleSkyOpt(o){
   let opts = getSkyOpts();

@@ -3931,6 +3931,105 @@ function mxDownloadMD(btn){
   exportDownload('md', makeQuestionFileName('md'));
   mxFlash(btn, '\u2713 MD \u5DF2\u4E0B\u8F09');
 }
+// 把判讀結果畫成圖片複製到剪貼簿(骰面 + 問題 + 上升命主 + AI 共識)
+async function mxCopyImage(btn){
+  mxFlash(btn, '產生圖片中...');
+  try{
+    var NL = String.fromCharCode(10);
+    var q = ($('question') && $('question').value || '').trim() || '(未提問)';
+    var dice = document.querySelector('#output .dice-display');
+    var dies = dice ? [].slice.call(dice.querySelectorAll('.die')).map(function(d){
+      var sy = d.querySelector('.die-symbol'), lb = d.querySelector('.label');
+      return { sym: sy ? sy.innerText.trim() : '', label: lb ? lb.innerText.trim().split(NL).join(' ') : '', sub: d.classList.contains('b') };
+    }) : [];
+    var subEl = document.querySelector('#output .rashi-center .rc-sub');
+    var subText = subEl ? subEl.innerText.trim().split(NL).join(' · ') : '';
+    var consEl = document.querySelector('#output .aic-final-text');
+    var cons = consEl ? consEl.innerText.trim() : '';
+
+    var W = 1080, PAD = 48;
+    var cv = document.createElement('canvas');
+    var ctx = cv.getContext('2d');
+    var FONT = '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+
+    function wrap(text, maxW, fontSpec){
+      ctx.font = fontSpec;
+      var out = [], line = '';
+      for(var i=0;i<text.length;i++){
+        var ch = text[i];
+        if(ch === NL){ out.push(line); line=''; continue; }
+        if(ctx.measureText(line + ch).width > maxW){ out.push(line); line = ch; }
+        else line += ch;
+      }
+      if(line) out.push(line);
+      return out;
+    }
+    var qLines = wrap(q, W - PAD*2, '30px ' + FONT);
+    var consLines = cons ? wrap(cons, W - PAD*2, '26px ' + FONT) : [];
+    var H = PAD*2 + 70 + qLines.length*42 + 30 + 150 + 50 + (subText?40:0) + (consLines.length ? 60 + consLines.length*38 : 0) + 50;
+    cv.width = W; cv.height = H;
+
+    var g = ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'#1a1030'); g.addColorStop(1,'#241542');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    var y = PAD + 20;
+    ctx.fillStyle = '#d4af37'; ctx.font = 'bold 40px ' + FONT; ctx.textAlign = 'center';
+    ctx.fillText('🎲 占星骰子 · 五骰判讀', W/2, y); y += 46;
+    ctx.fillStyle = '#b0a4cc'; ctx.font = '20px ' + FONT;
+    ctx.fillText(new Date().toLocaleString('zh-TW'), W/2, y); y += 44;
+    ctx.textAlign = 'left'; ctx.fillStyle = '#efe9ff'; ctx.font = '30px ' + FONT;
+    qLines.forEach(function(l){ ctx.fillText(l, PAD, y); y += 42; });
+    y += 24;
+
+    var n = dies.length || 3, bw = 150, gap = 20;
+    var totalW = n*bw + (n-1)*gap, sx = (W - totalW)/2;
+    dies.forEach(function(d, i){
+      var x = sx + i*(bw+gap), r = 20;
+      ctx.fillStyle = d.sub ? 'rgba(96,166,232,.14)' : 'rgba(212,175,55,.12)';
+      ctx.strokeStyle = d.sub ? 'rgba(96,166,232,.75)' : 'rgba(212,175,55,.75)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.lineTo(x+bw-r,y); ctx.quadraticCurveTo(x+bw,y,x+bw,y+r);
+      ctx.lineTo(x+bw,y+150-r); ctx.quadraticCurveTo(x+bw,y+150,x+bw-r,y+150);
+      ctx.lineTo(x+r,y+150); ctx.quadraticCurveTo(x,y+150,x,y+150-r);
+      ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = d.sub ? '#9ad5ff' : '#d4af37'; ctx.font = '58px ' + FONT;
+      ctx.fillText(d.sym, x+bw/2, y+78);
+      ctx.fillStyle = '#efe9ff'; ctx.font = '20px ' + FONT;
+      ctx.fillText(d.label.slice(0,8), x+bw/2, y+120);
+    });
+    y += 150 + 40;
+    if(subText){
+      ctx.textAlign='center'; ctx.fillStyle='#b0a4cc'; ctx.font='22px ' + FONT;
+      ctx.fillText(subText.slice(0,50), W/2, y); y += 40;
+    }
+    if(consLines.length){
+      ctx.textAlign='left'; ctx.fillStyle='#d4af37'; ctx.font='bold 26px ' + FONT;
+      ctx.fillText('🌈 兩派共識 · 最終建議', PAD, y); y += 44;
+      ctx.fillStyle='#efe9ff'; ctx.font='26px ' + FONT;
+      consLines.forEach(function(l){ ctx.fillText(l, PAD, y); y += 38; });
+    }
+    ctx.textAlign='center'; ctx.fillStyle='#7a6a99'; ctx.font='18px ' + FONT;
+    ctx.fillText('dices.3minstest.com', W/2, H - 24);
+
+    var blob = await new Promise(function(res){ cv.toBlob(res, 'image/png'); });
+    if(navigator.clipboard && window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+      mxFlash(btn, '✓ 圖片已複製,可直接貼上');
+    }else{
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (typeof makeQuestionFileName==='function' ? makeQuestionFileName('png') : '占星骰子結果.png');
+      a.click();
+      mxFlash(btn, '✓ 已下載圖片(瀏覽器不支援複製)');
+    }
+  }catch(e){
+    mxFlash(btn, '❌ ' + String(e.message||e).slice(0,40));
+  }
+}
+
 function mxExportPDF(btn){
   mxFlash(btn, '\uD83D\uDDA8 \u958B\u5217\u5370...');
   // \u700F\u89BD\u5668\u300C\u53E6\u5B58 PDF\u300D\u7684\u9810\u8A2D\u6A94\u540D = document.title,\u4E0D\u7D93 makeQuestionFileName
@@ -4075,6 +4174,7 @@ function renderMultiExportPanel(){
   html += '<button class="mx-btn mx-primary" onclick="mxCopyPlain(this)">\uD83D\uDCCB \u4E00\u9375\u5168\u9801\u8907\u88FD\u7D14\u6587\u5B57</button>';
   html += '<button class="mx-btn mx-primary" onclick="mxCopyMD(this)">\uD83D\uDCDD \u4E00\u9375\u5168\u9801\u8907\u88FD MD \u683C\u5F0F</button>';
   html += '<button class="mx-btn mx-primary" onclick="mxExportPDF(this)">\uD83D\uDCD5 \u532F\u51FA PDF \u6A94\u6848\uFF08\u5B8C\u7F8E\u7248\uFF09</button>';
+  html += '<button class="mx-btn mx-primary" onclick="mxCopyImage(this)">🖼 複製結果圖片</button>';
   html += '</div>';
   html += '<div class="mx-row">';
   html += '<button class="mx-btn" onclick="mxDownloadMD(this)">\uD83D\uDCE5 \u4E0B\u8F09 MD \u6A94</button>';

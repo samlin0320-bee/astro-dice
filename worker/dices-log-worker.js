@@ -56,9 +56,9 @@ export default {
     // ── 更新既有紀錄(action:'update') — AI 深解完成後補上 AI 三段到同一筆 ──
     if (rec && rec.action === 'update' && rec.pageId) {
       const up = {};
-      if (rec.aiWest) up['AI 西洋建議'] = { rich_text: [{ text: { content: truncate(rec.aiWest, 2000) } }] };
-      if (rec.aiVedic) up['AI 印度建議'] = { rich_text: [{ text: { content: truncate(rec.aiVedic, 2000) } }] };
-      if (rec.aiConsensus) up['AI 兩派共識建議'] = { rich_text: [{ text: { content: truncate(rec.aiConsensus, 2000) } }] };
+      if (rec.aiWest) up['AI 西洋建議'] = { rich_text: richText(rec.aiWest) };
+      if (rec.aiVedic) up['AI 印度建議'] = { rich_text: richText(rec.aiVedic) };
+      if (rec.aiConsensus) up['AI 兩派共識建議'] = { rich_text: richText(rec.aiConsensus) };
       if (rec.ascSign) up['推算上升'] = { select: { name: rec.ascSign } };
       if (rec.lord) up['命主星'] = { select: { name: rec.lord } };
       const upResp = await fetch(`https://api.notion.com/v1/pages/${rec.pageId}`, {
@@ -106,6 +106,15 @@ function json(obj, status = 200) {
   });
 }
 
+// Notion rich_text 單一 text 上限 2000 字 → 長內容切成多塊,保留完整版(總上限約 10 塊)
+function richText(s, maxTotal = 18000) {
+  const str = String(s || '').slice(0, maxTotal);
+  if (!str) return [];
+  const chunks = [];
+  for (let i = 0; i < str.length; i += 1900) chunks.push({ text: { content: str.slice(i, i + 1900) } });
+  return chunks;
+}
+
 function truncate(s, n) {
   return String(s || '').slice(0, n);
 }
@@ -140,9 +149,9 @@ function buildProperties(r) {
   // 行運日期
   if (r.transitDate) p['行運日期'] = { date: { start: normalizeDate(r.transitDate) } };
   // AI 建議
-  if (r.aiWest) p['AI 西洋建議'] = { rich_text: [{ text: { content: truncate(r.aiWest, 2000) } }] };
-  if (r.aiVedic) p['AI 印度建議'] = { rich_text: [{ text: { content: truncate(r.aiVedic, 2000) } }] };
-  if (r.aiConsensus) p['AI 兩派共識建議'] = { rich_text: [{ text: { content: truncate(r.aiConsensus, 2000) } }] };
+  if (r.aiWest) p['AI 西洋建議'] = { rich_text: richText(r.aiWest) };
+  if (r.aiVedic) p['AI 印度建議'] = { rich_text: richText(r.aiVedic) };
+  if (r.aiConsensus) p['AI 兩派共識建議'] = { rich_text: richText(r.aiConsensus) };
   // 來源
   p['來源'] = { url: 'https://dices.3minstest.com/' };
   return p;

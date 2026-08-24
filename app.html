@@ -3791,9 +3791,9 @@ function mxSaveNotion(btn){
     pA: $('planet_a').value, sA: $('sign_a').value, houseA: $('house_a').value,
     useSubdie: $('use_subdie').checked,
     pB: $('planet_b').value, sB: $('sign_b').value,
-    aiWest: getText('.ai-side-western .ai-block:last-child .ai-block-text'),
-    aiVedic: getText('.ai-side-vedic .ai-block:last-child .ai-block-text'),
-    aiConsensus: getText('.ai-consensus-card .aic-final-text'),
+    aiWest: (typeof getFullAISide==='function' ? getFullAISide('.ai-side-western') : ''),
+    aiVedic: (typeof getFullAISide==='function' ? getFullAISide('.ai-side-vedic') : ''),
+    aiConsensus: (typeof getFullConsensus==='function' ? getFullConsensus() : ''),
     transitDate: ($('transit_date') && $('transit_date').value) || ''
   };
   mxFlash(btn, 'Notion \u4E2D...');
@@ -3907,6 +3907,47 @@ function isUsingDefaultKey(){
   return !userKey && !savedKey && !!DEFAULT_GEMINI_KEY;
 }
 
+// 抓某一派 AI 的「完整內容」(四段:雙星互動/命主星關係/天上呼應/建議),不只最後一段
+function getFullAISide(sideSel){
+  var NL = String.fromCharCode(10);
+  var side = document.querySelector(sideSel);
+  if(!side) return '';
+  var blocks = side.querySelectorAll('.ai-block');
+  var parts = [];
+  for(var i=0;i<blocks.length;i++){
+    var lab = blocks[i].querySelector('.ai-block-label');
+    var txt = blocks[i].querySelector('.ai-block-text');
+    var l = lab ? (lab.innerText||'').trim() : '';
+    var t = txt ? (txt.innerText||'').trim() : '';
+    if(t) parts.push((l ? l + NL : '') + t);
+  }
+  return parts.join(NL + NL);
+}
+// 抓兩派共識「完整」(共通點 + 分歧點 + 綜合建議),不只綜合建議
+function getFullConsensus(){
+  var NL = String.fromCharCode(10);
+  var card = document.querySelector('.ai-consensus-card');
+  if(!card) return '';
+  var out = [];
+  var secs = card.querySelectorAll('.aic-section, .aic-final');
+  for(var i=0;i<secs.length;i++){
+    var lab = secs[i].querySelector('.aic-label');
+    var l = lab ? (lab.innerText||'').trim() : '';
+    var body = '';
+    var lis = secs[i].querySelectorAll('li');
+    if(lis.length){
+      var items = [];
+      for(var j=0;j<lis.length;j++){ var v=(lis[j].innerText||'').trim(); if(v) items.push('• '+v); }
+      body = items.join(NL);
+    }else{
+      var ft = secs[i].querySelector('.aic-final-text');
+      body = ft ? (ft.innerText||'').trim() : (secs[i].innerText||'').trim().replace(l,'').trim();
+    }
+    if(body) out.push((l ? l + NL : '') + body);
+  }
+  return out.join(NL + NL);
+}
+
 function makeCurrentRecord(reason){
   var u = getUser();
   var getText = function(sel){ var el = document.querySelector(sel); return el ? (el.innerText || '').trim() : ''; };
@@ -3928,9 +3969,9 @@ function makeCurrentRecord(reason){
     pB: $('planet_b').value, sB: $('sign_b').value,
     ascSign: ascMatch ? ascMatch[1] : '',
     lord: lordMatch ? lordMatch[1] : '',
-    aiWest: getText('.ai-side-western .ai-block:last-child .ai-block-text'),
-    aiVedic: getText('.ai-side-vedic .ai-block:last-child .ai-block-text'),
-    aiConsensus: getText('.ai-consensus-card .aic-final-text'),
+    aiWest: getFullAISide('.ai-side-western'),
+    aiVedic: getFullAISide('.ai-side-vedic'),
+    aiConsensus: getFullConsensus(),
     aiFull: (window.__lastAIParsed ? {parsed: window.__lastAIParsed, model: window.__lastAIModel} : null),  // 完整 AI,供歷史還原重繪
     transitDate: ($('transit_date') && $('transit_date').value) || '',
     _usingDefaultKey: isUsingDefaultKey(),

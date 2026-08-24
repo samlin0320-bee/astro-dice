@@ -3654,23 +3654,27 @@ function mxCopySection(btn){
   });
 }
 function mxSendTelegram(btn){
-  var bot = localStorage.getItem('tg_bot_token');
-  var chat = localStorage.getItem('tg_chat_id');
-  if(!bot || !chat){
-    if(!confirm('\u5C1A\u672A\u8A2D\u5B9A Telegram Bot Token \u8207 Chat ID\u3002\n\n\u5206\u4EAB\u7DB2\u5740\u6642\u53EF\u5E36 ?tg_bot=<TOKEN>&tg_chat=<CHAT_ID>\n\n\u73FE\u5728\u624B\u52D5\u8F38\u5165?')){ return; }
-    var b = prompt('Telegram Bot Token (\u5F9E @BotFather \u62FF):');
-    if(!b) return;
-    var c = prompt('Chat ID:');
-    if(!c) return;
-    localStorage.setItem('tg_bot_token', b);
-    localStorage.setItem('tg_chat_id', c);
-    return mxSendTelegram(btn);
-  }
   var text = exportMarkdown().slice(0, 4000);
   mxFlash(btn, '\u50B3\u9001\u4E2D...');
+  // \u512A\u5148\u8D70 Cloudflare Worker(token \u85CF\u5F8C\u7AEF,\u4EFB\u4F55\u700F\u89BD\u5668\u90FD\u80FD\u7528,\u4E0D\u5916\u9732)
+  var workerUrl = (typeof getWorkerUrl === 'function') ? getWorkerUrl() : null;
+  if(workerUrl){
+    fetch(workerUrl, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'telegram', text: text})
+    }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); }).then(function(res){
+      if(res.ok && res.d.ok){ mxFlash(btn, '\u2713 \u5DF2\u50B3\u5230\u983B\u9053'); }
+      else { mxFlash(btn, '\u274C ' + ((res.d && res.d.detail) || (res.d && res.d.error) || '\u5931\u6557').slice(0, 30)); }
+    }).catch(function(e){ mxFlash(btn, '\u274C ' + e.message.slice(0, 30)); });
+    return;
+  }
+  // \u5F8C\u5099:localStorage \u76F4\u767C(\u820A\u6A5F\u5236,\u9700 ?tg_bot=/?tg_chat= \u8A2D\u5B9A\u904E)
+  var bot = localStorage.getItem('tg_bot_token');
+  var chat = localStorage.getItem('tg_chat_id');
+  if(!bot || !chat){ alert('Telegram \u5C1A\u672A\u8A2D\u5B9A(Worker \u672A\u8A2D\u5B9A\u4E14\u7121\u672C\u6A5F token)'); mxFlash(btn, '\u274C \u672A\u8A2D\u5B9A'); return; }
   fetch('https://api.telegram.org/bot' + bot + '/sendMessage', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({chat_id: chat, text: text, parse_mode: 'Markdown', disable_web_page_preview: true})
+    body: JSON.stringify({chat_id: chat, text: text, disable_web_page_preview: true})
   }).then(function(r){ return r.json(); }).then(function(d){
     mxFlash(btn, d.ok ? '\u2713 \u5DF2\u50B3' : '\u274C ' + (d.description || '\u5931\u6557').slice(0, 30));
   }).catch(function(e){ mxFlash(btn, '\u274C ' + e.message.slice(0, 30)); });

@@ -26,6 +26,27 @@ export default {
       return json({ error: 'invalid json' }, 400);
     }
 
+    // ── Telegram 發送路徑(action:'telegram') ──
+    // token/chat 藏在 Worker secret,前端不碰,任何瀏覽器都能用
+    if (rec && rec.action === 'telegram') {
+      const tgToken = env.TG_BOT_TOKEN;
+      const tgChat = env.TG_CHAT_ID;
+      if (!tgToken || !tgChat) {
+        return json({ error: 'telegram not configured (TG_BOT_TOKEN / TG_CHAT_ID missing)' }, 500);
+      }
+      const text = truncate(rec.text || '(空白報告)', 4000);
+      const tgResp = await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgChat, text, disable_web_page_preview: true }),
+      });
+      const tgData = await tgResp.json().catch(() => ({}));
+      if (!tgResp.ok || !tgData.ok) {
+        return json({ error: 'telegram api', status: tgResp.status, detail: (tgData.description || '').slice(0, 300) }, 502);
+      }
+      return json({ ok: true, message_id: tgData.result && tgData.result.message_id });
+    }
+
     const dbId = env.NOTION_DATABASE_ID;
     const token = env.NOTION_TOKEN;
     if (!dbId || !token) {

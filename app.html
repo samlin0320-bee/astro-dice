@@ -3680,7 +3680,31 @@ init();
   .backnav,.tabs,#panel_image,#panel_voice,.center,.footer,#export_hub,.container>.card{display:none!important}
   #output{display:block!important}
   #output .card{display:block;box-shadow:none;border:1px solid #ccc;page-break-inside:avoid}
-  #output button,#output details{display:none!important}
+  #output button{display:none!important}
+  /* details 要「展開印出」,不能整個藏掉(之前 PDF 空白的元凶) */
+  #output details{display:block!important}
+  #output details > summary{display:block!important;font-weight:700;margin-bottom:6px;list-style:none}
+  #output details > *{display:block!important}
+  /* 保留圖形:南印度方格盤/骰面/表格 都要完整印出 */
+  .rashi-wrap,.rashi-grid,.rashi-cell,.rashi-center,.dice-display,.die{display:revert!important;visibility:visible!important}
+  .rashi-grid{display:grid!important}
+  .dice-display{display:flex!important}
+  .rc-planet{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rashi-cell,.sky-p,.te-card,table{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* 骰面:列印時改白底深字(原本深底金字,不印背景會變全白) */
+  .die{background:#fff!important;border:2px solid #7a5c00!important;box-shadow:none!important;
+    width:96px!important;height:96px!important;}
+  .die.b{border-color:#0f4c75!important;}
+  .die-symbol{color:#2a1a05!important;filter:none!important;font-size:38px!important;}
+  .die .label{color:#333!important;font-weight:600!important;}
+  .dice-display{gap:10px!important;justify-content:center!important}
+  /* 南印度方格盤:確保格線與行星色印得出來 */
+  .rashi-cell{border:1px solid #999!important}
+  .rc-planet{border:1px solid #666!important;color:#000!important;background:#f0f0f0!important}
+  .rc-sign,.rc-hnum{color:#000!important}
+  .rashi-center{background:#fafafa!important}
+  /* 簡易版列印:只到南印度方格盤為止 */
+  body.print-simple #output > *.print-hide{display:none!important}
 }
 </style>
 <script>

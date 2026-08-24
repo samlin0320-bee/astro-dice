@@ -652,6 +652,10 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .sky-line.n{color:var(--gold-soft,#e8cf7a);font-size:11px;}
 .sky-p .w{color:var(--western)} .sky-p .v{color:var(--vedic)}
 html[data-theme="light"] .sky-p{background:#f4f0fb;}
+.tq-btn{background:var(--bg2,rgba(0,0,0,.18));border:1px solid var(--border);color:var(--muted);
+  border-radius:12px;padding:3px 10px;font-size:11px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.tq-btn:hover{color:var(--gold);border-color:var(--gold);}
+html[data-theme="light"] .tq-btn{background:#f4f0fb;}
 .sky-modes{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
 .sky-mode{background:var(--bg2,rgba(0,0,0,.18));border:1px solid var(--border);color:var(--muted);
   border-radius:14px;padding:4px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
@@ -919,8 +923,18 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <label style="margin:0;font-size:12px;color:var(--muted);white-space:nowrap">🕐 <strong style="color:var(--gold)">發問時間</strong>：</label>
         <input id="ask_time" type="datetime-local" style="width:auto;padding:6px 10px" />
         <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="setAskTimeNow()" title="填入目前時間">🕒 NOW</button>
-        <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:12px;border-color:var(--gold);color:var(--gold)" onclick="castHoraryChart(this)" title="用發問時刻的真實星象起盤,並自動帶入行運">🔮 時間卜卦（用此刻起盤）</button>
-        <span class="muted" style="font-size:11px">(卜卦占星:問問題那一刻的星象是判讀關鍵。留空=不帶入時間)</span>
+        <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:12px;border-color:var(--gold);color:var(--gold)" onclick="castHoraryChart(this)" title="用上方時間的真實星象起盤,並自動帶入行運">🔮 時間卜卦（起盤）</button>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span class="muted" style="font-size:11px">⏱ 指定時間快捷：</span>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(0,'now')">此刻</button>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(-1,'h')">1小時前</button>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(-1,'d')">昨天</button>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(-7,'d')">上週</button>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(1,'d')">明天</button>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(7,'d')">下週</button>
+        <button type="button" class="tq-btn" onclick="setAskTimeQuick(1,'mo')">下個月</button>
+        <span class="muted" style="font-size:11px">｜也可直接在上方欄位<b style="color:var(--gold)">自訂任意年月日時分</b>（2018–2050）</span>
       </div>
       <div id="horary_result"></div>
       <div class="topic-picker">
@@ -2070,6 +2084,21 @@ function nakOf(signIdx, ds10){
   var idx = Math.floor(lon / (360 / 27));
   return (idx >= 0 && idx < 27) ? idx : null;
 }
+// 指定時間快捷:n 為數量,unit = now|h(小時)|d(天)|mo(月)
+function setAskTimeQuick(n, unit){
+  var d = new Date();
+  if(unit === 'h') d.setHours(d.getHours() + n);
+  else if(unit === 'd') d.setDate(d.getDate() + n);
+  else if(unit === 'mo') d.setMonth(d.getMonth() + n);
+  var el = $('ask_time');
+  if(el){
+    el.value = toLocalInputValue(d);
+    // 視覺提示已更新
+    el.style.borderColor = 'var(--gold)';
+    setTimeout(function(){ el.style.borderColor = ''; }, 1200);
+  }
+}
+
 // ============ 時間卜卦(Horary):用發問時刻的真實星象起盤 ============
 // 卜卦占星核心:問問題那一刻的天象就是答案。這裡用發問時刻查星曆,
 // 並以「該時刻上升星座」為盤主軸(ASC 每約 2 小時換一星座,一天 12 個上升)。

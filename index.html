@@ -659,6 +659,11 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .sky-line.n{color:var(--gold-soft,#e8cf7a);font-size:11px;}
 .sky-p .w{color:var(--western)} .sky-p .v{color:var(--vedic)}
 html[data-theme="light"] .sky-p{background:#f4f0fb;}
+.ymd-sel{background:var(--bg2,rgba(0,0,0,.18));border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:3px 6px;font-size:12px;font-family:inherit;cursor:pointer;width:auto;}
+.ymd-sel:focus{border-color:var(--gold);outline:none}
+.ymd-lb{font-size:11px;color:var(--muted);margin-right:4px}
+html[data-theme="light"] .ymd-sel{background:#f4f0fb;}
 .tq-btn{background:var(--bg2,rgba(0,0,0,.18));border:1px solid var(--border);color:var(--muted);
   border-radius:12px;padding:3px 10px;font-size:11px;font-family:inherit;cursor:pointer;transition:all .15s;}
 .tq-btn:hover{color:var(--gold);border-color:var(--gold);}
@@ -941,7 +946,16 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <button type="button" class="tq-btn" onclick="setAskTimeQuick(1,'d')">明天</button>
         <button type="button" class="tq-btn" onclick="setAskTimeQuick(7,'d')">下週</button>
         <button type="button" class="tq-btn" onclick="setAskTimeQuick(1,'mo')">下個月</button>
-        <span class="muted" style="font-size:11px">｜也可直接在上方欄位<b style="color:var(--gold)">自訂任意年月日時分</b>（2018–2050）</span>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <span class="muted" style="font-size:11px;white-space:nowrap">📅 精準指定：</span>
+        <select id="ymd_y" class="ymd-sel" onchange="applyYMD()"></select><span class="ymd-lb">年</span>
+        <select id="ymd_mo" class="ymd-sel" onchange="applyYMD()"></select><span class="ymd-lb">月</span>
+        <select id="ymd_d" class="ymd-sel" onchange="applyYMD()"></select><span class="ymd-lb">日</span>
+        <select id="ymd_h" class="ymd-sel" onchange="applyYMD()"></select><span class="ymd-lb">時</span>
+        <select id="ymd_mi" class="ymd-sel" onchange="applyYMD()"></select><span class="ymd-lb">分</span>
+        <button type="button" class="tq-btn" onclick="syncYMDFromInput()" title="從上方時間欄位讀回">↻ 同步</button>
+        <span class="muted" style="font-size:11px">（2018–2050 · 選完自動填入上方,再按「時間卜卦」起盤）</span>
       </div>
       <div id="horary_result"></div>
       <div class="topic-picker">
@@ -2092,6 +2106,52 @@ function nakOf(signIdx, ds10){
   var idx = Math.floor(lon / (360 / 27));
   return (idx >= 0 && idx < 27) ? idx : null;
 }
+// 精準指定年月日時分:填充下拉 + 套用到 ask_time
+function initYMDSelectors(){
+  var y = $('ymd_y'), mo = $('ymd_mo'), d = $('ymd_d'), h = $('ymd_h'), mi = $('ymd_mi');
+  if(!y || y.options.length) return;   // 已初始化
+  var now = new Date();
+  var mk = function(sel, from, to, pad, cur){
+    var html = '';
+    for(var v = from; v <= to; v++){
+      var t = pad && v < 10 ? '0' + v : String(v);
+      html += '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + t + '</option>';
+    }
+    sel.innerHTML = html;
+  };
+  mk(y, 2018, 2050, false, now.getFullYear());
+  mk(mo, 1, 12, true, now.getMonth() + 1);
+  mk(d, 1, 31, true, now.getDate());
+  mk(h, 0, 23, true, now.getHours());
+  mk(mi, 0, 59, true, now.getMinutes());
+}
+// 下拉改變 → 寫回 ask_time
+function applyYMD(){
+  var y = +$('ymd_y').value, mo = +$('ymd_mo').value, d = +$('ymd_d').value,
+      h = +$('ymd_h').value, mi = +$('ymd_mi').value;
+  // 該月最大天數修正(避免 2/31)
+  var maxD = new Date(y, mo, 0).getDate();
+  if(d > maxD){ d = maxD; $('ymd_d').value = String(maxD); }
+  var dt = new Date(y, mo - 1, d, h, mi);
+  var el = $('ask_time');
+  if(el){
+    el.value = toLocalInputValue(dt);
+    el.style.borderColor = 'var(--gold)';
+    setTimeout(function(){ el.style.borderColor = ''; }, 1200);
+  }
+}
+// 從 ask_time 讀回下拉
+function syncYMDFromInput(){
+  var v = ($('ask_time') && $('ask_time').value) || '';
+  var dt = v ? new Date(v) : new Date();
+  if(isNaN(dt)) dt = new Date();
+  $('ymd_y').value = dt.getFullYear();
+  $('ymd_mo').value = dt.getMonth() + 1;
+  $('ymd_d').value = dt.getDate();
+  $('ymd_h').value = dt.getHours();
+  $('ymd_mi').value = dt.getMinutes();
+}
+
 // 指定時間快捷:n 為數量,unit = now|h(小時)|d(天)|mo(月)
 function setAskTimeQuick(n, unit){
   var d = new Date();
@@ -2228,6 +2288,7 @@ function init(){
     populateSelect(id, signOpts, true);
   });
   initSkyNow();
+  initYMDSelectors();
   loadEphemeris();
   setupImageInput();
   setupVoice();
@@ -3761,34 +3822,103 @@ function exportPlainText(){
 }
 
 // 匯出用：轉 Markdown（表格自動轉 MD 表格）
-function exportMarkdown(){
-  const lines = ['# 🎲 占星骰子 · 五骰判讀結果', '',
+function exportMarkdown(simple){
+  var NL = String.fromCharCode(10);
+  var lines = ['# 🎲 占星骰子 · 五骰判讀結果', '',
     '> 來源：https://dices.3minstest.com/ · ' + new Date().toLocaleString('zh-TW'), ''];
-  let stopped = false;
-  document.querySelectorAll('#output > *').forEach(el=>{
-    if(stopped) return;
-    if(shouldStopExportAt(el)){ stopped = true; return; }
-    if(el.querySelector && el.querySelector('.btn-deep')) return;
-    const titleEl = el.querySelector ? el.querySelector('.card-title') : null;
-    const title = titleEl ? titleEl.innerText.trim() : '';
-    let text = (el.innerText || '');
-    if(title) text = text.replace(title, '').trim();
-    if(title){ lines.push('## ' + title, ''); }
-    let inTable = false;
-    text.split('\n').forEach(raw=>{
-      const ln = raw.replace(/ /g, ' ');
-      if(ln.includes('\t')){
-        const cells = ln.split('\t').map(s=>s.trim().replace(/\|/g, '／'));
-        lines.push('| ' + cells.join(' | ') + ' |');
-        if(!inTable){ lines.push('| ' + cells.map(()=>'---').join(' | ') + ' |'); inTable = true; }
-      }else{
-        inTable = false;
-        lines.push(ln.trim());
+  var stopped = false;
+  var nodes = [].slice.call(document.querySelectorAll('#output > *'));
+
+  for(var ni = 0; ni < nodes.length; ni++){
+    var el = nodes[ni];
+    if(stopped) break;
+    if(shouldStopExportAt(el)) break;
+    if(el.querySelector && el.querySelector('.btn-deep')) continue;
+
+    var titleEl = el.querySelector ? el.querySelector('.card-title') : null;
+    var title = titleEl ? titleEl.innerText.trim() : '';
+    var isRashi = title.indexOf('南印度') >= 0 || (el.querySelector && el.querySelector('.rashi-grid'));
+    if(title) lines.push('## ' + title, '');
+
+    // ---- 骰面:一行搞定,不要一顆一行 ----
+    var dice = el.querySelector ? el.querySelector('.dice-display') : null;
+    if(dice){
+      var dieTexts = [].slice.call(dice.querySelectorAll('.die')).map(function(d){
+        var sy = d.querySelector('.die-symbol'), lb = d.querySelector('.label');
+        var sym = sy ? sy.innerText.trim() : '';
+        var lab = lb ? lb.innerText.trim().split(NL).join(' ') : '';
+        return sym + ' ' + lab;
+      });
+      if(dieTexts.length) lines.push('**' + dieTexts.join('　｜　') + '**', '');
+    }
+
+    // ---- 南印度方格盤:輸出 4x4 表格保住圖形結構 ----
+    var grid = el.querySelector ? el.querySelector('.rashi-grid') : null;
+    if(grid){
+      var cellMap = {};
+      [].slice.call(grid.querySelectorAll('.rashi-cell')).forEach(function(c){
+        var st = c.getAttribute('style') || '';
+        var mr = st.match(/grid-row:\s*(\d+)/);
+        var mc = st.match(/grid-column:\s*(\d+)/);
+        if(!mr || !mc) return;
+        var sg = c.querySelector('.rc-sign');
+        var hn = c.querySelector('.rc-hnum');
+        var pls = [].slice.call(c.querySelectorAll('.rc-planet')).map(function(x){ return x.innerText.trim(); });
+        var txt = (sg ? sg.innerText.trim() : '') + ' ' + (hn ? hn.innerText.trim() : '');
+        if(pls.length) txt += '<br>' + pls.join(' ');
+        cellMap[mr[1] + ',' + mc[1]] = txt.trim();
+      });
+      var center = el.querySelector('.rashi-center');
+      var centerTxt = center ? center.innerText.trim().split(NL).filter(function(x){return x.trim();}).join('<br>') : '';
+      lines.push('| | | | |');
+      lines.push('|---|---|---|---|');
+      for(var r = 1; r <= 4; r++){
+        var row = [];
+        for(var c2 = 1; c2 <= 4; c2++){
+          if(r >= 2 && r <= 3 && c2 >= 2 && c2 <= 3){
+            row.push(r === 2 && c2 === 2 ? centerTxt : '');
+          }else{
+            row.push(cellMap[r + ',' + c2] || '');
+          }
+        }
+        lines.push('| ' + row.join(' | ') + ' |');
       }
+      lines.push('');
+      // 圖例等其餘文字
+      var legend = el.querySelector('.rashi-legend');
+      if(legend) lines.push('_' + legend.innerText.trim().split(NL).join(' · ') + '_', '');
+      if(simple && isRashi){ stopped = true; }
+      continue;
+    }
+
+    // ---- 一般表格:用 <table> 正確轉 markdown ----
+    var tbl = el.querySelector ? el.querySelector('table') : null;
+    if(tbl){
+      var trs = [].slice.call(tbl.querySelectorAll('tr'));
+      trs.forEach(function(tr, ri){
+        var cells = [].slice.call(tr.children).map(function(td){
+          return td.innerText.trim().split(NL).join(' ').split('|').join('／');
+        });
+        lines.push('| ' + cells.join(' | ') + ' |');
+        if(ri === 0) lines.push('| ' + cells.map(function(){ return '---'; }).join(' | ') + ' |');
+      });
+      lines.push('');
+      if(simple && isRashi){ stopped = true; }
+      continue;
+    }
+
+    // ---- 其餘:純文字 ----
+    var text = el.innerText || '';
+    if(title) text = text.replace(title, '');
+    if(dice) text = text.replace(dice.innerText, '');
+    text.split(NL).forEach(function(raw){
+      var ln = raw.trim();
+      if(ln) lines.push(ln);
     });
     lines.push('');
-  });
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+    if(simple && isRashi){ stopped = true; }
+  }
+  return lines.join(NL).replace(/\n{3,}/g, NL + NL);
 }
 
 function exportDownload(fmt, customName){

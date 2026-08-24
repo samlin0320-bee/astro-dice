@@ -2296,6 +2296,45 @@ function getSelectedTopics(){
   return chips;
 }
 
+// 可重用:把 AI 解析結果(parsed)渲染成雙派 HTML。runAIQuick 與 restoreRecord(歷史還原)共用,
+// 這樣歷史紀錄可直接重繪原本的 AI,不需二次判讀。
+function aiDualHTML(parsed, usedModel, isHistory){
+  const esc = s => (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const block = (label, val) => `
+    <div class="ai-block">
+      <div class="ai-block-label">${label}</div>
+      <div class="ai-block-text">${esc(val || '(未給)')}</div>
+    </div>`;
+  if(!(parsed && parsed.western && parsed.vedic)) return '';
+  const w = parsed.western, v = parsed.vedic, c = parsed.consensus || {};
+  const inter = Array.isArray(c.intersection) ? c.intersection.filter(x=>x && x.trim()) : [];
+  const diverge = Array.isArray(c.divergence) ? c.divergence.filter(x=>x && x.trim()) : [];
+  const finalAdvice = c.final_advice || '';
+  const consensusHTML = (inter.length || diverge.length || finalAdvice) ? `
+    <div class="ai-consensus-card">
+      <div class="aic-title">🌈 兩派共識 · 交集事件 · 最終建議</div>
+      ${inter.length ? `<div class="aic-section aic-intersect"><div class="aic-label">✓ 兩派共通點(交集事件)</div><ul>${inter.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+      ${diverge.length ? `<div class="aic-section aic-diverge"><div class="aic-label">⚖ 兩派分歧點</div><ul>${diverge.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+      ${finalAdvice ? `<div class="aic-final"><div class="aic-label">💡 綜合建議</div><div class="aic-final-text">${esc(finalAdvice)}</div></div>` : ''}
+    </div>` : '';
+  const hint = isHistory
+    ? `<div class="ai-quick-hint">${usedModel || 'AI'} · <span style="color:var(--gold)">📜 歷史存檔的原始判讀</span></div>`
+    : `<div class="ai-quick-hint">${usedModel} · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
+  return `
+    <div class="ai-two-col">
+      <div class="ai-side ai-side-western">
+        <div class="ai-side-title">🌐 西洋派 Western</div>
+        ${block('🎲 雙星互動', w.dice_interaction)}${block('⭐ 命主星關係', w.lord_relation)}${block('🌌 天上呼應', w.transit)}${block('💡 建議', w.advice)}
+      </div>
+      <div class="ai-side ai-side-vedic">
+        <div class="ai-side-title">🕉 印度派 Vedic</div>
+        ${block('🎲 雙星互動', v.dice_interaction)}${block('⭐ 命主星關係', v.lord_relation)}${block('🌌 天上呼應', v.transit)}${block('💡 建議', v.advice)}
+      </div>
+    </div>
+    ${consensusHTML}
+    ${hint}`;
+}
+
 function renderAIQuickRead(ctx){
   const payload = {
     pA: ctx.pA.id, sA: ctx.sA.id, house_a: ctx.house_a,
@@ -2455,49 +2494,9 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
         <div class="ai-block-text">${esc(val || '(未給)')}</div>
       </div>`;
     if(parsed && parsed.western && parsed.vedic){
-      const w = parsed.western, v = parsed.vedic;
-      const c = parsed.consensus || {};
-      const inter = Array.isArray(c.intersection) ? c.intersection.filter(x=>x && x.trim()) : [];
-      const diverge = Array.isArray(c.divergence) ? c.divergence.filter(x=>x && x.trim()) : [];
-      const finalAdvice = c.final_advice || '';
-      const consensusHTML = (inter.length || diverge.length || finalAdvice) ? `
-        <div class="ai-consensus-card">
-          <div class="aic-title">🌈 兩派共識 · 交集事件 · 最終建議</div>
-          ${inter.length ? `
-            <div class="aic-section aic-intersect">
-              <div class="aic-label">✓ 兩派共通點(交集事件)</div>
-              <ul>${inter.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-            </div>` : ''}
-          ${diverge.length ? `
-            <div class="aic-section aic-diverge">
-              <div class="aic-label">⚖ 兩派分歧點</div>
-              <ul>${diverge.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
-            </div>` : ''}
-          ${finalAdvice ? `
-            <div class="aic-final">
-              <div class="aic-label">💡 綜合建議</div>
-              <div class="aic-final-text">${esc(finalAdvice)}</div>
-            </div>` : ''}
-        </div>` : '';
-      body.innerHTML = `
-        <div class="ai-two-col">
-          <div class="ai-side ai-side-western">
-            <div class="ai-side-title">🌐 西洋派 Western</div>
-            ${block('🎲 雙星互動', w.dice_interaction)}
-            ${block('⭐ 命主星關係', w.lord_relation)}
-            ${block('🌌 天上呼應', w.transit)}
-            ${block('💡 建議', w.advice)}
-          </div>
-          <div class="ai-side ai-side-vedic">
-            <div class="ai-side-title">🕉 印度派 Vedic</div>
-            ${block('🎲 雙星互動', v.dice_interaction)}
-            ${block('⭐ 命主星關係', v.lord_relation)}
-            ${block('🌌 天上呼應', v.transit)}
-            ${block('💡 建議', v.advice)}
-          </div>
-        </div>
-        ${consensusHTML}
-        <div class="ai-quick-hint">${usedModel} · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
+      body.innerHTML = aiDualHTML(parsed, usedModel, false);
+      // 存完整 AI 結果,供歷史還原直接重繪(不用二次判讀)
+      window.__lastAIParsed = parsed; window.__lastAIModel = usedModel;
     }else{
       // JSON 解析失敗 fallback:直接顯示原文
       body.innerHTML = `
@@ -3321,6 +3320,7 @@ function aspectsSummaryText(placements){
 
 // ============ 判讀核心 ============
 function run(){
+  window.__lastAIParsed = null; window.__lastAIModel = null;  // 新判讀清掉上一輪 AI(避免張冠李戴)
   const planet_a = $('planet_a').value;
   const sign_a   = $('sign_a').value;
   const house_a  = parseInt($('house_a').value);
@@ -3926,6 +3926,7 @@ function makeCurrentRecord(reason){
     aiWest: getText('.ai-side-western .ai-block:last-child .ai-block-text'),
     aiVedic: getText('.ai-side-vedic .ai-block:last-child .ai-block-text'),
     aiConsensus: getText('.ai-consensus-card .aic-final-text'),
+    aiFull: (window.__lastAIParsed ? {parsed: window.__lastAIParsed, model: window.__lastAIModel} : null),  // 完整 AI,供歷史還原重繪
     transitDate: ($('transit_date') && $('transit_date').value) || '',
     _usingDefaultKey: isUsingDefaultKey(),
     _autoLogReason: reason || '',
@@ -3972,6 +3973,7 @@ function updateLocalReadingAI(){
 }
 // 產生判讀後呼叫:立刻本機備份 + 排 15 秒 Notion 記錄(沒按 AI 也保證記到)
 function scheduleReadingLog(){
+  if(window.__restoring) return;  // 從歷史還原 → 不重新記錄(避免複製紀錄)
   saveReadingLocal();  // 本機當下立刻存,永不遺失
   clearTimeout(window.__logTimer);
   window.__readingLogged = false;
@@ -4159,7 +4161,25 @@ function restoreRecord(id){
   toggleSubdie();
   if(r.useSubdie){ $('planet_b').value = r.pB; $('sign_b').value = r.sB; }
   toggleHistory();
+  window.__restoring = true;   // 還原模式:run() 不重新建紀錄
   run();
+  window.__restoring = false;
+  // 有存完整 AI → 直接重繪原本判讀,不用二次判讀
+  if(r.aiFull && r.aiFull.parsed){
+    const body = document.getElementById('ai_quick_body');
+    if(body){ body.innerHTML = aiDualHTML(r.aiFull.parsed, r.aiFull.model, true); }
+    window.__lastAIParsed = r.aiFull.parsed; window.__lastAIModel = r.aiFull.model;
+  }else if(r.aiConsensus || r.aiWest){
+    // 舊紀錄只存了建議片段 → 至少把建議顯示出來(仍不用重判)
+    const body = document.getElementById('ai_quick_body');
+    if(body){ body.innerHTML = `
+      <div class="ai-two-col">
+        <div class="ai-side ai-side-western"><div class="ai-side-title">🌐 西洋派 · 建議</div><div class="ai-block"><div class="ai-block-text">${(r.aiWest||'(此紀錄未存完整西洋判讀)').replace(/</g,'&lt;')}</div></div></div>
+        <div class="ai-side ai-side-vedic"><div class="ai-side-title">🕉 印度派 · 建議</div><div class="ai-block"><div class="ai-block-text">${(r.aiVedic||'(此紀錄未存完整印度判讀)').replace(/</g,'&lt;')}</div></div></div>
+      </div>
+      ${r.aiConsensus ? `<div class="ai-consensus-card"><div class="aic-title">🌈 兩派共識</div><div class="aic-final"><div class="aic-final-text">${r.aiConsensus.replace(/</g,'&lt;')}</div></div></div>` : ''}
+      <div class="ai-quick-hint"><span style="color:var(--gold)">📜 歷史存檔(舊版僅存建議片段)</span></div>`; }
+  }
 }
 
 function deleteRecord(id){

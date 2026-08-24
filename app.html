@@ -3837,7 +3837,7 @@ function exportMarkdown(simple){
 
     var titleEl = el.querySelector ? el.querySelector('.card-title') : null;
     var title = titleEl ? titleEl.innerText.trim() : '';
-    var isRashi = title.indexOf('南印度') >= 0 || (el.querySelector && el.querySelector('.rashi-grid'));
+    var isRashi = title.indexOf('南印度') >= 0 || (el.querySelector && el.querySelector('.rashi-chart'));
     if(title) lines.push('## ' + title, '');
 
     // ---- 骰面:一行搞定,不要一顆一行 ----
@@ -3853,7 +3853,7 @@ function exportMarkdown(simple){
     }
 
     // ---- 南印度方格盤:輸出 4x4 表格保住圖形結構 ----
-    var grid = el.querySelector ? el.querySelector('.rashi-grid') : null;
+    var grid = el.querySelector ? el.querySelector('.rashi-chart') : null;
     if(grid){
       var cellMap = {};
       [].slice.call(grid.querySelectorAll('.rashi-cell')).forEach(function(c){

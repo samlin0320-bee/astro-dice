@@ -47,21 +47,34 @@ def compute_chunk(args):
         trop_signs = []
         sid_signs = []
         retros = []
+        trop_deg = []   # 星座內度數 x100 取整(0..2999),前端 /100 還原
+        sid_deg = []
+        naks = []       # 27 星宿 index 0..26(依恆星黃經)
 
         for name, pid in PIDS:
             result_t = swe.calc_ut(jd, pid)[0]
-            trop_signs.append(sign_of(result_t[0]))
+            lon_t = result_t[0] % 360
+            trop_signs.append(sign_of(lon_t))
+            trop_deg.append(int(round((lon_t % 30) * 100)))
             retros.append(1 if result_t[3] < 0 else 0)
-            lon_s = swe.calc_ut(jd, pid, swe.FLG_SIDEREAL)[0][0]
+            lon_s = swe.calc_ut(jd, pid, swe.FLG_SIDEREAL)[0][0] % 360
             sid_signs.append(sign_of(lon_s))
+            sid_deg.append(int(round((lon_s % 30) * 100)))
+            naks.append(int(lon_s / (360.0 / 27)))   # 每宿 13°20'
 
         # Ketu = Rahu + 180
         rahu_result = swe.calc_ut(jd, swe.MEAN_NODE)[0]
-        trop_signs.append(sign_of(rahu_result[0] + 180))
-        sid_signs.append(sign_of(swe.calc_ut(jd, swe.MEAN_NODE, swe.FLG_SIDEREAL)[0][0] + 180))
+        lon_t_k = (rahu_result[0] + 180) % 360
+        trop_signs.append(sign_of(lon_t_k))
+        trop_deg.append(int(round((lon_t_k % 30) * 100)))
+        lon_s_k = (swe.calc_ut(jd, swe.MEAN_NODE, swe.FLG_SIDEREAL)[0][0] + 180) % 360
+        sid_signs.append(sign_of(lon_s_k))
+        sid_deg.append(int(round((lon_s_k % 30) * 100)))
+        naks.append(int(lon_s_k / (360.0 / 27)))
         retros.append(1 if rahu_result[3] < 0 else 0)
 
-        points.append({'t': cur_sec, 'T': trop_signs, 'S': sid_signs, 'R': retros})
+        points.append({'t': cur_sec, 'T': trop_signs, 'S': sid_signs, 'R': retros,
+                       'D': trop_deg, 'DS': sid_deg, 'N': naks})
         cur_sec += step_sec
 
     return points
@@ -118,7 +131,7 @@ def main():
         'sidereal_system': 'Lahiri',
         'resolution_hours': STEP_HOURS,
         'planets_order': PLANET_NAMES,
-        'note': 'T = tropical sign indices (西洋), S = sidereal Lahiri sign indices (印度), R = retrograde 0/1 per planet (逆行). 6h resolution, absolute range 2018-01-01 → 2051-01-01 (33y).',
+        'note': 'T=tropical sign idx, S=sidereal Lahiri sign idx, R=retrograde 0/1, D=tropical deg-in-sign x100, DS=sidereal deg-in-sign x100, N=nakshatra idx 0-26. 6h resolution, 2018-01-01 → 2051-01-01 (33y).',
         'points': dedup,
     }
     out_path = os.path.join(os.path.dirname(__file__), '..', 'ephemeris.json')

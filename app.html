@@ -646,8 +646,18 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .sky-p .pn{font-weight:700;font-size:13px;margin-bottom:4px;display:flex;align-items:center;gap:4px}
 .sky-p .rr{font-size:9px;font-weight:700;color:#fff;background:#c9302c;border-radius:3px;padding:0 4px;}
 .sky-p .row2{display:flex;justify-content:space-between;gap:6px;font-size:12px;}
+.sky-line{font-size:12px;line-height:1.5;}
+.sky-line.w{color:var(--western)}
+.sky-line.v{color:var(--vedic)}
+.sky-line.n{color:var(--gold-soft,#e8cf7a);font-size:11px;}
 .sky-p .w{color:var(--western)} .sky-p .v{color:var(--vedic)}
 html[data-theme="light"] .sky-p{background:#f4f0fb;}
+.sky-modes{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px;}
+.sky-mode{background:var(--bg2,rgba(0,0,0,.18));border:1px solid var(--border);color:var(--muted);
+  border-radius:14px;padding:4px 12px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;}
+.sky-mode:hover{color:var(--text);border-color:var(--gold);}
+.sky-mode.on{background:var(--gold);color:#2a1a05;border-color:var(--gold);font-weight:700;}
+html[data-theme="light"] .sky-mode{background:#f4f0fb;}
 /* ============ 三引擎判讀卡 ============ */
 .te-card{background:linear-gradient(135deg, rgba(154,213,255,.06), rgba(212,175,55,.05));}
 .te-block{padding:12px 0;border-top:1px dashed var(--border);}
@@ -878,8 +888,15 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   </div>
 
   <details class="card sky-card" id="sky_now">
-    <summary class="sky-summary">🌌 此刻天上行運（開網頁時間）· <span style="color:var(--western)">西洋</span> × <span style="color:var(--vedic)">印度</span></summary>
+    <summary class="sky-summary">🌌 此刻天上行運（開網頁時間）· 可切換 <span style="color:var(--western)">西洋迴歸</span> / <span style="color:var(--vedic)">印度恆星</span></summary>
     <div class="sky-body">
+      <div class="sky-modes">
+        <button type="button" class="sky-mode" data-opt="W" onclick="toggleSkyOpt('W')">☀ 西洋迴歸</button>
+        <button type="button" class="sky-mode" data-opt="S" onclick="toggleSkyOpt('S')">🕉 印度恆星</button>
+        <button type="button" class="sky-mode" data-opt="D" onclick="toggleSkyOpt('D')">📐 度數</button>
+        <button type="button" class="sky-mode" data-opt="N" onclick="toggleSkyOpt('N')">✨ 星宿</button>
+        <span class="muted" style="font-size:11px;align-self:center;margin-left:4px">可任意單選/複選</span>
+      </div>
       <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
       <div class="muted" style="font-size:11px;margin-top:8px">此為打開網頁當下的天象快照。要用在判讀請到下方「🌌 當前行運」按「帶入行運」。<span style="color:var(--vedic)">印度（恆星）看因果業力</span>，股市/財務類問題可參考。</div>
     </div>
@@ -1990,24 +2007,87 @@ const SKY_OPEN_KEY = 'dices_skynow_open';
 function renderSkyNow(){
   const grid = $('sky_now_grid'); if(!grid) return;
   if(!EPHEM || !EPHEM.points){ grid.textContent = '星曆未載入'; return; }
-  const nowSec = Math.floor(Date.now()/1000);
-  const pt = findClosestPoint(nowSec);
+  const pt = findClosestPoint(Math.floor(Date.now()/1000));
   if(!pt){ grid.textContent = '找不到星曆點'; return; }
+  const opts = getSkyOpts();
+  const showW = opts.includes('W'), showS = opts.includes('S');
+  const showD = opts.includes('D'), showN = opts.includes('N');
   const order = EPHEM.planets_order;
-  const T = pt.T, S = pt.S, R = pt.R || null;
+  const T = pt.T, S = pt.S, R = pt.R || null, D = pt.D || null, DS = pt.DS || null;
+  const hasDeg = !!(D && DS), hasNak = !!DS;   // 星宿由 S+DS 推算,有 DS 就有星宿
   const cells = order.map((pid, i)=>{
     const pl = findPlanet(pid);
     const retro = (R && R[i] === 1) ? '<span class="rr">R</span>' : '';
-    const wSign = (SIGNS[T[i]]||{}).zh || '?';
-    const vSign = (SIGNS[S[i]]||{}).zh || '?';
-    return `<div class="sky-p">
-      <div class="pn">${pl ? pl.sym+' '+pl.zh : pid} ${retro}</div>
-      <div class="row2"><span class="w">西 ${wSign}</span><span class="v">印 ${vSign}</span></div>
-    </div>`;
+    const rows = [];
+    if(showW){
+      let t = '西 ' + ((SIGNS[T[i]]||{}).zh || '?');
+      if(showD && hasDeg) t += ' ' + fmtDeg(D[i]);
+      rows.push('<div class="sky-line w">' + t + '</div>');
+    }
+    if(showS){
+      let t = '印 ' + ((SIGNS[S[i]]||{}).zh || '?');
+      if(showD && hasDeg) t += ' ' + fmtDeg(DS[i]);
+      rows.push('<div class="sky-line v">' + t + '</div>');
+    }
+    if(showN && hasNak){
+      var nk = nakOf(S[i], DS[i]);
+      rows.push('<div class="sky-line n">✨ ' + (nk != null ? NAKSHATRA[nk] : '?') + '</div>');
+    }
+    return '<div class="sky-p"><div class="pn">' + (pl ? pl.sym + ' ' + pl.zh : pid) + ' ' + retro + '</div>' + rows.join('') + '</div>';
   }).join('');
   const d = new Date(pt.t*1000);
   const dLabel = d.toLocaleString('zh-TW',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  grid.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：${dLabel}（最接近現在）</div><div class="sky-grid">${cells}</div>`;
+  const labels = [];
+  if(showW) labels.push('<span style="color:var(--western)">西洋迴歸</span>');
+  if(showS) labels.push('<span style="color:var(--vedic)">印度恆星</span>');
+  if(showD) labels.push(hasDeg ? '度數' : '<span style="color:var(--warn)">度數(星曆待更新)</span>');
+  if(showN) labels.push(hasNak ? '星宿' : '<span style="color:var(--warn)">星宿(星曆待更新)</span>');
+  grid.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：' + dLabel + '（最接近現在）· ' + labels.join(' + ') + '</div><div class="sky-grid">' + cells + '</div>';
+  const btns = document.querySelectorAll('.sky-mode');
+  for(let i=0;i<btns.length;i++){ btns[i].classList.toggle('on', opts.includes(btns[i].dataset.opt)); }
+}
+// 27 星宿 Nakshatra(印度,每宿 13°20');附中文二十八宿對應
+const NAKSHATRA = ['Ashwini 婁','Bharani 胃','Krittika 昴','Rohini 畢','Mrigashira 觜','Ardra 參',
+  'Punarvasu 井','Pushya 鬼','Ashlesha 柳','Magha 星','P.Phalguni 張','U.Phalguni 翼',
+  'Hasta 軫','Chitra 角','Swati 亢','Vishakha 氐','Anuradha 房','Jyeshtha 心',
+  'Mula 尾','P.Ashadha 箕','U.Ashadha 斗','Shravana 女','Dhanishta 虛','Shatabhisha 危',
+  'P.Bhadra 室','U.Bhadra 壁','Revati 奎'];
+// 度數 x10 → 「12°34'」(星曆存 x10,即 0.1 度精度)
+function fmtDeg(d10){
+  if(d10 == null) return '';
+  var total = d10 / 10;               // 星座內度數
+  var deg = Math.floor(total);
+  var min = Math.round((total - deg) * 60);
+  if(min >= 60){ min = 0; deg += 1; }
+  return deg + '°' + (min < 10 ? '0' : '') + min + "'";
+}
+// 由「印度星座 index + 星座內度數(x10)」推算 27 星宿(每宿 13°20' = 13.3333°)
+function nakOf(signIdx, ds10){
+  if(signIdx == null || ds10 == null) return null;
+  var lon = signIdx * 30 + ds10 / 10;   // 恆星黃經 0..360
+  var idx = Math.floor(lon / (360 / 27));
+  return (idx >= 0 && idx < 27) ? idx : null;
+}
+// 行運顯示選項(可複選):W=西洋迴歸 S=印度恆星 D=度數 N=星宿;預設 W+S,記憶使用者選擇
+const SKY_OPTS_KEY = 'dices_skynow_opts';
+function getSkyOpts(){
+  try{
+    const raw = localStorage.getItem(SKY_OPTS_KEY);
+    if(raw){
+      const arr = JSON.parse(raw);
+      if(Array.isArray(arr) && arr.length) return arr;
+    }
+  }catch(e){}
+  return ['W','S'];   // 預設:西洋+印度
+}
+function toggleSkyOpt(o){
+  let opts = getSkyOpts();
+  const i = opts.indexOf(o);
+  if(i >= 0) opts.splice(i, 1); else opts.push(o);
+  // 至少要留一個座標系(W 或 S),否則沒東西可顯示
+  if(!opts.includes('W') && !opts.includes('S')) opts.push(o === 'W' ? 'S' : 'W');
+  try{ localStorage.setItem(SKY_OPTS_KEY, JSON.stringify(opts)); }catch(e){}
+  renderSkyNow();
 }
 // 記憶開/收狀態(預設開)
 function initSkyNow(){

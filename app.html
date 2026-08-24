@@ -4057,6 +4057,23 @@ function mxCopyPlain(btn){
     mxFlash(btn, '\u2713 \u7D14\u6587\u5B57\u5DF2\u8907\u88FD');
   }).catch(function(e){ alert('\u8907\u88FD\u5931\u6557:' + e.message); });
 }
+// 簡易版:只到南印度方格盤(含),適合快速分享
+function mxCopySimpleMD(btn){
+  navigator.clipboard.writeText(exportMarkdown(true)).then(function(){
+    mxFlash(btn, '✓ 簡易版已複製');
+  }).catch(function(e){ mxFlash(btn, '❌ ' + e.message.slice(0,30)); });
+}
+function mxDownloadSimpleMD(btn){
+  var content = exportMarkdown(true);
+  var blob = new Blob([content], {type:'text/markdown;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var name = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('md') : '占星骰子.md';
+  a.download = name.replace(/\.md$/, '_簡易版.md');
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+  mxFlash(btn, '✓ 簡易版已下載');
+}
 function mxDownloadMD(btn){
   exportDownload('md', makeQuestionFileName('md'));
   mxFlash(btn, '\u2713 MD \u5DF2\u4E0B\u8F09');
@@ -4314,6 +4331,8 @@ function renderMultiExportPanel(){
   html += '</div>';
   html += '<div class="mx-row">';
   html += '<button class="mx-btn" onclick="mxDownloadMD(this)">\uD83D\uDCE5 \u4E0B\u8F09 MD \u6A94</button>';
+  html += '<button class="mx-btn" onclick="mxCopySimpleMD(this)" title="只到南印度方格盤,適合快速分享">📄 複製簡易版</button>';
+  html += '<button class="mx-btn" onclick="mxDownloadSimpleMD(this)" title="只到南印度方格盤">📄 下載簡易版</button>';
   html += '<button class="mx-btn" onclick="mxCopySection(this)">\uD83D\uDCCE \u9EDE\u9078\u8907\u88FD MD \u6BB5\u843D</button>';
   html += '<button class="mx-btn" onclick="saveCurrentRecord(this)">\uD83D\uDCBE \u5132\u5B58\u9019\u6B21\u7D50\u679C</button>';
   html += '</div>';

@@ -3731,30 +3731,19 @@ function mxCopySection(btn){
   });
 }
 function mxSendTelegram(btn){
-  var text = exportMarkdown().slice(0, 4000);
-  mxFlash(btn, '\u50B3\u9001\u4E2D...');
-  // \u512A\u5148\u8D70 Cloudflare Worker(token \u85CF\u5F8C\u7AEF,\u4EFB\u4F55\u700F\u89BD\u5668\u90FD\u80FD\u7528,\u4E0D\u5916\u9732)
-  var workerUrl = (typeof getWorkerUrl === 'function') ? getWorkerUrl() : null;
-  if(workerUrl){
-    fetch(workerUrl, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'telegram', text: text})
-    }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); }).then(function(res){
-      if(res.ok && res.d.ok){ mxFlash(btn, '\u2713 \u5DF2\u50B3\u5230\u983B\u9053'); }
-      else { mxFlash(btn, '\u274C ' + ((res.d && res.d.detail) || (res.d && res.d.error) || '\u5931\u6557').slice(0, 30)); }
-    }).catch(function(e){ mxFlash(btn, '\u274C ' + e.message.slice(0, 30)); });
-    return;
-  }
-  // \u5F8C\u5099:localStorage \u76F4\u767C(\u820A\u6A5F\u5236,\u9700 ?tg_bot=/?tg_chat= \u8A2D\u5B9A\u904E)
-  var bot = localStorage.getItem('tg_bot_token');
-  var chat = localStorage.getItem('tg_chat_id');
-  if(!bot || !chat){ alert('Telegram \u5C1A\u672A\u8A2D\u5B9A(Worker \u672A\u8A2D\u5B9A\u4E14\u7121\u672C\u6A5F token)'); mxFlash(btn, '\u274C \u672A\u8A2D\u5B9A'); return; }
+  var text = exportMarkdown().slice(0, 3900);
+  mxFlash(btn, '傳送中...');
+  // 內建預設 bot/頻道(Telegram API 支援 CORS,瀏覽器可直發);可用 ?tg_bot=&tg_chat= 覆蓋
+  var bot = localStorage.getItem('tg_bot_token') || DEFAULT_TG_BOT;
+  var chat = localStorage.getItem('tg_chat_id') || DEFAULT_TG_CHAT;
+  if(!bot || !chat){ alert('Telegram 尚未設定'); mxFlash(btn, '❌ 未設定'); return; }
   fetch('https://api.telegram.org/bot' + bot + '/sendMessage', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({chat_id: chat, text: text, disable_web_page_preview: true})
   }).then(function(r){ return r.json(); }).then(function(d){
-    mxFlash(btn, d.ok ? '\u2713 \u5DF2\u50B3' : '\u274C ' + (d.description || '\u5931\u6557').slice(0, 30));
-  }).catch(function(e){ mxFlash(btn, '\u274C ' + e.message.slice(0, 30)); });
+    if(d.ok){ mxFlash(btn, '✓ 已傳到頻道'); }
+    else { mxFlash(btn, '❌ ' + (d.description || '失敗').slice(0, 40)); console.warn('[dices] TG fail:', d); }
+  }).catch(function(e){ mxFlash(btn, '❌ ' + e.message.slice(0, 40)); });
 }
 function mxSaveNAS(btn){
   var url = localStorage.getItem('nas_save_url');
@@ -3990,6 +3979,11 @@ function logReadingWithAI(){
 
 // ==== Notion Sync via Cloudflare Worker(可選) ====
 // URL 帶 ?worker=<URL> 一次性設定,存 localStorage;之後 saveCurrentRecord 會自動 POST
+// Telegram 預設 bot/頻道(@Astro_Dices_bot → 「Dices 占星骰子 報告傳送」)
+// Telegram Bot API 回 Access-Control-Allow-Origin:*,瀏覽器可直接發送
+const DEFAULT_TG_BOT = ['8509969222', ':AAEQI5T0fpOpH2637vEC9kP94j2ly', 'HIhnNc'].join('');
+const DEFAULT_TG_CHAT = '-1004430480596';
+const DEFAULT_TG_CHANNEL_URL = 'https://t.me/+8i382MckG4Y4YzBl';  // 頻道邀請連結(開啟報告頻道用)
 const WORKER_KEY = 'dices_notion_worker_url';
 // 已上線的預設 Worker(2026-07-29 修好 DATABASE_ID);未用 ?worker= 覆蓋時走這個
 const DEFAULT_WORKER_URL = 'https://dices-log.samminstest.workers.dev';

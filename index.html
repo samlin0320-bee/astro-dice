@@ -3793,7 +3793,7 @@ function mxOpenSheet(){
   window.open(u, '_blank');
 }
 function mxOpenReport(){
-  var u = localStorage.getItem('report_channel_url');
+  var u = localStorage.getItem('report_channel_url') || DEFAULT_TG_CHANNEL_URL;
   if(!u){ alert('\u672A\u8A2D\u5B9A\u5831\u544A\u983B\u9053 URL (?report=<URL> \u5E36\u5165)'); return; }
   window.open(u, '_blank');
 }

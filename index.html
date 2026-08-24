@@ -4015,15 +4015,21 @@ async function mxCopyImage(btn){
     ctx.fillText('dices.3minstest.com', W/2, H - 24);
 
     var blob = await new Promise(function(res){ cv.toBlob(res, 'image/png'); });
+    var saved = false;
     if(navigator.clipboard && window.ClipboardItem){
-      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
-      mxFlash(btn, '✓ 圖片已複製,可直接貼上');
-    }else{
+      try{
+        await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+        mxFlash(btn, '✓ 圖片已複製,可直接貼上');
+        saved = true;
+      }catch(clipErr){ /* 權限/手勢限制 → 落到下載 */ }
+    }
+    if(!saved){
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = (typeof makeQuestionFileName==='function' ? makeQuestionFileName('png') : '占星骰子結果.png');
-      a.click();
-      mxFlash(btn, '✓ 已下載圖片(瀏覽器不支援複製)');
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+      mxFlash(btn, '✓ 已下載圖片(剪貼簿不可用)');
     }
   }catch(e){
     mxFlash(btn, '❌ ' + String(e.message||e).slice(0,40));

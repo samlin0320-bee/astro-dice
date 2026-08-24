@@ -3918,7 +3918,26 @@ function exportMarkdown(simple){
     lines.push('');
     if(simple && isRashi){ stopped = true; }
   }
-  return lines.join(NL).replace(/\n{3,}/g, NL + NL);
+  // 濾掉方格盤殘留的空表格列(cell 內容已用專屬表格輸出)
+  var cleaned = [];
+  for(var li = 0; li < lines.length; li++){
+    var ln = lines[li];
+    var t = ln.trim();
+    if(t.charAt(0) === "|"){
+      var cells = t.split("|").slice(1, -1);
+      var allEmpty = cells.length > 0 && cells.every(function(c){
+        var v = c.trim();
+        return v === "" || /^-+$/.test(v);
+      });
+      if(allEmpty){
+        var prevT = (cleaned[cleaned.length - 1] || "").trim();
+        // 前一行也是表格列或空行 → 這是殘留空表格,跳過
+        if(prevT === "" || prevT.charAt(0) === "|") continue;
+      }
+    }
+    cleaned.push(ln);
+  }
+  return cleaned.join(NL).replace(new RegExp(NL + "{3,}", "g"), NL + NL);
 }
 
 function exportDownload(fmt, customName){

@@ -643,6 +643,13 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .time-summary:hover{color:var(--gold)}
 /* 行運卡:度數獨立樣式,跟星座拉開 */
 .sky-line .deg{color:var(--muted);font-size:11px;margin-left:4px;}
+.nak-cta{margin-top:10px;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.7;
+  background:linear-gradient(135deg,rgba(255,154,60,.12),rgba(212,175,55,.08));
+  border:1px solid rgba(255,154,60,.35);color:var(--text);}
+.nak-link{display:inline-block;margin-top:4px;color:var(--vedic);font-weight:700;text-decoration:none;
+  border-bottom:1px solid var(--vedic);}
+.nak-link:hover{color:var(--gold);border-color:var(--gold);}
+html[data-theme="light"] .nak-cta{background:linear-gradient(135deg,#fff0e0,#fdf6e3);}
 /* ============ 卜卦法則檢查卡 ============ */
 .hr-card{background:linear-gradient(135deg,rgba(212,175,55,.07),rgba(154,213,255,.04));}
 .hr-sec{padding:10px 0;border-top:1px dashed var(--border);}
@@ -903,6 +910,25 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   <h1>占星骰子 · 五骰判讀</h1>
   <p class="subtitle">西洋 × 印度雙派分流 · 含當前行運整合</p>
 
+  <details class="card sky-card" id="sky_now">
+    <summary class="sky-summary">🌌 此刻天上行運<span class="sky-sub">（開網頁時間快照）</span></summary>
+    <div class="sky-body">
+      <div class="sky-modes">
+        <button type="button" class="sky-mode" data-opt="W" onclick="toggleSkyOpt('W')">☀ 西洋迴歸</button>
+        <button type="button" class="sky-mode" data-opt="S" onclick="toggleSkyOpt('S')">🕉 印度恆星</button>
+        <button type="button" class="sky-mode" data-opt="D" onclick="toggleSkyOpt('D')">📐 度數</button>
+        <button type="button" class="sky-mode" data-opt="N" onclick="toggleSkyOpt('N')">✨ 星宿</button>
+        <span class="muted" style="font-size:11px;align-self:center;margin-left:4px">可任意單選/複選</span>
+      </div>
+      <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
+      <div class="muted" style="font-size:11px;margin-top:8px">此為打開網頁當下的天象快照。要用在判讀請到下方「🌌 當前行運」按「帶入行運」。<span style="color:var(--vedic)">印度（恆星）看因果業力</span>，股市/財務類問題可參考。</div>
+      <div id="nak_cta" class="nak-cta" style="display:none">
+        ✨ <b>27 星宿（Nakshatra）</b>是印度占星的核心 —— 月亮星宿決定你的先天特質、大運（Dasha）起點與擇日吉凶。
+        想真正讀懂自己的星宿與命盤？<a href="https://rightone.3minstest.com/" target="_blank" rel="noopener" class="nak-link">👉 找我上課／預約解盤</a>
+      </div>
+    </div>
+  </details>
+
   <div class="tabs">
     <button class="tab active" data-tab="manual" onclick="switchTab('manual')">✋ 手動輸入</button>
     <button class="tab" data-tab="image" onclick="switchTab('image')">📷 圖片輸入</button>
@@ -950,20 +976,6 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
     </div>
   </div>
 
-  <details class="card sky-card" id="sky_now">
-    <summary class="sky-summary">🌌 此刻天上行運<span class="sky-sub">（開網頁時間快照）</span></summary>
-    <div class="sky-body">
-      <div class="sky-modes">
-        <button type="button" class="sky-mode" data-opt="W" onclick="toggleSkyOpt('W')">☀ 西洋迴歸</button>
-        <button type="button" class="sky-mode" data-opt="S" onclick="toggleSkyOpt('S')">🕉 印度恆星</button>
-        <button type="button" class="sky-mode" data-opt="D" onclick="toggleSkyOpt('D')">📐 度數</button>
-        <button type="button" class="sky-mode" data-opt="N" onclick="toggleSkyOpt('N')">✨ 星宿</button>
-        <span class="muted" style="font-size:11px;align-self:center;margin-left:4px">可任意單選/複選</span>
-      </div>
-      <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
-      <div class="muted" style="font-size:11px;margin-top:8px">此為打開網頁當下的天象快照。要用在判讀請到下方「🌌 當前行運」按「帶入行運」。<span style="color:var(--vedic)">印度（恆星）看因果業力</span>，股市/財務類問題可參考。</div>
-    </div>
-  </details>
 
   <div class="card">
     <div class="card-title"><span class="step-no">1</span>💭 問題（選填）<span class="step-tip">← 先打你的問題,越具體越準</span></div>
@@ -2137,6 +2149,9 @@ function renderSkyNow(){
   grid.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：' + dLabel + '（最接近現在）· ' + labels.join(' + ') + '</div><div class="sky-grid">' + cells + '</div>';
   const btns = document.querySelectorAll('.sky-mode');
   for(let i=0;i<btns.length;i++){ btns[i].classList.toggle('on', opts.includes(btns[i].dataset.opt)); }
+  // 勾了星宿 → 顯示「找我上課」導引
+  const cta = document.getElementById('nak_cta');
+  if(cta) cta.style.display = (showN && hasNak) ? 'block' : 'none';
 }
 // 27 星宿 Nakshatra(印度,每宿 13°20');附中文二十八宿對應
 const NAKSHATRA = ['Ashwini 婁','Bharani 胃','Krittika 昴','Rohini 畢','Mrigashira 觜','Ardra 參',

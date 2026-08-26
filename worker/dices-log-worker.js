@@ -26,6 +26,32 @@ export default {
       return json({ error: 'invalid json' }, 400);
     }
 
+    // ── Telegram 傳 MD 檔(action:'telegram_doc') — 用 sendDocument,避免長文洗版 ──
+    if (rec && rec.action === 'telegram_doc') {
+      const tgToken = env.TG_BOT_TOKEN;
+      const tgChat = env.TG_CHAT_ID;
+      if (!tgToken || !tgChat) {
+        return json({ error: 'telegram not configured' }, 500);
+      }
+      const filename = String(rec.filename || 'astro-dice.md').slice(0, 120);
+      const content = String(rec.content || '');
+      if (!content.trim()) return json({ error: 'empty content' }, 400);
+      const caption = String(rec.caption || '').slice(0, 1000);
+      const form = new FormData();
+      form.append('chat_id', tgChat);
+      if (caption) form.append('caption', caption);
+      form.append('document', new Blob([content], { type: 'text/markdown;charset=utf-8' }), filename);
+      const tgResp = await fetch(`https://api.telegram.org/bot${tgToken}/sendDocument`, {
+        method: 'POST',
+        body: form,
+      });
+      const tgData = await tgResp.json().catch(() => ({}));
+      if (!tgResp.ok || !tgData.ok) {
+        return json({ error: 'telegram api', status: tgResp.status, detail: (tgData.description || '').slice(0, 300) }, 502);
+      }
+      return json({ ok: true, message_id: tgData.result && tgData.result.message_id });
+    }
+
     // ── Telegram 發送路徑(action:'telegram') ──
     // token/chat 藏在 Worker secret,前端不碰,任何瀏覽器都能用
     if (rec && rec.action === 'telegram') {

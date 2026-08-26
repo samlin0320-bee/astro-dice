@@ -1043,63 +1043,8 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
     </div>
   </div>
 
-  <div class="card" id="card_selfroll">
-    <div class="card-title"><span class="step-no">2</span>🎰 幫我骰（線上擲骰）<span class="step-tip">← 沒實體骰?按這裡幫你擲</span></div>
-    <div class="muted" style="margin-bottom:10px">
-      沒有實體骰?讓網站幫你擲。<b>三骰</b>=只看主盤(行星・星座・宮位);
-      <b>五骰</b>=再加副骰兩顆,<b style="color:var(--gold)">代表所問的「人／事／物」</b>,判讀你與對方之間產生的關係。
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button type="button" class="btn" onclick="rollAstroDice(3)">🎲 骰三顆（主盤）</button>
-      <button type="button" class="btn" onclick="rollAstroDice(5)">🎲 骰五顆（主+副）</button>
-      <button type="button" class="btn-ghost" id="btn_reroll" onclick="reRollDice()" title="保留上次結果,用同樣顆數再骰一次" disabled>🔁 複骰（再骰一次）</button>
-      <button type="button" class="btn-ghost" id="btn_reverify" onclick="compareWithLastRoll()" title="把這次跟上次的結果並排對照、算一致度" disabled>⚖ 跟上次複驗</button>
-    </div>
-    <div id="roll_stage" class="dice-display" style="display:none;margin:16px 0"></div>
-    <div id="roll_result" class="muted" style="margin-top:10px;min-height:1.4em"></div>
-    <div id="reverify_panel"></div>
-  </div>
-
   <div class="card">
-    <div class="card-title"><span class="step-no">3</span>🎲 主盤三骰 — 決定基準宮位<span class="step-tip">← 有實體骰就直接填這裡</span></div>
-    <div class="row">
-      <div class="field">
-        <label>骰 1 · 行星 A</label>
-        <select id="planet_a"></select>
-      </div>
-      <div class="field">
-        <label>骰 2 · 星座 A</label>
-        <select id="sign_a"></select>
-      </div>
-      <div class="field">
-        <label>骰 3 · 基準宮位</label>
-        <select id="house_a"></select>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" id="card_subdie">
-    <div class="card-title" style="display:flex;align-items:center;gap:8px">
-      <span class="step-no">3A</span>🎲 副骰兩顆 — 相位 / 命主飛宮判讀
-      <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
-        <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
-      </label>
-    </div>
-    <div class="muted" style="margin-bottom:12px">副骰 = <b style="color:var(--gold)">所問的「人／事／物」</b>（對方、標的、事件本身）。宮位依主盤推算自動代入（整宮制 Whole Sign），用來看你與對方之間的相位關係。</div>
-    <div class="row" id="subdie_fields">
-      <div class="field">
-        <label>骰 4 · 行星 B</label>
-        <select id="planet_b"></select>
-      </div>
-      <div class="field">
-        <label>骰 5 · 星座 B</label>
-        <select id="sign_b"></select>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title"><span class="step-no">4</span>🌌 當前行運（選填，填越多判讀越精準）<span class="step-tip">← 按「帶入行運」自動填</span></div>
+    <div class="card-title"><span class="step-no">2</span>🌌 當前行運（選填，填越多判讀越精準）<span class="step-tip">← 按「帶入行運」自動填</span></div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
       <button class="btn-ghost" onclick="loadCurrentTransits()">🌐 帶入行運</button>
       <div class="field" style="margin:0;display:flex;align-items:center;gap:6px">
@@ -1135,6 +1080,65 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
     </div>
     <div id="transit_loaded" class="muted" style="margin-top:12px;min-height:1.3em;font-size:13px"></div>
   </div>
+
+  <div class="card" id="card_selfroll">
+    <div class="card-title"><span class="step-no">3</span>🎰 幫我骰（線上擲骰）<span class="step-tip">← 沒實體骰?按這裡幫你擲</span></div>
+    <div class="muted" style="margin-bottom:10px">
+      沒有實體骰?讓網站幫你擲。<b>三骰</b>=只看主盤(行星・星座・宮位);
+      <b>五骰</b>=再加副骰兩顆,<b style="color:var(--gold)">代表所問的「人／事／物」</b>,判讀你與對方之間產生的關係。
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn" onclick="rollAstroDice(3)">🎲 骰三顆（主盤）</button>
+      <button type="button" class="btn" onclick="rollAstroDice(5)">🎲 骰五顆（主+副）</button>
+      <button type="button" class="btn-ghost" id="btn_reroll" onclick="reRollDice()" title="保留上次結果,用同樣顆數再骰一次" disabled>🔁 複骰（再骰一次）</button>
+      <button type="button" class="btn-ghost" id="btn_reverify" onclick="compareWithLastRoll()" title="把這次跟上次的結果並排對照、算一致度" disabled>⚖ 跟上次複驗</button>
+    </div>
+    <div id="roll_stage" class="dice-display" style="display:none;margin:16px 0"></div>
+    <div id="roll_result" class="muted" style="margin-top:10px;min-height:1.4em"></div>
+    <div id="reverify_panel"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="step-no">4</span>🎲 主盤三骰 — 決定基準宮位<span class="step-tip">← 有實體骰就直接填這裡</span></div>
+    <div class="row">
+      <div class="field">
+        <label>骰 1 · 行星 A</label>
+        <select id="planet_a"></select>
+      </div>
+      <div class="field">
+        <label>骰 2 · 星座 A</label>
+        <select id="sign_a"></select>
+      </div>
+      <div class="field">
+        <label>骰 3 · 基準宮位</label>
+        <select id="house_a"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="card_subdie">
+    <div class="card-title" style="display:flex;align-items:center;gap:8px">
+      <span class="step-no">4A</span>🎲 副骰兩顆 — 相位 / 命主飛宮判讀
+      <label style="margin-left:auto;font-size:13px;color:var(--text);font-weight:normal;cursor:pointer">
+        <input type="checkbox" id="use_subdie" onchange="toggleSubdie()"> 啟用副骰
+      </label>
+    </div>
+    <div class="muted" style="margin-bottom:12px">副骰 = <b style="color:var(--gold)">所問的「人／事／物」</b>（對方、標的、事件本身）。宮位依主盤推算自動代入（整宮制 Whole Sign），用來看你與對方之間的相位關係。</div>
+    <div class="row" id="subdie_fields">
+      <div class="field">
+        <label>骰 4 · 行星 B</label>
+        <select id="planet_b"></select>
+      </div>
+      <div class="field">
+        <label>骰 5 · 星座 B</label>
+        <select id="sign_b"></select>
+      </div>
+    </div>
+  </div>
+
+
+
+
 
   <div class="center">
     <button class="btn btn-primary-step" onclick="run()"><span class="step-no on-btn">5</span>產生判讀 →</button>
@@ -4414,6 +4418,68 @@ function mxFlash(btn, msg, holdMs){
     btn._flashTimer = null;
   }, hold);
 }
+// Telegram:改傳 MD 檔(sendDocument),避免長文洗版
+function mxSendTelegram(btn){
+  mxSendTelegramDoc(btn, false);
+}
+function mxSendTelegramSimple(btn){
+  mxSendTelegramDoc(btn, true);
+}
+function mxSendTelegramDoc(btn, simple){
+  var md = exportMarkdown(!!simple);
+  var name = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('md') : '占星骰子.md';
+  if(simple) name = name.replace(/\.md$/, '_簡易版.md');
+  mxFlash(btn, '傳送中...');
+  var workerUrl = (typeof getWorkerUrl === 'function') ? getWorkerUrl() : '';
+  if(!workerUrl){ mxFlash(btn, '❌ Worker 未設定'); return; }
+  // 摘要(頻道可直接看到重點),檔案帶完整內容
+  var q = ($('question') && $('question').value || '').trim();
+  var caption = '🎲 占星骰子判讀' + (q ? '\n❓ ' + q.slice(0, 120) : '') + (simple ? '\n📄 簡易版' : '\n📄 完整版');
+  fetch(workerUrl, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'telegram_doc', filename: name, content: md, caption: caption })
+  }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, d:d}; }); })
+  .then(function(res){
+    if(res.ok && res.d && res.d.ok){ mxFlash(btn, '✓ MD 檔已傳到頻道'); }
+    else {
+      var msg = (res.d && (res.d.detail || res.d.error)) || 'HTTP 失敗';
+      mxFlash(btn, '❌ ' + String(msg).slice(0, 40));
+      console.warn('[dices] TG doc fail:', res);
+    }
+  }).catch(function(e){ mxFlash(btn, '❌ ' + e.message.slice(0, 40)); });
+}
+
+// 列印:完整版 / 簡短版(只到 AI 判讀結束)
+function mxExportPDF(btn){ mxPrintWith(btn, false); }
+function mxExportPDFSimple(btn){ mxPrintWith(btn, true); }
+function mxPrintWith(btn, simple){
+  mxFlash(btn, simple ? '🖨 開列印（簡短）...' : '🖨 開列印...');
+  // 簡短版:只留到「AI 雙派白話深解」為止,之後的卡片列印時隱藏
+  var hidden = [];
+  if(simple){
+    var nodes = [].slice.call(document.querySelectorAll('#output > *'));
+    var passedAI = false;
+    for(var i = 0; i < nodes.length; i++){
+      var el = nodes[i];
+      var t = (el.querySelector && el.querySelector('.card-title')) ? el.querySelector('.card-title').innerText : '';
+      var isAI = !!(el.querySelector && el.querySelector('.ai-quick-card')) || t.indexOf('AI 雙派') >= 0;
+      if(isAI){ passedAI = true; continue; }
+      // AI 之後的全部隱藏(多功能輸出面板本來就不印)
+      if(passedAI){ el.classList.add('print-hide'); hidden.push(el); }
+    }
+  }
+  var origTitle = document.title;
+  var pdfName = makeQuestionFileName('pdf').replace(/\.pdf$/i, '') + (simple ? '_簡短' : '');
+  document.title = pdfName;
+  var restore = function(){
+    document.title = origTitle;
+    hidden.forEach(function(el){ el.classList.remove('print-hide'); });
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  setTimeout(restore, 300000);
+  setTimeout(function(){ window.print(); }, 200);
+}
 function mxCopyMD(btn){
   navigator.clipboard.writeText(exportMarkdown()).then(function(){
     mxFlash(btn, '\u2713 MD \u5DF2\u8907\u88FD');
@@ -4550,25 +4616,7 @@ async function mxCopyImage(btn){
   }
 }
 
-function mxExportPDF(btn){
-  mxFlash(btn, '\uD83D\uDDA8 \u958B\u5217\u5370...');
-  // \u700F\u89BD\u5668\u300C\u53E6\u5B58 PDF\u300D\u7684\u9810\u8A2D\u6A94\u540D = document.title,\u4E0D\u7D93 makeQuestionFileName
-  // \u2192 \u5217\u5370\u524D\u66AB\u6539 title \u6210\u76EE\u6A19\u6A94\u540D(\u53BB\u526F\u6A94\u540D),\u5370\u5B8C(afterprint)\u9084\u539F
-  const origTitle = document.title;
-  const pdfName = makeQuestionFileName('pdf').replace(/\.pdf$/i, '');
-  document.title = pdfName;
-  const restore = function(){
-    document.title = origTitle;
-    window.removeEventListener('afterprint', restore);
-  };
-  window.addEventListener('afterprint', restore);
-  // \u53EA\u5728\u5217\u5370\u771F\u7684\u7D50\u675F(afterprint)\u624D\u9084\u539F\u6A19\u984C\u3002
-  // \u4E0D\u7528\u77ED timeout:\u4F7F\u7528\u8005\u5728\u300C\u53E6\u5B58 PDF\u300D\u8996\u7A97\u9078\u8CC7\u6599\u593E/\u6253\u5B57\u5E38\u8D85\u904E\u6578\u5341\u79D2,
-  // \u82E5\u63D0\u65E9\u9084\u539F,\u5B58\u6A94\u5C0D\u8A71\u6846\u6703\u6293\u5230\u9084\u539F\u5F8C\u7684\u820A\u6A19\u984C = \u6A94\u540D\u8B8A\u56DE\u300C\u5360\u661F\u9AB0\u5B50\u00B7\u4E94\u9AB0\u5224\u8B80\u300D\u3002
-  // fallback \u62C9\u5230 5 \u5206\u9418,\u7D14\u7CB9\u907F\u514D\u842C\u4E00 afterprint \u4E0D\u89F8\u767C\u6642\u6A19\u984C\u5361\u4F4F\u3002
-  setTimeout(restore, 300000);
-  setTimeout(function(){ window.print(); }, 200);
-}
+
 function mxCopySection(btn){
   var cards = Array.from(document.querySelectorAll('#output .card, #output .ai-quick-card, #output .ai-consensus-card'));
   var titles = cards.map(function(c, i){
@@ -4582,37 +4630,7 @@ function mxCopySection(btn){
     mxFlash(btn, '\u2713 \u6BB5\u843D ' + n + ' \u5DF2\u8907\u88FD');
   });
 }
-function mxSendTelegram(btn){
-  var text = exportMarkdown().slice(0, 3900);
-  mxFlash(btn, '傳送中...');
-  // 安全版:一律走 Cloudflare Worker 代發(token 藏後端,前端不外露)
-  var workerUrl = (typeof getWorkerUrl === 'function') ? getWorkerUrl() : '';
-  if(workerUrl){
-    fetch(workerUrl, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'telegram', text: text})
-    }).then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return {ok:r.ok, d:d}; }); })
-    .then(function(res){
-      if(res.ok && res.d && res.d.ok){ mxFlash(btn, '✓ 已傳到頻道'); }
-      else {
-        var msg = (res.d && (res.d.detail || res.d.error)) || ('HTTP ' + (res.ok ? 'ok' : 'fail'));
-        mxFlash(btn, '❌ ' + String(msg).slice(0, 40));
-        console.warn('[dices] TG via worker fail:', res);
-      }
-    }).catch(function(e){ mxFlash(btn, '❌ ' + e.message.slice(0, 40)); });
-    return;
-  }
-  // 後備:使用者自帶 token(?tg_bot=&tg_chat=)
-  var bot = localStorage.getItem('tg_bot_token') || DEFAULT_TG_BOT;
-  var chat = localStorage.getItem('tg_chat_id') || DEFAULT_TG_CHAT;
-  if(!bot || !chat){ alert('Telegram 尚未設定(需 Worker 或自帶 ?tg_bot=&tg_chat=)'); mxFlash(btn, '❌ 未設定'); return; }
-  fetch('https://api.telegram.org/bot' + bot + '/sendMessage', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({chat_id: chat, text: text, disable_web_page_preview: true})
-  }).then(function(r){ return r.json(); }).then(function(d){
-    mxFlash(btn, d.ok ? '✓ 已傳' : '❌ ' + (d.description || '失敗').slice(0, 40));
-  }).catch(function(e){ mxFlash(btn, '❌ ' + e.message.slice(0, 40)); });
-}
+
 function mxSaveNAS(btn){
   var url = localStorage.getItem('nas_save_url');
   if(!url){
@@ -4694,6 +4712,7 @@ function renderMultiExportPanel(){
   html += '<button class="mx-btn mx-primary" onclick="mxCopyPlain(this)">\uD83D\uDCCB \u4E00\u9375\u5168\u9801\u8907\u88FD\u7D14\u6587\u5B57</button>';
   html += '<button class="mx-btn mx-primary" onclick="mxCopyMD(this)">\uD83D\uDCDD \u4E00\u9375\u5168\u9801\u8907\u88FD MD \u683C\u5F0F</button>';
   html += '<button class="mx-btn mx-primary" onclick="mxExportPDF(this)">\uD83D\uDCD5 \u532F\u51FA PDF \u6A94\u6848\uFF08\u5B8C\u7F8E\u7248\uFF09</button>';
+  html += '<button class="mx-btn mx-primary" onclick="mxExportPDFSimple(this)" title="只印到 AI 判讀結束,省紙">📄 匯出 PDF（簡短版）</button>';
   html += '<button class="mx-btn mx-primary" onclick="mxCopyImage(this)">🖼 複製結果圖片</button>';
   html += '</div>';
   html += '<div class="mx-row">';
@@ -4705,7 +4724,8 @@ function renderMultiExportPanel(){
   html += '</div>';
   html += '<div class="mx-section-label">\uD83C\uDF10 \u6574\u5408\u670D\u52D9\uFF08\u8DE8\u5E73\u53F0\u9001\u51FA/\u958B\u555F\uFF09</div>';
   html += '<div class="mx-row">';
-  html += '<button class="mx-btn" onclick="mxSendTelegram(this)">\u2708 \u50B3\u9001\u5230 Telegram \u983B\u9053</button>';
+  html += '<button class="mx-btn" onclick="mxSendTelegram(this)" title="以 MD 檔傳送,不洗版">✈ 傳 Telegram（MD檔）</button>';
+  html += '<button class="mx-btn" onclick="mxSendTelegramSimple(this)" title="簡易版 MD 檔">✈ 傳 Telegram（簡易版）</button>';
   html += '<button class="mx-btn" onclick="mxSaveNAS(this)">\uD83D\uDCBD \u91CD\u5B58 NAS \u8CC7\u6599\u5EAB</button>';
   html += '<button class="mx-btn" onclick="mxOpenDrive()">\u2601 \u958B\u555F\u96F2\u7AEF\u786C\u789F\u8CC7\u6599\u593E</button>';
   html += '<button class="mx-btn" onclick="mxSaveNotion(this)">\uD83D\uDCCA \u91CD\u65B0\u5B58\u5165 Notion DB</button>';

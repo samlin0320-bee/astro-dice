@@ -643,6 +643,38 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .time-summary:hover{color:var(--gold)}
 /* 行運卡:度數獨立樣式,跟星座拉開 */
 .sky-line .deg{color:var(--muted);font-size:11px;margin-left:4px;}
+/* 陰陽標示 */
+.pol{display:inline-block;margin-left:6px;padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;vertical-align:middle;}
+.pol-y{background:rgba(255,154,60,.22);color:#ffb066;border:1px solid rgba(255,154,60,.5);}
+.pol-i{background:rgba(154,213,255,.18);color:#9ad5ff;border:1px solid rgba(154,213,255,.45);}
+/* 相位卡片外框 */
+.sky-p.has-asp{border-width:2px;}
+.sky-p.asp-oppo{border-color:#c9433c!important;box-shadow:0 0 0 1px rgba(201,67,60,.3);}
+.sky-p.asp-square{border-color:#e07b3a!important;box-shadow:0 0 0 1px rgba(224,123,58,.28);}
+.sky-p.asp-conj{border-color:#d4af37!important;}
+.sky-p.asp-trine{border-color:#2e9d5a!important;box-shadow:0 0 0 1px rgba(46,157,90,.25);}
+.sky-p.asp-sextile{border-color:#5ab07a!important;}
+/* 相位小標 */
+.asp-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;}
+.asp-chip{font-size:10px;padding:1px 4px;border-radius:5px;border:1px solid;line-height:1.4;}
+.asp-chip.asp-oppo{color:#ff8a82;border-color:#c9433c;background:rgba(201,67,60,.12)}
+.asp-chip.asp-square{color:#ffab6e;border-color:#e07b3a;background:rgba(224,123,58,.12)}
+.asp-chip.asp-conj{color:#e8cf7a;border-color:#d4af37;background:rgba(212,175,55,.12)}
+.asp-chip.asp-trine{color:#6ee7a0;border-color:#2e9d5a;background:rgba(46,157,90,.12)}
+.asp-chip.asp-sextile{color:#8fd9ab;border-color:#5ab07a;background:rgba(90,176,122,.1)}
+/* 相位總覽 */
+.asp-summary{margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+  background:rgba(0,0,0,.12);font-size:12px;line-height:1.85;}
+.asp-summary .asp-oppo{color:#ff8a82;font-weight:700}
+.asp-summary .asp-square{color:#ffab6e;font-weight:700}
+.asp-summary .asp-conj{color:#e8cf7a;font-weight:700}
+.asp-summary .asp-trine{color:#6ee7a0;font-weight:700}
+.asp-summary .asp-sextile{color:#8fd9ab;font-weight:700}
+html[data-theme="light"] .asp-summary{background:#f6f3fb;}
+/* 陰陽分組標題 */
+.yy-head{margin:12px 0 6px;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;}
+.yy-yang{background:rgba(255,154,60,.14);color:#ffb066;border-left:3px solid #ff9a3c;}
+.yy-yin{background:rgba(154,213,255,.12);color:#9ad5ff;border-left:3px solid #9ad5ff;}
 .nak-cta{margin-top:10px;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.7;
   background:linear-gradient(135deg,rgba(255,154,60,.12),rgba(212,175,55,.08));
   border:1px solid rgba(255,154,60,.35);color:var(--text);}
@@ -918,6 +950,8 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <button type="button" class="sky-mode" data-opt="S" onclick="toggleSkyOpt('S')">🕉 印度恆星</button>
         <button type="button" class="sky-mode" data-opt="D" onclick="toggleSkyOpt('D')">📐 度數</button>
         <button type="button" class="sky-mode" data-opt="N" onclick="toggleSkyOpt('N')">✨ 星宿</button>
+        <button type="button" class="sky-mode" data-opt="A" onclick="toggleSkyOpt('A')">⚡ 相位</button>
+        <button type="button" class="sky-mode" data-opt="Y" onclick="toggleSkyOpt('Y')">☯ 陰陽分組</button>
         <span class="muted" style="font-size:11px;align-self:center;margin-left:4px">可任意單選/複選</span>
       </div>
       <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
@@ -2112,6 +2146,51 @@ function loadCurrentTransits(silentIfNoEphem){
 
 // ============ 此刻天上行運(問題上方,西洋×印度並列) ============
 const SKY_OPEN_KEY = 'dices_skynow_open';
+// ============ 此刻天上行運:相位偵測 + 陰陽標示 ============
+// 陰陽:星座序號奇數(1,3,5..=牡羊/雙子/獅子/天秤/射手/水瓶)為陽,偶數為陰
+// index 0=牡羊(第1個,陽) 1=金牛(第2個,陰) ... 依 index%2===0 → 陽
+function signPolarity(signIdx){
+  return (signIdx % 2 === 0) ? '陽' : '陰';
+}
+
+// 兩星座間的相位(整宮制,以星座距離判定)
+const SKY_ASPECT = {
+  0:  { name:'合相', sym:'☌', deg:'0°',   cls:'asp-conj' },
+  2:  { name:'六合', sym:'⚹', deg:'60°',  cls:'asp-sextile' },
+  3:  { name:'四分', sym:'□', deg:'90°',  cls:'asp-square' },
+  4:  { name:'三合', sym:'△', deg:'120°', cls:'asp-trine' },
+  6:  { name:'對衝', sym:'☍', deg:'180°', cls:'asp-oppo' },
+  8:  { name:'三合', sym:'△', deg:'120°', cls:'asp-trine' },
+  9:  { name:'四分', sym:'□', deg:'90°',  cls:'asp-square' },
+  10: { name:'六合', sym:'⚹', deg:'60°',  cls:'asp-sextile' },
+};
+
+// 算出所有主要相位(只算七曜+外行星,不含交點)
+function computeSkyAspects(order, signs){
+  const MAIN = ['sun','moon','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto'];
+  const list = [];
+  for(let i = 0; i < order.length; i++){
+    if(MAIN.indexOf(order[i]) < 0) continue;
+    for(let j = i + 1; j < order.length; j++){
+      if(MAIN.indexOf(order[j]) < 0) continue;
+      const d = ((signs[j] - signs[i]) % 12 + 12) % 12;
+      const info = SKY_ASPECT[d];
+      if(info) list.push({ a: order[i], b: order[j], type: info });
+    }
+  }
+  return list;
+}
+
+// 給某行星:回傳它參與的相位摘要(最多 3 個)
+function aspectsOf(pid, list){
+  const mine = list.filter(function(x){ return x.a === pid || x.b === pid; });
+  return mine.map(function(x){
+    const other = (x.a === pid) ? x.b : x.a;
+    const pl = findPlanet(other);
+    return { sym: x.type.sym, name: x.type.name, cls: x.type.cls, other: pl ? pl.zh : other, otherSym: pl ? pl.sym : '' };
+  });
+}
+
 function renderSkyNow(){
   const grid = $('sky_now_grid'); if(!grid) return;
   if(!EPHEM || !EPHEM.points){ grid.textContent = '星曆未載入'; return; }
@@ -2120,29 +2199,73 @@ function renderSkyNow(){
   const opts = getSkyOpts();
   const showW = opts.includes('W'), showS = opts.includes('S');
   const showD = opts.includes('D'), showN = opts.includes('N');
+  const showA = opts.includes('A');            // 相位標示
+  const groupYY = opts.includes('Y');          // 陰陽分組排序
   const order = EPHEM.planets_order;
   const T = pt.T, S = pt.S, R = pt.R || null, D = pt.D || null, DS = pt.DS || null;
-  const hasDeg = !!(D && DS), hasNak = !!DS;   // 星宿由 S+DS 推算,有 DS 就有星宿
-  const cells = order.map((pid, i)=>{
+  const hasDeg = !!(D && DS), hasNak = !!DS;
+  // 相位以「目前主要顯示的座標系」計算(西洋優先)
+  const baseSigns = showW ? T : S;
+  const aspList = computeSkyAspects(order, baseSigns);
+
+  function cellOf(pid, i){
     const pl = findPlanet(pid);
     const retro = (R && R[i] === 1) ? '<span class="rr">R</span>' : '';
+    const pol = signPolarity(baseSigns[i]);
+    const polTag = '<span class="pol ' + (pol === '陽' ? 'pol-y' : 'pol-i') + '" title="' +
+      (pol === '陽' ? '陽性星座(奇數):主動外放' : '陰性星座(偶數):被動內收') + '">' +
+      (pol === '陽' ? '＋陽' : '－陰') + '</span>';
     const rows = [];
     if(showW){
       let t = ((SIGNS[T[i]]||{}).zh || '?');
-      if(showD && hasDeg) t += '  ' + fmtDeg(D[i]);
+      if(showD && hasDeg) t += '  ' + fmtDeg(D[i]);
       rows.push('<div class="sky-line w">' + t + '</div>');
     }
     if(showS){
       let t = '印 ' + ((SIGNS[S[i]]||{}).zh || '?');
-      if(showD && hasDeg) t += '  ' + fmtDeg(DS[i]);
+      if(showD && hasDeg) t += '  ' + fmtDeg(DS[i]);
       rows.push('<div class="sky-line v">' + t + '</div>');
     }
     if(showN && hasNak){
-      var nk = nakOf(S[i], DS[i]);
+      const nk = nakOf(S[i], DS[i]);
       rows.push('<div class="sky-line n">✨ ' + (nk != null ? NAKSHATRA[nk] : '?') + '</div>');
     }
-    return '<div class="sky-p"><div class="pn">' + (pl ? pl.sym + ' ' + pl.zh : pid) + ' ' + retro + '</div>' + rows.join('') + '</div>';
-  }).join('');
+    // 相位標示
+    let aspCls = '';
+    if(showA){
+      const mine = aspectsOf(pid, aspList);
+      if(mine.length){
+        // 卡片外框依「最凶」的相位上色:對衝 > 四分 > 合 > 三合 > 六合
+        const prio = { 'asp-oppo':5, 'asp-square':4, 'asp-conj':3, 'asp-trine':2, 'asp-sextile':1 };
+        let top = mine[0];
+        mine.forEach(function(m){ if((prio[m.cls]||0) > (prio[top.cls]||0)) top = m; });
+        aspCls = ' has-asp ' + top.cls;
+        const chips = mine.slice(0, 3).map(function(m){
+          return '<span class="asp-chip ' + m.cls + '" title="' + m.name + ' ' + m.other + '">' + m.sym + m.otherSym + '</span>';
+        }).join('');
+        rows.push('<div class="sky-line asp-row">' + chips + '</div>');
+      }
+    }
+    return '<div class="sky-p' + aspCls + '">' +
+      '<div class="pn">' + (pl ? pl.sym + ' ' + pl.zh : pid) + ' ' + retro + polTag + '</div>' +
+      rows.join('') + '</div>';
+  }
+
+  let cells = '';
+  if(groupYY){
+    // 陰陽分組:陽性一區、陰性一區
+    const yang = [], yin = [];
+    order.forEach(function(pid, i){
+      (signPolarity(baseSigns[i]) === '陽' ? yang : yin).push(cellOf(pid, i));
+    });
+    cells = '<div class="yy-head yy-yang">＋ 陽性星座（奇數：牡羊/雙子/獅子/天秤/射手/水瓶）· 主動外放 · ' + yang.length + ' 星</div>' +
+            '<div class="sky-grid">' + yang.join('') + '</div>' +
+            '<div class="yy-head yy-yin">－ 陰性星座（偶數：金牛/巨蟹/處女/天蠍/摩羯/雙魚）· 被動內收 · ' + yin.length + ' 星</div>' +
+            '<div class="sky-grid">' + yin.join('') + '</div>';
+  }else{
+    cells = '<div class="sky-grid">' + order.map(cellOf).join('') + '</div>';
+  }
+
   const d = new Date(pt.t*1000);
   const dLabel = d.toLocaleString('zh-TW',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
   const labels = [];
@@ -2150,10 +2273,29 @@ function renderSkyNow(){
   if(showS) labels.push('<span style="color:var(--vedic)">印度恆星</span>');
   if(showD) labels.push(hasDeg ? '度數' : '<span style="color:var(--warn)">度數(星曆待更新)</span>');
   if(showN) labels.push(hasNak ? '星宿' : '<span style="color:var(--warn)">星宿(星曆待更新)</span>');
-  grid.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：' + dLabel + '（最接近現在）· ' + labels.join(' + ') + '</div><div class="sky-grid">' + cells + '</div>';
+  if(showA) labels.push('相位');
+  if(groupYY) labels.push('陰陽分組');
+
+  // 相位總覽(顯示時才給)
+  let aspSummary = '';
+  if(showA && aspList.length){
+    const grp = { 'asp-oppo':[], 'asp-square':[], 'asp-conj':[], 'asp-trine':[], 'asp-sextile':[] };
+    aspList.forEach(function(x){
+      const pa = findPlanet(x.a), pb = findPlanet(x.b);
+      grp[x.type.cls].push((pa?pa.zh:x.a) + x.type.sym + (pb?pb.zh:x.b));
+    });
+    const parts = [];
+    if(grp['asp-oppo'].length)    parts.push('<span class="asp-oppo">☍對衝</span>：' + grp['asp-oppo'].join('、'));
+    if(grp['asp-square'].length)  parts.push('<span class="asp-square">□四分(剋)</span>：' + grp['asp-square'].join('、'));
+    if(grp['asp-conj'].length)    parts.push('<span class="asp-conj">☌合相</span>：' + grp['asp-conj'].join('、'));
+    if(grp['asp-trine'].length)   parts.push('<span class="asp-trine">△三合</span>：' + grp['asp-trine'].join('、'));
+    if(grp['asp-sextile'].length) parts.push('<span class="asp-sextile">⚹六合</span>：' + grp['asp-sextile'].join('、'));
+    aspSummary = '<div class="asp-summary">' + parts.map(function(x){ return '<div>' + x + '</div>'; }).join('') + '</div>';
+  }
+
+  grid.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：' + dLabel + '（最接近現在）· ' + labels.join(' + ') + '</div>' + cells + aspSummary;
   const btns = document.querySelectorAll('.sky-mode');
   for(let i=0;i<btns.length;i++){ btns[i].classList.toggle('on', opts.includes(btns[i].dataset.opt)); }
-  // 勾了星宿 → 顯示「找我上課」導引
   const cta = document.getElementById('nak_cta');
   if(cta) cta.style.display = (showN && hasNak) ? 'block' : 'none';
 }

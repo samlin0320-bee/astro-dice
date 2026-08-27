@@ -4664,11 +4664,13 @@ function _snapshotCollectNodes(){
   var picked = [];
   for(var i = 0; i < nodes.length; i++){
     var el = nodes[i];
-    // 遇到匯出面板就停(面板本身不截)
-    if(el.id === 'export_hub' || (el.querySelector && el.querySelector('.mx-panel'))) break;
-    var t = (el.querySelector && el.querySelector('.card-title')) ? el.querySelector('.card-title').innerText : '';
-    if(t.indexOf('跨平台多功能') >= 0 || t.indexOf('多功能輸出') >= 0) break;
-    // 深度解讀那種只有按鈕的卡片跳過
+    // 匯出面板本身:跳過但不中斷(面板在 AI 卡之後、盤面之前)
+    var isPanel = (el.id === 'export_hub') ||
+                  (el.classList && el.classList.contains('mx-panel')) ||
+                  (el.querySelector && el.querySelector('.mx-panel')) ||
+                  (el.querySelector && el.querySelector('.mx-btn'));
+    if(isPanel) continue;
+    // 只有按鈕的深度解讀卡跳過
     if(el.querySelector && el.querySelector('.btn-deep')) continue;
     picked.push(el);
   }

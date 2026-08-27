@@ -4654,8 +4654,7 @@ function mxDownloadMD(btn){
   mxFlash(btn, '\u2713 MD \u5DF2\u4E0B\u8F09');
 }
 // 把判讀結果畫成圖片複製到剪貼簿(骰面 + 問題 + 上升命主 + AI 共識)
-// ============ 結果截圖存檔:Canvas 直繪(不依賴 SVG,穩定可用) ============
-// 範圍:結果最上方 → 所有判讀卡(排除匯出面板本身)
+// ============ 結果截圖存檔:仿網頁卡片樣式(圓角卡/色塊/骰面/雙欄) ============
 function _snapshotCollectNodes(){
   var nodes = [].slice.call(document.querySelectorAll('#output > *'));
   var picked = [];
@@ -4682,114 +4681,260 @@ async function _mxSnapshot(btn, mode){
     var picked = _snapshotCollectNodes();
     if(!picked.length){ mxFlash(btn, '❌ 沒有結果可截'); return; }
 
-    var W = 1000, PAD = 40, MAXW = W - PAD * 2;
+    var W = 1080, M = 28;                 // 畫布寬、外距
+    var CW = W - M * 2;                   // 卡片寬
+    var CP = 22;                          // 卡片內距
     var FONT = '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
-    var measure = document.createElement('canvas').getContext('2d');
+    var mc = document.createElement('canvas').getContext('2d');
 
     function wrap(text, maxW, font){
-      measure.font = font;
+      mc.font = font;
       var out = [], line = '';
       var chars = String(text || '').split('');
       for(var i = 0; i < chars.length; i++){
         var ch = chars[i];
         if(ch === NL){ out.push(line); line = ''; continue; }
-        if(measure.measureText(line + ch).width > maxW){ out.push(line); line = ch; }
+        if(mc.measureText(line + ch).width > maxW){ out.push(line); line = ch; }
         else line += ch;
       }
       if(line) out.push(line);
       return out.length ? out : [''];
     }
+    function rr(ctx, x, y, w, h, r){
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
 
-    // 1) 把每張卡轉成「繪製指令」
-    var ops = [];   // {type:'title'|'text'|'sub'|'rule', text, color}
+    // ── 把每張卡解析成結構 ──
+    var cards = [];
     picked.forEach(function(el){
-      var titleEl = el.querySelector && el.querySelector('.card-title');
-      var title = titleEl ? titleEl.innerText.trim() : '';
-      if(title) ops.push({ type: 'title', text: title });
+      var title = (el.querySelector && el.querySelector('.card-title')) ? el.querySelector('.card-title').innerText.trim() : '';
+      var card = { title: title, dice: null, cols: null, blocks: [] };
 
-      // 骰面:單行
+      // 骰面
       var dice = el.querySelector && el.querySelector('.dice-display');
       if(dice){
-        var dies = [].slice.call(dice.querySelectorAll('.die')).map(function(d){
+        card.dice = [].slice.call(dice.querySelectorAll('.die')).map(function(d){
           var sy = d.querySelector('.die-symbol'), lb = d.querySelector('.label');
-          return (sy ? sy.innerText.trim() : '') + ' ' + (lb ? lb.innerText.trim().split(NL).join(' ') : '');
+          return {
+            sym: sy ? sy.innerText.trim() : '',
+            label: lb ? lb.innerText.trim().split(NL).join(' ') : '',
+            sub: d.classList.contains('b')
+          };
         });
-        if(dies.length) ops.push({ type: 'dice', text: dies.join('　｜　') });
+        // 骰面下方那行(推算上升…)
+        var pnote = dice.parentNode ? dice.parentNode.querySelector('p.muted') : null;
+        if(pnote) card.note = pnote.innerText.trim().split(NL).join(' ');
       }
 
-      // 其餘文字(去掉標題與骰面)
-      var text = el.innerText || '';
-      if(title) text = text.replace(title, '');
-      if(dice) text = text.replace(dice.innerText, '');
-      text.split(NL).forEach(function(raw){
-        var ln = raw.trim();
-        if(!ln) return;
-        // 標籤類(短、含符號)用 sub 樣式
-        var isLabel = ln.length < 26 && /^[🎲⭐🌌💡✓⚖①②③④☀🕉📐✨🌈⚡☯]/.test(ln);
-        ops.push({ type: isLabel ? 'sub' : 'text', text: ln });
+      // AI 雙欄
+      var w = el.querySelector && el.querySelector('.ai-side-western');
+      var v = el.querySelector && el.querySelector('.ai-side-vedic');
+      if(w && v){
+        var pick = function(side){
+          return [].slice.call(side.querySelectorAll('.ai-block')).map(function(b){
+            var lb = b.querySelector('.ai-block-label'), tx = b.querySelector('.ai-block-text');
+            return { label: lb ? lb.innerText.trim() : '', text: tx ? tx.innerText.trim() : '' };
+          });
+        };
+        card.cols = { w: pick(w), v: pick(v) };
+      }
+
+      // 共識卡
+      var cons = el.querySelector && el.querySelector('.ai-consensus-card');
+      if(cons){
+        card.consensus = [].slice.call(cons.querySelectorAll('.aic-section, .aic-final')).map(function(sec){
+          var lb = sec.querySelector('.aic-label');
+          var lis = [].slice.call(sec.querySelectorAll('li')).map(function(li){ return li.innerText.trim(); });
+          var ft = sec.querySelector('.aic-final-text');
+          return { label: lb ? lb.innerText.trim() : '', items: lis, text: ft ? ft.innerText.trim() : '' };
+        });
+      }
+
+      // 其餘純文字(排除已處理的)
+      if(!card.dice && !card.cols && !card.consensus){
+        var text = el.innerText || '';
+        if(title) text = text.replace(title, '');
+        text.split(NL).forEach(function(raw){
+          var ln = raw.trim();
+          if(!ln) return;
+          var isLab = ln.length < 30 && /^[🎲⭐🌌💡✓⚖①②③④☀🕉📐✨🌈⚡☯◐△○✗＋－]/.test(ln);
+          card.blocks.push({ type: isLab ? 'label' : 'text', text: ln });
+        });
+      }
+      if(card.title || card.dice || card.cols || card.consensus || card.blocks.length) cards.push(card);
+    });
+
+    // ── 佈局計算 ──
+    var F_TITLE = 'bold 25px ' + FONT, F_TEXT = '18px ' + FONT, F_LAB = 'bold 17px ' + FONT;
+    var LH = 29, LH_T = 36;
+    var y = 96;                              // 頁首後起點
+    cards.forEach(function(c){
+      c.y = y;
+      var h = CP;
+      if(c.title) h += LH_T;
+      if(c.dice){
+        h += 140;                            // 骰面高
+        if(c.note) h += wrap(c.note, CW - CP*2, '16px ' + FONT).length * 24 + 6;
+      }
+      if(c.cols){
+        var colW = (CW - CP*3) / 2 - 14;
+        var hh = function(arr){
+          var t = 34;
+          arr.forEach(function(b){
+            t += 26;                          // label
+            t += wrap(b.text, colW - 24, '17px ' + FONT).length * 26 + 10;
+          });
+          return t;
+        };
+        c.colH = Math.max(hh(c.cols.w), hh(c.cols.v));
+        h += c.colH + 14;
+      }
+      if(c.consensus){
+        var ch = 8;
+        c.consensus.forEach(function(sec){
+          ch += 28;
+          sec.items.forEach(function(it){ ch += wrap('• ' + it, CW - CP*2 - 20, F_TEXT).length * LH; });
+          if(sec.text) ch += wrap(sec.text, CW - CP*2 - 20, F_TEXT).length * LH + 6;
+          ch += 8;
+        });
+        c.consH = ch;
+        h += ch;
+      }
+      c.blocks.forEach(function(b){
+        b.lines = wrap(b.text, CW - CP*2, b.type === 'label' ? F_LAB : F_TEXT);
+        h += b.lines.length * LH + (b.type === 'label' ? 6 : 2);
       });
-      ops.push({ type: 'rule' });
+      h += CP;
+      c.h = h;
+      y += h + 16;
     });
+    var H = y + 56;                          // 頁尾(緊貼,不多留空白)
 
-    // 2) 預算高度
-    var y = PAD + 66;
-    var layout = [];
-    ops.forEach(function(op){
-      if(op.type === 'rule'){ layout.push({ op: op, y: y, lines: [] }); y += 18; return; }
-      var font = op.type === 'title' ? 'bold 26px ' + FONT
-               : op.type === 'dice'  ? 'bold 24px ' + FONT
-               : op.type === 'sub'   ? 'bold 19px ' + FONT
-               : '19px ' + FONT;
-      var lh = op.type === 'title' ? 38 : op.type === 'dice' ? 36 : 30;
-      var lines = wrap(op.text, MAXW, font);
-      layout.push({ op: op, y: y, lines: lines, font: font, lh: lh });
-      y += lines.length * lh + (op.type === 'title' ? 10 : 4);
-    });
-    var H = y + PAD + 40;
-
-    // 3) 繪製
-    var scale = 2;
+    // ── 繪製 ──
+    var scale = 3;                           // 3x 高解析
     var cv = document.createElement('canvas');
     cv.width = W * scale; cv.height = H * scale;
     var ctx = cv.getContext('2d');
     ctx.scale(scale, scale);
-    var g = ctx.createLinearGradient(0, 0, W, H);
-    g.addColorStop(0, '#1a1030'); g.addColorStop(1, '#241542');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = 'alphabetic';
+    var bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#1a1030'); bg.addColorStop(1, '#241542');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
     // 頁首
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#d4af37'; ctx.font = 'bold 32px ' + FONT;
-    ctx.fillText('🎲 占星骰子 · 五骰判讀', W / 2, PAD + 30);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 34px ' + FONT;
+    ctx.fillText('占星骰子 · 五骰判讀', W / 2, 46);
     ctx.fillStyle = '#b0a4cc'; ctx.font = '16px ' + FONT;
-    ctx.fillText('dices.3minstest.com · ' + new Date().toLocaleString('zh-TW'), W / 2, PAD + 54);
+    ctx.fillText('西洋 × 印度雙派分流 · 含當前行運整合', W / 2, 72);
     ctx.textAlign = 'left';
 
-    layout.forEach(function(item){
-      var op = item.op;
-      if(op.type === 'rule'){
-        ctx.strokeStyle = 'rgba(160,140,200,.25)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(PAD, item.y + 4); ctx.lineTo(W - PAD, item.y + 4); ctx.stroke();
-        return;
+    cards.forEach(function(c){
+      // 卡片底
+      ctx.fillStyle = 'rgba(58,40,96,.55)';
+      rr(ctx, M, c.y, CW, c.h, 16); ctx.fill();
+      ctx.strokeStyle = 'rgba(140,110,200,.35)'; ctx.lineWidth = 1;
+      rr(ctx, M, c.y, CW, c.h, 16); ctx.stroke();
+
+      var yy = c.y + CP + 20;
+      if(c.title){
+        ctx.fillStyle = '#d4af37'; ctx.font = F_TITLE;
+        ctx.fillText(c.title, M + CP, yy);
+        yy += LH_T - 6;
       }
-      ctx.font = item.font;
-      ctx.fillStyle = op.type === 'title' ? '#d4af37'
-                    : op.type === 'dice'  ? '#ffffff'
-                    : op.type === 'sub'   ? '#e8cf7a'
-                    : '#efe9ff';
-      var yy = item.y;
-      item.lines.forEach(function(ln){
-        ctx.fillText(ln, PAD, yy);
-        yy += item.lh;
+
+      // 骰面
+      if(c.dice){
+        var n = c.dice.length, dw = 104, gap = 14;
+        var totalW = n * dw + (n - 1) * gap;
+        var dx = M + (CW - totalW) / 2;
+        c.dice.forEach(function(d){
+          var grad = ctx.createLinearGradient(dx, yy, dx + dw, yy + 104);
+          if(d.sub){ grad.addColorStop(0, '#1f2d52'); grad.addColorStop(1, '#131c39'); }
+          else { grad.addColorStop(0, '#2b2454'); grad.addColorStop(1, '#191333'); }
+          ctx.fillStyle = grad;
+          rr(ctx, dx, yy, dw, 104, 18); ctx.fill();
+          ctx.strokeStyle = d.sub ? 'rgba(96,166,232,.6)' : 'rgba(212,175,55,.55)';
+          ctx.lineWidth = 1.5; rr(ctx, dx, yy, dw, 104, 18); ctx.stroke();
+          ctx.textAlign = 'center';
+          ctx.fillStyle = d.sub ? '#9ad5ff' : '#d4af37'; ctx.font = '42px ' + FONT;
+          ctx.fillText(d.sym, dx + dw / 2, yy + 58);
+          ctx.fillStyle = '#c9c2e0'; ctx.font = '13px ' + FONT;
+          var lbs = wrap(d.label, dw - 10, '13px ' + FONT).slice(0, 2);
+          lbs.forEach(function(l, li){ ctx.fillText(l, dx + dw / 2, yy + 80 + li * 16); });
+          ctx.textAlign = 'left';
+          dx += dw + gap;
+        });
+        yy += 122;
+        if(c.note){
+          ctx.textAlign = 'center'; ctx.fillStyle = '#b0a4cc'; ctx.font = '16px ' + FONT;
+          wrap(c.note, CW - CP * 2, '16px ' + FONT).forEach(function(l){ ctx.fillText(l, W / 2, yy); yy += 24; });
+          ctx.textAlign = 'left'; yy += 6;
+        }
+      }
+
+      // AI 雙欄
+      if(c.cols){
+        var colW = (CW - CP * 3) / 2;
+        var drawCol = function(x, arr, accent, name, bgc){
+          ctx.fillStyle = bgc;
+          rr(ctx, x, yy, colW, c.colH, 12); ctx.fill();
+          ctx.strokeStyle = accent + '55'; rr(ctx, x, yy, colW, c.colH, 12); ctx.stroke();
+          var cy = yy + 26;
+          ctx.fillStyle = accent; ctx.font = 'bold 19px ' + FONT;
+          ctx.fillText(name, x + 14, cy); cy += 24;
+          arr.forEach(function(b){
+            ctx.fillStyle = '#e8cf7a'; ctx.font = 'bold 15px ' + FONT;
+            ctx.fillText(b.label, x + 14, cy); cy += 22;
+            ctx.fillStyle = '#efe9ff'; ctx.font = '17px ' + FONT;
+            wrap(b.text, colW - 28, '17px ' + FONT).forEach(function(l){ ctx.fillText(l, x + 14, cy); cy += 26; });
+            cy += 8;
+          });
+        };
+        drawCol(M + CP, c.cols.w, '#9ad5ff', '🌐 西洋派 Western', 'rgba(154,213,255,.08)');
+        drawCol(M + CP + colW + CP, c.cols.v, '#ff9a3c', '🕉 印度派 Vedic', 'rgba(255,154,60,.08)');
+        yy += c.colH + 14;
+      }
+
+      // 共識
+      if(c.consensus){
+        ctx.fillStyle = 'rgba(212,175,55,.08)';
+        rr(ctx, M + CP - 6, yy - 6, CW - CP * 2 + 12, c.consH, 12); ctx.fill();
+        c.consensus.forEach(function(sec){
+          ctx.fillStyle = '#e8cf7a'; ctx.font = 'bold 17px ' + FONT;
+          ctx.fillText(sec.label, M + CP + 6, yy + 16); yy += 28;
+          ctx.fillStyle = '#efe9ff'; ctx.font = F_TEXT;
+          sec.items.forEach(function(it){
+            wrap('• ' + it, CW - CP * 2 - 20, F_TEXT).forEach(function(l){ ctx.fillText(l, M + CP + 14, yy + 14); yy += LH; });
+          });
+          if(sec.text){
+            wrap(sec.text, CW - CP * 2 - 20, F_TEXT).forEach(function(l){ ctx.fillText(l, M + CP + 14, yy + 14); yy += LH; });
+            yy += 6;
+          }
+          yy += 8;
+        });
+      }
+
+      // 純文字區
+      c.blocks.forEach(function(b){
+        ctx.fillStyle = b.type === 'label' ? '#e8cf7a' : '#efe9ff';
+        ctx.font = b.type === 'label' ? F_LAB : F_TEXT;
+        b.lines.forEach(function(l){ ctx.fillText(l, M + CP, yy + 14); yy += LH; });
+        yy += b.type === 'label' ? 6 : 2;
       });
     });
 
-    // 頁尾
+    // 頁尾(緊貼底,不多留白)
     ctx.textAlign = 'center';
     ctx.fillStyle = '#8a7fa8'; ctx.font = '14px ' + FONT;
-    ctx.fillText('西洋 × 印度雙派分流 · 含當前行運整合', W / 2, H - PAD / 2);
+    ctx.fillText('dices.3minstest.com · ' + new Date().toLocaleString('zh-TW'), W / 2, H - 20);
 
-    // 4) 輸出(檔名依跨平台規則)
     var name = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('png') : '占星骰子結果.png';
     if(mode === 'copy'){
       var pngBlob = await new Promise(function(r){ cv.toBlob(r, 'image/png'); });
@@ -4800,13 +4945,15 @@ async function _mxSnapshot(btn, mode){
         var a2 = document.createElement('a');
         a2.href = URL.createObjectURL(pngBlob); a2.download = name;
         document.body.appendChild(a2); a2.click(); a2.remove();
-        mxFlash(btn, '✓ 已下載(不支援複製圖片)');
+        mxFlash(btn, '✓ 已下載');
       }
     }else{
+      var blob = await new Promise(function(r){ cv.toBlob(r, 'image/png'); });
       var a = document.createElement('a');
-      a.href = cv.toDataURL('image/png');
+      a.href = URL.createObjectURL(blob);
       a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
       mxFlash(btn, '✓ 截圖已存檔');
     }
   }catch(e){

@@ -4654,39 +4654,22 @@ function mxDownloadMD(btn){
   mxFlash(btn, '\u2713 MD \u5DF2\u4E0B\u8F09');
 }
 // 把判讀結果畫成圖片複製到剪貼簿(骰面 + 問題 + 上升命主 + AI 共識)
-// ============ 結果截圖存檔:真實擷取判讀結果區 DOM → PNG ============
-// 範圍:結果最上方(你的提問) → 到「跨平台多功能報告匯出管理」為止(不含面板本身)
-// 作法:SVG foreignObject 內嵌整段 HTML + 內聯樣式,再畫到 canvas 匯出 PNG。免外部函式庫。
-
-// 把要截的節點複製一份、行內化必要樣式
+// ============ 結果截圖存檔:Canvas 直繪(不依賴 SVG,穩定可用) ============
+// 範圍:結果最上方 → 所有判讀卡(排除匯出面板本身)
 function _snapshotCollectNodes(){
   var nodes = [].slice.call(document.querySelectorAll('#output > *'));
   var picked = [];
   for(var i = 0; i < nodes.length; i++){
     var el = nodes[i];
-    // 匯出面板本身:跳過但不中斷(面板在 AI 卡之後、盤面之前)
     var isPanel = (el.id === 'export_hub') ||
                   (el.classList && el.classList.contains('mx-panel')) ||
                   (el.querySelector && el.querySelector('.mx-panel')) ||
                   (el.querySelector && el.querySelector('.mx-btn'));
     if(isPanel) continue;
-    // 只有按鈕的深度解讀卡跳過
     if(el.querySelector && el.querySelector('.btn-deep')) continue;
     picked.push(el);
   }
   return picked;
-}
-
-// 取得目前主題所需的 CSS 變數值(讓截圖顏色跟畫面一致)
-function _snapshotVars(){
-  var cs = getComputedStyle(document.documentElement);
-  var names = ['--bg','--bg2','--card','--text','--muted','--border','--gold','--gold-soft','--western','--vedic','--warn','--good'];
-  var out = '';
-  names.forEach(function(n){
-    var v = cs.getPropertyValue(n);
-    if(v) out += n + ':' + v.trim() + ';';
-  });
-  return out;
 }
 
 async function mxSaveSnapshot(btn){ return _mxSnapshot(btn, 'download'); }
@@ -4695,77 +4678,118 @@ async function mxCopySnapshot(btn){ return _mxSnapshot(btn, 'copy'); }
 async function _mxSnapshot(btn, mode){
   mxFlash(btn, '📸 產生截圖中...');
   try{
+    var NL = String.fromCharCode(10);
     var picked = _snapshotCollectNodes();
     if(!picked.length){ mxFlash(btn, '❌ 沒有結果可截'); return; }
 
-    // 1) 組出要截的 HTML(複製節點,移除按鈕)
-    var wrap = document.createElement('div');
-    wrap.className = 'snap-root';
+    var W = 1000, PAD = 40, MAXW = W - PAD * 2;
+    var FONT = '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+    var measure = document.createElement('canvas').getContext('2d');
+
+    function wrap(text, maxW, font){
+      measure.font = font;
+      var out = [], line = '';
+      var chars = String(text || '').split('');
+      for(var i = 0; i < chars.length; i++){
+        var ch = chars[i];
+        if(ch === NL){ out.push(line); line = ''; continue; }
+        if(measure.measureText(line + ch).width > maxW){ out.push(line); line = ch; }
+        else line += ch;
+      }
+      if(line) out.push(line);
+      return out.length ? out : [''];
+    }
+
+    // 1) 把每張卡轉成「繪製指令」
+    var ops = [];   // {type:'title'|'text'|'sub'|'rule', text, color}
     picked.forEach(function(el){
-      var c = el.cloneNode(true);
-      // 移除互動元件
-      [].slice.call(c.querySelectorAll('button, .ai-quick-regen, .mx-panel, input, select')).forEach(function(x){
-        if(x.tagName === 'INPUT' || x.tagName === 'SELECT'){
-          // 表單值轉成文字保留
-          var span = document.createElement('span');
-          span.textContent = (x.tagName === 'SELECT') ? (x.options[x.selectedIndex] ? x.options[x.selectedIndex].text : '') : (x.value || '');
-          span.style.cssText = 'font-weight:600';
-          if(x.parentNode) x.parentNode.replaceChild(span, x);
-        }else if(x.parentNode){ x.parentNode.removeChild(x); }
+      var titleEl = el.querySelector && el.querySelector('.card-title');
+      var title = titleEl ? titleEl.innerText.trim() : '';
+      if(title) ops.push({ type: 'title', text: title });
+
+      // 骰面:單行
+      var dice = el.querySelector && el.querySelector('.dice-display');
+      if(dice){
+        var dies = [].slice.call(dice.querySelectorAll('.die')).map(function(d){
+          var sy = d.querySelector('.die-symbol'), lb = d.querySelector('.label');
+          return (sy ? sy.innerText.trim() : '') + ' ' + (lb ? lb.innerText.trim().split(NL).join(' ') : '');
+        });
+        if(dies.length) ops.push({ type: 'dice', text: dies.join('　｜　') });
+      }
+
+      // 其餘文字(去掉標題與骰面)
+      var text = el.innerText || '';
+      if(title) text = text.replace(title, '');
+      if(dice) text = text.replace(dice.innerText, '');
+      text.split(NL).forEach(function(raw){
+        var ln = raw.trim();
+        if(!ln) return;
+        // 標籤類(短、含符號)用 sub 樣式
+        var isLabel = ln.length < 26 && /^[🎲⭐🌌💡✓⚖①②③④☀🕉📐✨🌈⚡☯]/.test(ln);
+        ops.push({ type: isLabel ? 'sub' : 'text', text: ln });
       });
-      // details 展開
-      [].slice.call(c.querySelectorAll('details')).forEach(function(d){ d.setAttribute('open',''); });
-      wrap.appendChild(c);
+      ops.push({ type: 'rule' });
     });
 
-    // 2) 蒐集頁面樣式(把 <style> 全抓,foreignObject 內才有樣式)
-    var styleText = '';
-    [].slice.call(document.querySelectorAll('style')).forEach(function(st){ styleText += st.textContent + '\n'; });
-
-    // 3) 量測寬高(先掛到隱藏容器)
-    var stage = document.createElement('div');
-    stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:1000px;';
-    stage.appendChild(wrap);
-    document.body.appendChild(stage);
-    var W = 1000;
-    var H = Math.min(wrap.scrollHeight + 60, 20000);
-
-    // 4) 建 SVG foreignObject
-    var vars = _snapshotVars();
-    var html = '<div xmlns="http://www.w3.org/1999/xhtml" style="' + vars +
-      'width:' + W + 'px;padding:24px;box-sizing:border-box;' +
-      'font-family:\'Noto Sans TC\',\'PingFang TC\',\'Microsoft JhengHei\',system-ui,sans-serif;' +
-      'background:linear-gradient(160deg,#1a1030,#241542);color:var(--text);">' +
-      '<style>' + styleText.replace(/</g, '&lt;') + '</style>' +
-      wrap.outerHTML +
-      '<div style="text-align:center;color:var(--muted);font-size:12px;margin-top:16px">' +
-      'dices.3minstest.com · ' + new Date().toLocaleString('zh-TW') + '</div>' +
-      '</div>';
-    document.body.removeChild(stage);
-
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + (H + 60) + '">' +
-      '<foreignObject width="100%" height="100%">' + html + '</foreignObject></svg>';
-
-    // 5) SVG → Image → Canvas
-    var blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var img = new Image();
-    await new Promise(function(res, rej){
-      img.onload = res;
-      img.onerror = function(){ rej(new Error('SVG 轉圖失敗(可能含外部資源)')); };
-      img.src = url;
+    // 2) 預算高度
+    var y = PAD + 66;
+    var layout = [];
+    ops.forEach(function(op){
+      if(op.type === 'rule'){ layout.push({ op: op, y: y, lines: [] }); y += 18; return; }
+      var font = op.type === 'title' ? 'bold 26px ' + FONT
+               : op.type === 'dice'  ? 'bold 24px ' + FONT
+               : op.type === 'sub'   ? 'bold 19px ' + FONT
+               : '19px ' + FONT;
+      var lh = op.type === 'title' ? 38 : op.type === 'dice' ? 36 : 30;
+      var lines = wrap(op.text, MAXW, font);
+      layout.push({ op: op, y: y, lines: lines, font: font, lh: lh });
+      y += lines.length * lh + (op.type === 'title' ? 10 : 4);
     });
-    var scale = 2;   // 2x 高解析
+    var H = y + PAD + 40;
+
+    // 3) 繪製
+    var scale = 2;
     var cv = document.createElement('canvas');
-    cv.width = W * scale; cv.height = (H + 60) * scale;
+    cv.width = W * scale; cv.height = H * scale;
     var ctx = cv.getContext('2d');
-    ctx.fillStyle = '#1a1030';
-    ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
+    var g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#1a1030'); g.addColorStop(1, '#241542');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
-    // 6) 輸出
+    // 頁首
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#d4af37'; ctx.font = 'bold 32px ' + FONT;
+    ctx.fillText('🎲 占星骰子 · 五骰判讀', W / 2, PAD + 30);
+    ctx.fillStyle = '#b0a4cc'; ctx.font = '16px ' + FONT;
+    ctx.fillText('dices.3minstest.com · ' + new Date().toLocaleString('zh-TW'), W / 2, PAD + 54);
+    ctx.textAlign = 'left';
+
+    layout.forEach(function(item){
+      var op = item.op;
+      if(op.type === 'rule'){
+        ctx.strokeStyle = 'rgba(160,140,200,.25)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(PAD, item.y + 4); ctx.lineTo(W - PAD, item.y + 4); ctx.stroke();
+        return;
+      }
+      ctx.font = item.font;
+      ctx.fillStyle = op.type === 'title' ? '#d4af37'
+                    : op.type === 'dice'  ? '#ffffff'
+                    : op.type === 'sub'   ? '#e8cf7a'
+                    : '#efe9ff';
+      var yy = item.y;
+      item.lines.forEach(function(ln){
+        ctx.fillText(ln, PAD, yy);
+        yy += item.lh;
+      });
+    });
+
+    // 頁尾
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8a7fa8'; ctx.font = '14px ' + FONT;
+    ctx.fillText('西洋 × 印度雙派分流 · 含當前行運整合', W / 2, H - PAD / 2);
+
+    // 4) 輸出(檔名依跨平台規則)
     var name = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('png') : '占星骰子結果.png';
     if(mode === 'copy'){
       var pngBlob = await new Promise(function(r){ cv.toBlob(r, 'image/png'); });
@@ -4773,11 +4797,10 @@ async function _mxSnapshot(btn, mode){
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
         mxFlash(btn, '✓ 截圖已複製');
       }else{
-        // 不支援複製 → 改下載
         var a2 = document.createElement('a');
         a2.href = URL.createObjectURL(pngBlob); a2.download = name;
         document.body.appendChild(a2); a2.click(); a2.remove();
-        mxFlash(btn, '✓ 已下載(瀏覽器不支援複製圖片)');
+        mxFlash(btn, '✓ 已下載(不支援複製圖片)');
       }
     }else{
       var a = document.createElement('a');

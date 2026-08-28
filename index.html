@@ -4263,7 +4263,9 @@ function run(){
   scheduleReadingLog();
 }
 
-init();
+// 延後到下一個 tick 才跑:init() 會呼叫 updateHistoryCount/requireLoginGate 等函式,
+// 但那些函式定義在下面第二個 <script> 區塊(多功能輸出平台),同步呼叫會 ReferenceError。
+setTimeout(init, 0);
 </script>
 
 <!-- ============ 多功能輸出平台：樣式與腳本（純新增區塊） ============ -->

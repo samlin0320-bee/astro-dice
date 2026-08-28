@@ -4668,11 +4668,12 @@ function _snapshotCollectNodes(simple){
     if(isPanel) continue;
     if(el.querySelector && el.querySelector('.btn-deep')) continue;
     picked.push(el);
-    // 簡短模式:到 AI 判讀(含共識)就停
+    // 簡短模式:AI 判讀卡(含共識)之後就停
     if(simple){
-      var hasAI = el.querySelector && (el.querySelector('.ai-consensus-card') || el.querySelector('.ai-two-col'));
-      if(hasAI) aiDone = true;
-      else if(aiDone) { picked.pop(); break; }
+      var isAI = (el.classList && el.classList.contains('ai-quick-card')) ||
+                 (el.querySelector && (el.querySelector('.ai-quick-card') || el.querySelector('.ai-two-col') || el.querySelector('.ai-consensus-card')));
+      if(isAI){ aiDone = true; }
+      else if(aiDone){ picked.pop(); break; }
     }
   }
   return picked;

@@ -37,13 +37,41 @@ export default {
       const content = String(rec.content || '');
       if (!content.trim()) return json({ error: 'empty content' }, 400);
       const caption = String(rec.caption || '').slice(0, 1000);
-      const form = new FormData();
-      form.append('chat_id', tgChat);
-      if (caption) form.append('caption', caption);
-      form.append('document', new Blob([content], { type: 'text/markdown;charset=utf-8' }), filename);
+      // 手動組 multipart:Workers 的 FormData 會把非 ASCII 檔名/內容降級成亂碼。
+      // 這裡全程 TextEncoder 產生純 UTF-8 bytes,檔名再用 RFC 5987 filename* 帶中文。
+      const enc = new TextEncoder();
+      const boundary = '----AstroDice' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const asciiName = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+      const CRLF = '\r\n';
+      const parts = [];
+      const pushField = (name, value) => {
+        parts.push(enc.encode(
+          '--' + boundary + CRLF +
+          'Content-Disposition: form-data; name="' + name + '"' + CRLF +
+          'Content-Type: text/plain; charset=utf-8' + CRLF + CRLF
+        ));
+        parts.push(enc.encode(value));
+        parts.push(enc.encode(CRLF));
+      };
+      pushField('chat_id', String(tgChat));
+      if (caption) pushField('caption', caption);
+      parts.push(enc.encode(
+        '--' + boundary + CRLF +
+        'Content-Disposition: form-data; name="document"; filename="' + asciiName +
+        '"; filename*=UTF-8\'\'' + encodeURIComponent(filename) + CRLF +
+        'Content-Type: text/markdown; charset=utf-8' + CRLF + CRLF
+      ));
+      parts.push(enc.encode('\uFEFF' + content));   // BOM:確保任何編輯器都用 UTF-8 開
+      parts.push(enc.encode(CRLF + '--' + boundary + '--' + CRLF));
+      let totalLen = 0;
+      for (const p of parts) totalLen += p.length;
+      const body = new Uint8Array(totalLen);
+      let off = 0;
+      for (const p of parts) { body.set(p, off); off += p.length; }
       const tgResp = await fetch(`https://api.telegram.org/bot${tgToken}/sendDocument`, {
         method: 'POST',
-        body: form,
+        headers: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+        body,
       });
       const tgData = await tgResp.json().catch(() => ({}));
       if (!tgResp.ok || !tgData.ok) {

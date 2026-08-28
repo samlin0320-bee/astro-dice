@@ -4655,9 +4655,10 @@ function mxDownloadMD(btn){
 }
 // 把判讀結果畫成圖片複製到剪貼簿(骰面 + 問題 + 上升命主 + AI 共識)
 // ============ 結果截圖存檔:仿網頁卡片樣式(圓角卡/色塊/骰面/雙欄) ============
-function _snapshotCollectNodes(){
+function _snapshotCollectNodes(simple){
   var nodes = [].slice.call(document.querySelectorAll('#output > *'));
   var picked = [];
+  var aiDone = false;
   for(var i = 0; i < nodes.length; i++){
     var el = nodes[i];
     var isPanel = (el.id === 'export_hub') ||
@@ -4667,18 +4668,26 @@ function _snapshotCollectNodes(){
     if(isPanel) continue;
     if(el.querySelector && el.querySelector('.btn-deep')) continue;
     picked.push(el);
+    // 簡短模式:到 AI 判讀(含共識)就停
+    if(simple){
+      var hasAI = el.querySelector && (el.querySelector('.ai-consensus-card') || el.querySelector('.ai-two-col'));
+      if(hasAI) aiDone = true;
+      else if(aiDone) { picked.pop(); break; }
+    }
   }
   return picked;
 }
 
-async function mxSaveSnapshot(btn){ return _mxSnapshot(btn, 'download'); }
-async function mxCopySnapshot(btn){ return _mxSnapshot(btn, 'copy'); }
+async function mxSaveSnapshot(btn){ return _mxSnapshot(btn, 'download', false); }
+async function mxCopySnapshot(btn){ return _mxSnapshot(btn, 'copy', false); }
+async function mxSaveSnapshotSimple(btn){ return _mxSnapshot(btn, 'download', true); }
+async function mxCopySnapshotSimple(btn){ return _mxSnapshot(btn, 'copy', true); }
 
-async function _mxSnapshot(btn, mode){
+async function _mxSnapshot(btn, mode, simple){
   mxFlash(btn, '📸 產生截圖中...');
   try{
     var NL = String.fromCharCode(10);
-    var picked = _snapshotCollectNodes();
+    var picked = _snapshotCollectNodes(simple);
     if(!picked.length){ mxFlash(btn, '❌ 沒有結果可截'); return; }
 
     var W = 1080, M = 28;                 // 畫布寬、外距
@@ -4936,6 +4945,7 @@ async function _mxSnapshot(btn, mode){
     ctx.fillText('dices.3minstest.com · ' + new Date().toLocaleString('zh-TW'), W / 2, H - 20);
 
     var name = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('png') : '占星骰子結果.png';
+    if(simple) name = name.replace(/\.png$/, '_簡短.png');
     if(mode === 'copy'){
       var pngBlob = await new Promise(function(r){ cv.toBlob(r, 'image/png'); });
       if(navigator.clipboard && window.ClipboardItem){
@@ -5169,6 +5179,7 @@ function renderMultiExportPanel(){
   html += '<button class="mx-btn" onclick="mxDownloadMD(this)">\uD83D\uDCE5 \u4E0B\u8F09 MD \u6A94</button>';
   html += '<button class="mx-btn mx-primary" onclick="mxSaveSnapshot(this)" title="把判讀結果(問題→AI判讀→各式盤)存成 PNG 圖片">📸 結果截圖存檔</button>';
   html += '<button class="mx-btn" onclick="mxCopySnapshot(this)" title="截圖複製到剪貼簿,可直接貼到 LINE/訊息">🖼 截圖複製</button>';
+  html += '<button class="mx-btn" onclick="mxSaveSnapshotSimple(this)" title="只截到 AI 判讀,圖片較短好分享">📸 截圖存檔（簡短）</button>';
   html += '<button class="mx-btn" onclick="mxCopySimpleMD(this)" title="只到南印度方格盤,適合快速分享">📄 複製簡易版</button>';
   html += '<button class="mx-btn" onclick="mxDownloadSimpleMD(this)" title="只到南印度方格盤">📄 下載簡易版</button>';
   html += '<button class="mx-btn" onclick="mxCopySection(this)">\uD83D\uDCCE \u9EDE\u9078\u8907\u88FD MD \u6BB5\u843D</button>';

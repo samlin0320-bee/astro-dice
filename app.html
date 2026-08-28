@@ -662,6 +662,11 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .asp-chip.asp-conj{color:#e8cf7a;border-color:#d4af37;background:rgba(212,175,55,.12)}
 .asp-chip.asp-trine{color:#6ee7a0;border-color:#2e9d5a;background:rgba(46,157,90,.12)}
 .asp-chip.asp-sextile{color:#8fd9ab;border-color:#5ab07a;background:rgba(90,176,122,.1)}
+/* 自然友敵(Naisargika Mitra/Shatru/Sama) */
+.nai-tag{display:inline-block;margin-left:2px;font-size:8px;font-weight:700;padding:0 3px;border-radius:4px;vertical-align:1px;}
+.nai-tag.nai-friend{color:#6ee7a0;background:rgba(46,157,90,.22)}
+.nai-tag.nai-enemy{color:#ff8a82;background:rgba(201,67,60,.22)}
+.nai-tag.nai-neutral{color:#b0a4cc;background:rgba(160,140,200,.18)}
 /* 相位總覽 */
 .asp-summary{margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
   background:rgba(0,0,0,.12);font-size:12px;line-height:1.85;}
@@ -2181,13 +2186,35 @@ function computeSkyAspects(order, signs){
   return list;
 }
 
-// 給某行星:回傳它參與的相位摘要(最多 3 個)
+// ── 印度占星「自然友敵」(Naisargika Mitra/Shatru/Sama,BPHS 標準表)──
+// 僅七曜(日月火水木金土)有此關係;羅睺計都依傳統簡化對照(羅睺同土星系、計都同火星系)。
+const NAISARGIKA = {
+  sun:     { friend:['moon','mars','jupiter'], enemy:['venus','saturn'],           neutral:['mercury'] },
+  moon:    { friend:['sun','mercury'],          enemy:[],                          neutral:['mars','jupiter','venus','saturn'] },
+  mars:    { friend:['sun','moon','jupiter'],   enemy:['mercury'],                 neutral:['venus','saturn'] },
+  mercury: { friend:['sun','venus'],            enemy:['moon'],                    neutral:['mars','jupiter','saturn'] },
+  jupiter: { friend:['sun','moon','mars'],      enemy:['mercury','venus'],         neutral:['saturn'] },
+  venus:   { friend:['mercury','saturn'],       enemy:['sun','moon'],              neutral:['mars','jupiter'] },
+  saturn:  { friend:['mercury','venus'],        enemy:['sun','moon','mars'],       neutral:['jupiter'] },
+  rahu:    { friend:['venus','saturn'],         enemy:['sun','moon','mars'],       neutral:['mercury','jupiter'] },
+  ketu:    { friend:['sun','moon','mars'],      enemy:['mercury','venus'],         neutral:['jupiter','saturn'] },
+};
+function naisargikaOf(a, b){
+  const rel = NAISARGIKA[a];
+  if(!rel) return null;
+  if(rel.friend.indexOf(b) >= 0) return { tag:'友', title:'自然友(Naisargika Mitra)', cls:'nai-friend' };
+  if(rel.enemy.indexOf(b) >= 0)  return { tag:'敵', title:'自然敵(Naisargika Shatru)', cls:'nai-enemy' };
+  return { tag:'平', title:'自然平(Naisargika Sama)', cls:'nai-neutral' };
+}
+
+// 給某行星:回傳它參與的相位摘要(最多 3 個),含自然友敵標示
 function aspectsOf(pid, list){
   const mine = list.filter(function(x){ return x.a === pid || x.b === pid; });
   return mine.map(function(x){
     const other = (x.a === pid) ? x.b : x.a;
     const pl = findPlanet(other);
-    return { sym: x.type.sym, name: x.type.name, cls: x.type.cls, other: pl ? pl.zh : other, otherSym: pl ? pl.sym : '' };
+    const nai = naisargikaOf(pid, other);
+    return { sym: x.type.sym, name: x.type.name, cls: x.type.cls, other: pl ? pl.zh : other, otherSym: pl ? pl.sym : '', nai: nai };
   });
 }
 
@@ -2241,7 +2268,8 @@ function renderSkyNow(){
         mine.forEach(function(m){ if((prio[m.cls]||0) > (prio[top.cls]||0)) top = m; });
         aspCls = ' has-asp ' + top.cls;
         const chips = mine.slice(0, 3).map(function(m){
-          return '<span class="asp-chip ' + m.cls + '" title="' + m.name + ' ' + m.other + '">' + m.sym + m.otherSym + '</span>';
+          const naiTag = m.nai ? '<span class="nai-tag ' + m.nai.cls + '" title="' + m.nai.title + '">' + m.nai.tag + '</span>' : '';
+          return '<span class="asp-chip ' + m.cls + '" title="' + m.name + ' ' + m.other + ' · ' + (m.nai ? m.nai.title : '') + '">' + m.sym + m.otherSym + naiTag + '</span>';
         }).join('');
         rows.push('<div class="sky-line asp-row">' + chips + '</div>');
       }
@@ -4185,7 +4213,10 @@ function run(){
   const html = `
     ${questionHTML}
     <div class="card">
-      <div class="card-title">🎲 你投出了</div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span>🎲 你投出了</span>
+        <button class="btn-ghost" style="margin:0;padding:4px 12px;font-size:13px;font-weight:normal" onclick="exportShare()" title="分享這次判讀結果(非網址,是判讀本體)">📱 分享結果</button>
+      </div>
       ${dice}
       <p class="muted" style="text-align:center;margin:0">
         推算上升 ${ascSign.sym} ${ascSign.zh} · 命主星 ${pLord.sym} ${pLord.zh}
@@ -4658,7 +4689,7 @@ function mxDownloadMD(btn){
 function _snapshotCollectNodes(simple){
   var nodes = [].slice.call(document.querySelectorAll('#output > *'));
   var picked = [];
-  var aiDone = false;
+  var aiDone = false, rashiDone = false;
   for(var i = 0; i < nodes.length; i++){
     var el = nodes[i];
     var isPanel = (el.id === 'export_hub') ||
@@ -4668,12 +4699,17 @@ function _snapshotCollectNodes(simple){
     if(isPanel) continue;
     if(el.querySelector && el.querySelector('.btn-deep')) continue;
     picked.push(el);
-    // 簡短模式:AI 判讀卡(含共識)之後就停
+    // 簡短模式:AI 判讀卡(含共識)+ 南印度方格盤 之後就停
     if(simple){
       var isAI = (el.classList && el.classList.contains('ai-quick-card')) ||
                  (el.querySelector && (el.querySelector('.ai-quick-card') || el.querySelector('.ai-two-col') || el.querySelector('.ai-consensus-card')));
+      var isRashi = (el.classList && el.classList.contains('rashi-chart')) ||
+                    (el.querySelector && el.querySelector('.rashi-chart'));
       if(isAI){ aiDone = true; }
-      else if(aiDone){ picked.pop(); break; }
+      else if(aiDone && !rashiDone){
+        if(isRashi){ rashiDone = true; }
+        else { picked.pop(); break; }
+      }else if(rashiDone){ picked.pop(); break; }
     }
   }
   return picked;
@@ -4770,8 +4806,37 @@ async function _mxSnapshot(btn, mode, simple){
         });
       }
 
+      // 南印度方格盤(4x4 網格,直接讀 DOM 結構化資料,不當純文字掃)
+      var rashiWrap = el.querySelector && el.querySelector('.rashi-chart');
+      if(rashiWrap){
+        var rcells = [].slice.call(rashiWrap.querySelectorAll('.rashi-cell')).map(function(rc){
+          var style = rc.getAttribute('style') || '';
+          var rm = /grid-row:(\d+)/.exec(style), cm = /grid-column:(\d+)/.exec(style);
+          var signEl = rc.querySelector('.rc-sign'), hEl = rc.querySelector('.rc-hnum');
+          var planets = [].slice.call(rc.querySelectorAll('.rc-planet')).map(function(p){ return p.innerText.trim(); });
+          var elemM = /rc-(fire|earth|air|water)/.exec(rc.className);
+          return {
+            r: rm ? +rm[1] : 1, c: cm ? +cm[1] : 1,
+            sign: signEl ? signEl.innerText.trim() : '',
+            house: hEl ? hEl.innerText.trim() : '',
+            dush: /\brc-dush\b/.test(rc.className),
+            trikona: /\brc-trikona\b/.test(rc.className),
+            isAsc: /\brc-asc\b/.test(rc.className),
+            elem: elemM ? elemM[1] : '',
+            planets: planets
+          };
+        });
+        var centerSub = rashiWrap.querySelector('.rashi-center .rc-sub');
+        card.rashi = {
+          cells: rcells,
+          centerLines: centerSub ? centerSub.innerHTML.split(/<br\s*\/?>/i).map(function(h){
+            var t = document.createElement('div'); t.innerHTML = h; return t.textContent.trim();
+          }).filter(Boolean) : []
+        };
+      }
+
       // 其餘純文字(排除已處理的)
-      if(!card.dice && !card.cols && !card.consensus){
+      if(!card.dice && !card.cols && !card.consensus && !card.rashi){
         var text = el.innerText || '';
         if(title) text = text.replace(title, '');
         text.split(NL).forEach(function(raw){
@@ -4781,7 +4846,7 @@ async function _mxSnapshot(btn, mode, simple){
           card.blocks.push({ type: isLab ? 'label' : 'text', text: ln });
         });
       }
-      if(card.title || card.dice || card.cols || card.consensus || card.blocks.length) cards.push(card);
+      if(card.title || card.dice || card.cols || card.consensus || card.rashi || card.blocks.length) cards.push(card);
     });
 
     // ── 佈局計算 ──
@@ -4819,6 +4884,10 @@ async function _mxSnapshot(btn, mode, simple){
         });
         c.consH = ch;
         h += ch;
+      }
+      if(c.rashi){
+        c.rashiSide = Math.min(CW - CP * 2, 620);
+        h += c.rashiSide + 16;
       }
       c.blocks.forEach(function(b){
         b.lines = wrap(b.text, CW - CP*2, b.type === 'label' ? F_LAB : F_TEXT);
@@ -4935,6 +5004,45 @@ async function _mxSnapshot(btn, mode, simple){
           }
           yy += 8;
         });
+      }
+
+      // 南印度方格盤(4x4,中間 2x2 放上升/命主星)
+      if(c.rashi){
+        var side = c.rashiSide, cell = side / 4;
+        var gx = M + (CW - side) / 2, gy = yy;
+        var RC_BG = { fire: 'rgba(255,90,60,.16)', earth: 'rgba(220,180,60,.16)', air: 'rgba(100,170,230,.16)', water: 'rgba(80,180,180,.16)' };
+        c.rashi.cells.forEach(function(rc){
+          var cx = gx + (rc.c - 1) * cell, cy = gy + (rc.r - 1) * cell;
+          ctx.fillStyle = RC_BG[rc.elem] || 'rgba(120,100,160,.14)';
+          ctx.fillRect(cx, cy, cell, cell);
+          ctx.strokeStyle = rc.isAsc ? 'rgba(212,175,55,.9)' : (rc.dush ? 'rgba(255,90,60,.7)' : 'rgba(140,110,200,.3)');
+          ctx.lineWidth = rc.isAsc ? 2.5 : (rc.dush ? 2 : 1);
+          ctx.strokeRect(cx + 0.75, cy + 0.75, cell - 1.5, cell - 1.5);
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#efe9ff'; ctx.font = 'bold 15px ' + FONT;
+          ctx.fillText(rc.sign, cx + 8, cy + 20);
+          ctx.fillStyle = '#b0a4cc'; ctx.font = '12px ' + FONT;
+          ctx.fillText(rc.house, cx + 8, cy + 36);
+          if(rc.planets.length){
+            ctx.fillStyle = '#d4af37'; ctx.font = '20px ' + FONT;
+            ctx.textAlign = 'center';
+            var ptxt = rc.planets.join(' ');
+            wrap(ptxt, cell - 12, '20px ' + FONT).slice(0, 2).forEach(function(l, li){
+              ctx.fillText(l, cx + cell / 2, cy + cell - 30 + li * 22);
+            });
+          }
+        });
+        // 中間 2x2:標題 + 上升/命主星
+        ctx.textAlign = 'center';
+        var midX = gx + side / 2, midY = gy + side / 2;
+        ctx.fillStyle = '#d4af37'; ctx.font = 'bold 18px ' + FONT;
+        ctx.fillText('🕉 南印度方格盤', midX, midY - (c.rashi.centerLines.length * 11));
+        ctx.fillStyle = '#c9c2e0'; ctx.font = '15px ' + FONT;
+        c.rashi.centerLines.forEach(function(l, li){
+          ctx.fillText(l, midX, midY - (c.rashi.centerLines.length * 11) + 26 + li * 22);
+        });
+        ctx.textAlign = 'left';
+        yy += side + 16;
       }
 
       // 純文字區

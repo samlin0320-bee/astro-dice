@@ -663,6 +663,7 @@ html[data-theme="light"] .aic-final-text{background-image:linear-gradient(180deg
 .asp-chip.asp-trine{color:#6ee7a0;border-color:#2e9d5a;background:rgba(46,157,90,.12)}
 .asp-chip.asp-sextile{color:#8fd9ab;border-color:#5ab07a;background:rgba(90,176,122,.1)}
 /* 自然友敵(Naisargika Mitra/Shatru/Sama) */
+.share-inline::before{content:'📱 分享結果'}
 .nai-tag{display:inline-block;margin-left:2px;font-size:8px;font-weight:700;padding:0 3px;border-radius:4px;vertical-align:1px;}
 .nai-tag.nai-friend{color:#6ee7a0;background:rgba(46,157,90,.22)}
 .nai-tag.nai-enemy{color:#ff8a82;background:rgba(201,67,60,.22)}
@@ -961,10 +962,6 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
       </div>
       <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
       <div class="muted" style="font-size:11px;margin-top:8px">此為打開網頁當下的天象快照。要用在判讀請到下方「🌌 當前行運」按「帶入行運」。<span style="color:var(--vedic)">印度（恆星）看因果業力</span>，股市/財務類問題可參考。</div>
-      <div id="nak_cta" class="nak-cta" style="display:none">
-        ✨ <b>27 星宿（Nakshatra）</b>是印度占星的核心 —— 月亮星宿決定你的先天特質、大運（Dasha）起點與擇日吉凶。
-        想真正讀懂自己的星宿與命盤？<a href="https://rightone.3minstest.com/" target="_blank" rel="noopener" class="nak-link">👉 找我上課／預約解盤</a>
-      </div>
     </div>
   </details>
 
@@ -4215,7 +4212,7 @@ function run(){
     <div class="card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span>🎲 你投出了</span>
-        <button class="btn-ghost" style="margin:0;padding:4px 12px;font-size:13px;font-weight:normal" onclick="exportShare()" title="分享這次判讀結果(非網址,是判讀本體)">📱 分享結果</button>
+        <button class="btn-ghost share-inline" style="margin:0;padding:4px 12px;font-size:13px;font-weight:normal" onclick="exportShare()" aria-label="分享結果" title="分享這次判讀結果(非網址,是判讀本體)"></button>
       </div>
       ${dice}
       <p class="muted" style="text-align:center;margin:0">
@@ -4263,9 +4260,10 @@ function run(){
   scheduleReadingLog();
 }
 
-// 延後到下一個 tick 才跑:init() 會呼叫 updateHistoryCount/requireLoginGate 等函式,
-// 但那些函式定義在下面第二個 <script> 區塊(多功能輸出平台),同步呼叫會 ReferenceError。
-setTimeout(init, 0);
+// init() 會呼叫 updateHistoryCount/requireLoginGate 等函式,它們定義在下面第二個 <script> 區塊。
+// 必須等整份文件(所有 script)執行完才能跑;setTimeout(0) 會被解析器讓出時搶跑,所以用 DOMContentLoaded。
+if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', init); }
+else { init(); }
 </script>
 
 <!-- ============ 多功能輸出平台：樣式與腳本（純新增區塊） ============ -->
@@ -4288,6 +4286,13 @@ setTimeout(init, 0);
   .rc-planet{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .rashi-cell,.sky-p,.te-card,table{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* 骰面:列印時改白底深字(原本深底金字,不印背景會變全白) */
+  /* 進場動畫起點是 opacity:0,列印會停在起點 → 骰子內容整個透明(PDF 骰子空白的真因) */
+  .die,.dice-display .die{animation:none!important;opacity:1!important;transform:none!important;transition:none!important}
+  .die::after{display:none!important}
+  .die{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important}
+  .die .label{font-size:11px!important;line-height:1.25!important;text-align:center!important}
+  .die-symbol,.die .label{opacity:1!important;visibility:visible!important}
+  .user-bar,#user_bar,.theme-toggle,#theme_toggle,#login_gate,#output .mx-panel{display:none!important}
   .die{background:#fff!important;border:2px solid #7a5c00!important;box-shadow:none!important;
     width:96px!important;height:96px!important;}
   .die.b{border-color:#0f4c75!important;}
@@ -4335,17 +4340,59 @@ function shouldStopExportAt(el){
   return false;
 }
 
+// 匯出面板(跨平台多功能報告匯出管理)本身不屬於報告內容
+function isExportPanelNode(el){
+  return !!(el && ((el.id === 'export_hub') ||
+    (el.classList && el.classList.contains('mx-panel')) ||
+    (el.querySelector && el.querySelector('.mx-panel'))));
+}
 function exportPlainText(){
+  const NLc = String.fromCharCode(10);
   const parts = [];
   let stopped = false;
   document.querySelectorAll('#output > *').forEach(el=>{
     if(stopped) return;
     if(shouldStopExportAt(el)){ stopped = true; return; }
+    if(isExportPanelNode(el)) return;
     if(el.querySelector && el.querySelector('.btn-deep')) return;
-    const t = (el.innerText || '').trim();
+    let t = (el.innerText || '').trim();
+    // 骰面:一行呈現(原本一顆骰子拆成 2~3 行)
+    const dice = el.querySelector ? el.querySelector('.dice-display') : null;
+    if(dice){
+      const one = [].slice.call(dice.querySelectorAll('.die')).map(function(d){
+        const sy = d.querySelector('.die-symbol'), lb = d.querySelector('.label');
+        return (sy ? sy.innerText.trim() : '') + ' ' + (lb ? lb.innerText.trim().split(NLc).join(' ') : '');
+      }).join('　｜　');
+      t = t.replace(dice.innerText.trim(), one);
+    }
+    // 南印度方格盤:輸出成 4x4 文字方格(原本 12 格一行一個,看不出盤面)
+    const grid = el.querySelector ? el.querySelector('.rashi-chart') : null;
+    if(grid){
+      const cellMap = {};
+      [].slice.call(grid.querySelectorAll('.rashi-cell')).forEach(function(c){
+        const st = c.getAttribute('style') || '';
+        const mr = st.match(/grid-row:\s*(\d+)/), mc = st.match(/grid-column:\s*(\d+)/);
+        if(!mr || !mc) return;
+        const sg = c.querySelector('.rc-sign'), hn = c.querySelector('.rc-hnum');
+        const pls = [].slice.call(c.querySelectorAll('.rc-planet')).map(function(x){ return x.innerText.trim(); });
+        cellMap[mr[1] + ',' + mc[1]] = (sg ? sg.innerText.trim() : '') + (hn ? ' ' + hn.innerText.trim() : '') + (pls.length ? ' ' + pls.join('') : '');
+      });
+      const ttl = el.querySelector('.card-title');
+      const ctr = el.querySelector('.rashi-center .rc-sub');
+      const rows = [];
+      for(let r = 1; r <= 4; r++){
+        const row = [];
+        for(let c2 = 1; c2 <= 4; c2++){
+          row.push((r >= 2 && r <= 3 && c2 >= 2 && c2 <= 3) ? '　　' : (cellMap[r + ',' + c2] || '　'));
+        }
+        rows.push(row.join(' ┃ '));
+      }
+      t = (ttl ? ttl.innerText.trim() + NLc + NLc : '') + rows.join(NLc) +
+          (ctr ? NLc + NLc + ctr.innerText.trim().split(NLc).join(' · ') : '');
+    }
     if(t) parts.push(t);
   });
-  return '🎲 占星骰子 · 五骰判讀結果\n來源：https://dices.3minstest.com/\n\n' + parts.join('\n\n──────────\n\n');
+  return '🎲 占星骰子 · 五骰判讀結果' + NLc + '來源：https://dices.3minstest.com/' + NLc + NLc + parts.join(NLc + NLc + '──────────' + NLc + NLc);
 }
 
 // 匯出用：轉 Markdown（表格自動轉 MD 表格）
@@ -4360,6 +4407,7 @@ function exportMarkdown(simple){
     var el = nodes[ni];
     if(stopped) break;
     if(shouldStopExportAt(el)) break;
+    if(isExportPanelNode(el)) continue;
     if(el.querySelector && el.querySelector('.btn-deep')) continue;
 
     var titleEl = el.querySelector ? el.querySelector('.card-title') : null;
@@ -4633,15 +4681,19 @@ function mxPrintWith(btn, simple){
   var hidden = [];
   if(simple){
     var nodes = [].slice.call(document.querySelectorAll('#output > *'));
-    var passedAI = false;
+    var passedAI = false, rashiKept = false;
     for(var i = 0; i < nodes.length; i++){
       var el = nodes[i];
       var t = (el.querySelector && el.querySelector('.card-title')) ? el.querySelector('.card-title').innerText : '';
-      var isAI = !!(el.querySelector && el.querySelector('.ai-quick-card')) || t.indexOf('AI 雙派') >= 0;
+      var isAI = (el.classList && el.classList.contains('ai-quick-card')) || !!(el.querySelector && el.querySelector('.ai-quick-card')) || t.indexOf('AI 雙派') >= 0;
       if(isAI){ passedAI = true; continue; }
-      // AI 之後的全部隱藏(多功能輸出面板本來就不印)
-      if(passedAI){ el.classList.add('print-hide'); hidden.push(el); }
+      if(!passedAI) continue;
+      // AI 之後只保留南印度方格盤,其餘隱藏(匯出面板本來就不印)
+      var isRashi = !!(el.querySelector && el.querySelector('.rashi-chart'));
+      if(isRashi && !rashiKept){ rashiKept = true; continue; }
+      el.classList.add('print-hide'); hidden.push(el);
     }
+    document.body.classList.add('print-simple');
   }
   var origTitle = document.title;
   var pdfName = makeQuestionFileName('pdf').replace(/\.pdf$/i, '') + (simple ? '_簡短' : '');
@@ -4649,6 +4701,7 @@ function mxPrintWith(btn, simple){
   var restore = function(){
     document.title = origTitle;
     hidden.forEach(function(el){ el.classList.remove('print-hide'); });
+    document.body.classList.remove('print-simple');
     window.removeEventListener('afterprint', restore);
   };
   window.addEventListener('afterprint', restore);
@@ -4860,7 +4913,7 @@ async function _mxSnapshot(btn, mode, simple){
       var h = CP;
       if(c.title) h += LH_T;
       if(c.dice){
-        h += 154;                            // 骰面高
+        h += 136;                            // 骰面高
         if(c.note) h += wrap(c.note, CW - CP*2, '16px ' + FONT).length * 24 + 6;
       }
       if(c.cols){

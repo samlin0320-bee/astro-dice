@@ -4258,6 +4258,13 @@ function run(){
   out.scrollIntoView({behavior:'smooth', block:'start'});
   // 每次判讀排延遲記錄(15秒沒按 AI 也保證記到);按了 AI 深解會取消延遲改記完整含 AI 一筆
   scheduleReadingLog();
+  // AI 雙派白話深解:預設自動執行(從歷史還原時不跑,直接顯示原本存檔的判讀)
+  if(!window.__restoring){
+    setTimeout(function(){
+      var b = document.querySelector('#output .ai-quick-btn');
+      if(b && !b.disabled) b.click();
+    }, 250);
+  }
 }
 
 // init() 會呼叫 updateHistoryCount/requireLoginGate 等函式,它們定義在下面第二個 <script> 區塊。

@@ -5500,9 +5500,27 @@ function makeCurrentRecord(reason){
 window.__logTimer = null;
 window.__readingLogged = false;
 window.__localReadingId = null;
+window.__notionPagePromise = null;   // 本次判讀在 Notion 的頁面 id(建立中也可 await)
 function autoLogIfDefaultKey(reason){
-  try{ syncRecordToNotion(makeCurrentRecord(reason)); }
+  try{ window.__notionPagePromise = syncRecordToNotion(makeCurrentRecord(reason)); }
   catch(e){ console.warn('[dices] autoLog failed:', e && e.message); }
+}
+// AI 在建立紀錄之後才完成 → 用 update 把 AI 三段 + 最新議題補進同一筆
+async function patchNotionWithAI(){
+  try{
+    var pageId = await window.__notionPagePromise;
+    if(!pageId) return;
+    var full = makeCurrentRecord('auto-AI');
+    var res = await fetch(getWorkerUrl(), {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'update', pageId: pageId,
+        aiWest: full.aiWest, aiVedic: full.aiVedic, aiConsensus: full.aiConsensus,
+        ascSign: full.ascSign, lord: full.lord, topics: full.topics, customTopic: full.customTopic })
+    });
+    var d = await res.json().catch(function(){ return {}; });
+    if(res.ok && d.ok) console.log('[dices] Notion 已補上 AI+議題', pageId);
+    else console.warn('[dices] Notion update 失敗', res.status, d && (d.detail || d.error));
+  }catch(e){ console.warn('[dices] patchNotionWithAI failed:', e && e.message); }
 }
 // 產生判讀當下:立刻存 localStorage(本機備份)並記住 id,供 AI 完成後回填
 function saveReadingLocal(){
@@ -5538,6 +5556,7 @@ function scheduleReadingLog(){
   saveReadingLocal();  // 本機當下立刻存,永不遺失
   clearTimeout(window.__logTimer);
   window.__readingLogged = false;
+  window.__notionPagePromise = null;
   window.__logTimer = setTimeout(function(){
     if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('產生判讀'); }
   }, 15000);
@@ -5547,6 +5566,7 @@ function logReadingWithAI(){
   updateLocalReadingAI();  // localStorage 備份也補上 AI
   clearTimeout(window.__logTimer);
   if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('AI-quick'); }
+  else { patchNotionWithAI(); }   // 15 秒前置紀錄已建 → 補 AI 到同一筆
 }
 
 // ==== Notion Sync via Cloudflare Worker(可選) ====

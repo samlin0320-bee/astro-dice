@@ -115,6 +115,14 @@ export default {
       if (rec.aiConsensus) up['AI 兩派共識建議'] = { rich_text: richText(rec.aiConsensus) };
       if (rec.ascSign) up['推算上升'] = { select: { name: rec.ascSign } };
       if (rec.lord) up['命主星'] = { select: { name: rec.lord } };
+      // 議題:AI 完成時再同步一次(使用者可能在產生判讀後才勾選/填寫)
+      if (Array.isArray(rec.topics)) {
+        const names = rec.topics.map(t => String(t).split(' / ')[0]).filter(Boolean);
+        up['議題'] = { multi_select: names.map(n => ({ name: n })) };
+      }
+      if (typeof rec.customTopic === 'string') {
+        up['其他議題'] = { rich_text: rec.customTopic ? [{ text: { content: truncate(rec.customTopic, 500) } }] : [] };
+      }
       const upResp = await fetch(`https://api.notion.com/v1/pages/${rec.pageId}`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION, 'Content-Type': 'application/json' },

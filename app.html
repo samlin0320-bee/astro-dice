@@ -949,7 +949,7 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
   <p class="subtitle">西洋 × 印度雙派分流 · 含當前行運整合</p>
 
   <details class="card sky-card" id="sky_now">
-    <summary class="sky-summary">🌌 此刻天上行運<span class="sky-sub">（開網頁時間快照）</span></summary>
+    <summary class="sky-summary">🌌 此刻天上行運<span class="sky-sub">（預設現在，可自訂時間）</span></summary>
     <div class="sky-body">
       <div class="sky-modes">
         <button type="button" class="sky-mode" data-opt="W" onclick="toggleSkyOpt('W')">☀ 西洋迴歸</button>
@@ -959,6 +959,12 @@ html[data-theme="light"] .mx-panel .mx-hint{background:rgba(0,0,0,.04);}
         <button type="button" class="sky-mode" data-opt="A" onclick="toggleSkyOpt('A')">⚡ 相位</button>
         <button type="button" class="sky-mode" data-opt="Y" onclick="toggleSkyOpt('Y')">☯ 陰陽分組</button>
         <span class="muted" style="font-size:11px;align-self:center;margin-left:4px">可任意單選/複選</span>
+      </div>
+      <div class="sky-time-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 10px">
+        <label for="sky_time" style="margin:0;font-size:12px;color:var(--muted)">🕒 時間：</label>
+        <input id="sky_time" type="datetime-local" style="width:auto;padding:5px 8px;font-size:13px" onchange="onSkyTimeChange()" />
+        <button type="button" class="btn-ghost" style="padding:5px 10px;font-size:12px;margin:0" onclick="resetSkyTime()" title="改回現在">🕒 現在</button>
+        <span id="sky_time_hint" class="muted" style="font-size:11px"></span>
       </div>
       <div id="sky_now_grid" class="muted" style="font-size:13px">星曆載入中…</div>
       <div class="muted" style="font-size:11px;margin-top:8px">此為打開網頁當下的天象快照。要用在判讀請到下方「🌌 當前行運」按「帶入行運」。<span style="color:var(--vedic)">印度（恆星）看因果業力</span>，股市/財務類問題可參考。</div>
@@ -2215,10 +2221,26 @@ function aspectsOf(pid, list){
   });
 }
 
+function getSkyTimestamp(){
+  const v = $('sky_time') && $('sky_time').value;
+  if(!v) return Math.floor(Date.now()/1000);
+  const t = new Date(v).getTime();
+  return isNaN(t) ? Math.floor(Date.now()/1000) : Math.floor(t/1000);
+}
+function onSkyTimeChange(){ renderSkyNow(); }
+function resetSkyTime(){ const i = $('sky_time'); if(i) i.value = toLocalInputValue(new Date()); renderSkyNow(); }
+
 function renderSkyNow(){
   const grid = $('sky_now_grid'); if(!grid) return;
   if(!EPHEM || !EPHEM.points){ grid.textContent = '星曆未載入'; return; }
-  const pt = findClosestPoint(Math.floor(Date.now()/1000));
+  const skyInp = $('sky_time');
+  if(skyInp && !skyInp.value) skyInp.value = toLocalInputValue(new Date());
+  const skyTs = getSkyTimestamp();
+  if(EPHEM_RANGE && (skyTs < EPHEM_RANGE.firstSec || skyTs > EPHEM_RANGE.lastSec)){
+    grid.innerHTML = '<span style="color:var(--warn)">⚠ 該時間超出星曆範圍(' + EPHEM_RANGE.firstDate.toLocaleDateString('zh-TW') + ' ~ ' + EPHEM_RANGE.lastDate.toLocaleDateString('zh-TW') + '),請改時間</span>';
+    return;
+  }
+  const pt = findClosestPoint(skyTs);
   if(!pt){ grid.textContent = '找不到星曆點'; return; }
   const opts = getSkyOpts();
   const showW = opts.includes('W'), showS = opts.includes('S');
@@ -2318,7 +2340,7 @@ function renderSkyNow(){
     aspSummary = '<div class="asp-summary">' + parts.map(function(x){ return '<div>' + x + '</div>'; }).join('') + '</div>';
   }
 
-  grid.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">快照時間：' + dLabel + '（最接近現在）· ' + labels.join(' + ') + '</div>' + cells + aspSummary;
+  grid.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:2px">星曆時間：' + dLabel + (Math.abs(skyTs - Math.floor(Date.now()/1000)) < 21600 ? '（最接近現在）' : '（自訂時間）') + ' · ' + labels.join(' + ') + '</div>' + cells + aspSummary;
   const btns = document.querySelectorAll('.sky-mode');
   for(let i=0;i<btns.length;i++){ btns[i].classList.toggle('on', opts.includes(btns[i].dataset.opt)); }
   const cta = document.getElementById('nak_cta');
@@ -2544,6 +2566,7 @@ function init(){
   requireLoginGate();  // 未登入 → 遮罩
   initGoogleSignIn();  // 必須在 updateUserUI 之前:initialize 先完成才能 renderButton
   updateUserUI();
+  setTimeout(cloudEnsureToken, 1200);
   bindTopicChips();
 }
 
@@ -5523,6 +5546,86 @@ async function patchNotionWithAI(){
   }catch(e){ console.warn('[dices] patchNotionWithAI failed:', e && e.message); }
 }
 // 產生判讀當下:立刻存 localStorage(本機備份)並記住 id,供 AI 完成後回填
+
+// ==== 登入 Gmail 的雲端自動存檔(Worker KV,以 Google 驗證後的 email 為 key)====
+// 本機 localStorage 仍是第一道備份;登入且 token 有效時,每次骰完/AI 完成自動推到雲端,換裝置登入就能拉回。
+const GTOKEN_KEY = 'dices_gtoken';
+function saveGoogleToken(token, type, ttlSec){
+  try{ localStorage.setItem(GTOKEN_KEY, JSON.stringify({ token: token, type: type, exp: Date.now() + (ttlSec || 3300) * 1000 })); }catch(e){}
+}
+function getValidGoogleToken(){
+  try{
+    var t = JSON.parse(localStorage.getItem(GTOKEN_KEY) || 'null');
+    return (t && t.token && t.exp > Date.now() + 60000) ? t : null;
+  }catch(e){ return null; }
+}
+function cloudUserEmail(){
+  var u = getUser();
+  if(!u || !u.email || u.email.indexOf('guest_') === 0 || u.email === '(local)') return '';
+  return String(u.email).toLowerCase();
+}
+function setCloudState(txt, ok){
+  window.__cloudState = txt;
+  var el = document.getElementById('cloud_state');
+  if(el){ el.textContent = txt; el.style.color = ok === false ? 'var(--warn)' : (ok ? 'var(--good,#6ee7a0)' : ''); }
+}
+async function cloudCall(body){
+  var t = getValidGoogleToken();
+  if(!t) throw new Error('no-token');
+  var r = await fetch(getWorkerUrl(), { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(Object.assign({ token: t.token, tokenType: t.type }, body)) });
+  var d = await r.json().catch(function(){ return {}; });
+  if(!r.ok || !d.ok) throw new Error((d && (d.detail || d.error)) || ('HTTP ' + r.status));
+  return d;
+}
+function mergeCloudRecords(cloud){
+  var local = getRecords(), byId = {};
+  local.forEach(function(r){ byId[r.id] = r; });
+  var added = 0;
+  (cloud || []).forEach(function(c){
+    var l = byId[c.id];
+    if(!l){ byId[c.id] = c; added++; }
+    else if(!l.aiFull && !l.aiWest && (c.aiFull || c.aiWest)){ byId[c.id] = c; }
+  });
+  var out = Object.keys(byId).map(function(k){ return byId[k]; })
+    .sort(function(a,b){ return String(b.ts).localeCompare(String(a.ts)); }).slice(0, 200);
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(out));
+  if(typeof updateHistoryCount === 'function') updateHistoryCount();
+  var panel = document.getElementById('history_panel');
+  if(panel && panel.classList.contains('open') && typeof renderHistory === 'function') renderHistory();
+  return added;
+}
+async function cloudSyncNow(){
+  var email = cloudUserEmail();
+  if(!email){ return; }
+  if(!getValidGoogleToken()){ setCloudState('☁ 待重新登入同步', false); return; }
+  try{
+    setCloudState('☁ 同步中…');
+    var mine = getRecords().filter(function(r){ return String(r.user || '').toLowerCase() === email; });
+    if(mine.length) await cloudCall({ action:'hist_put', records: mine });
+    var d = await cloudCall({ action:'hist_list' });
+    var added = mergeCloudRecords(d.records);
+    setCloudState('☁ 已同步' + (added ? '(拉回 ' + added + ' 筆)' : ''), true);
+    console.log('[dices] 雲端同步完成,拉回', added, '筆');
+  }catch(e){
+    setCloudState('☁ 同步失敗', false);
+    console.warn('[dices] cloud sync failed:', e && e.message);
+  }
+}
+var __cloudTimer = null;
+function cloudScheduleSync(){
+  if(!cloudUserEmail()) return;
+  clearTimeout(__cloudTimer);
+  __cloudTimer = setTimeout(cloudSyncNow, 1500);
+}
+// 登入但 token 過期 → 嘗試靜默換新(Google One Tap 自動選取),成功後 handleGoogleSignIn 會更新 token 並同步
+function cloudEnsureToken(){
+  if(!cloudUserEmail()) return;
+  if(getValidGoogleToken()){ cloudSyncNow(); return; }
+  setCloudState('☁ 待重新登入同步', false);
+  try{ if(window.google && google.accounts && google.accounts.id) google.accounts.id.prompt(); }catch(e){}
+}
+
 function saveReadingLocal(){
   try{
     var rec = makeCurrentRecord('auto-產生判讀');
@@ -5532,6 +5635,7 @@ function saveReadingLocal(){
     if(all.length > 200) all.pop();
     localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
     updateHistoryCount();
+    cloudScheduleSync();
   }catch(e){ console.warn('[dices] local save failed:', e && e.message); }
 }
 // AI 深解完成:把本機那筆的 AI 三段回填(localStorage 備份也有 AI)
@@ -5548,6 +5652,7 @@ function updateLocalReadingAI(){
       }
     }
     localStorage.setItem(RECORDS_KEY, JSON.stringify(all));
+    cloudScheduleSync();
   }catch(e){}
 }
 // 產生判讀後呼叫:立刻本機備份 + 排 15 秒 Notion 記錄(沒按 AI 也保證記到)
@@ -5804,9 +5909,10 @@ window.handleGoogleSignIn = function(response){
     const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
     const user = { email: payload.email, name: payload.name, picture: payload.picture };
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    saveGoogleToken(response.credential, 'id', Math.max(300, (payload.exp || 0) - Math.floor(Date.now()/1000) - 60));
     updateUserUI();
     removeLoginGate();
-    alert('✓ 已登入 ' + user.email + '\n（紀錄將標註你的 email，仍存在此瀏覽器 localStorage）');
+    cloudSyncNow();
   }catch(e){ alert('登入解析失敗：' + e.message); }
 };
 
@@ -5819,7 +5925,7 @@ function updateUserUI(){
     const avatar = user.picture
       ? `<img src="${user.picture}" alt="${initial}" onerror="this.outerHTML='<span class=avatar>${initial}</span>'"/>`
       : `<span class="avatar">${initial}</span>`;
-    container.innerHTML = `<span class="user-chip active" title="${user.email}">${avatar}${user.email.split('@')[0]}<span onclick="signOut()" style="margin-left:6px;cursor:pointer;opacity:.7" title="登出">✕</span></span>`;
+    container.innerHTML = `<span class="user-chip active" title="${user.email}">${avatar}${user.email.split('@')[0]}<span id="cloud_state" style="margin-left:6px;font-size:11px" title="登入後每筆骰子紀錄自動雲端存檔,換裝置登入可拉回">${window.__cloudState || ''}</span><span onclick="signOut()" style="margin-left:6px;cursor:pointer;opacity:.7" title="登出">✕</span></span>`;
   }else{
     // 未登入 → 顯示 Google 官方 Render Button(比 One Tap 穩)
     // 先給 placeholder,等 GSI ready 才 renderButton
@@ -5888,8 +5994,10 @@ function loginWithGoogleOAuth(){
           const u = await r.json();
           const user = { email: u.email, name: u.name, picture: u.picture };
           localStorage.setItem(USER_KEY, JSON.stringify(user));
+          saveGoogleToken(tokenResponse.access_token, 'access', Math.max(300, (parseInt(tokenResponse.expires_in) || 3600) - 60));
           updateUserUI();
           removeLoginGate();
+          cloudSyncNow();
         }catch(e){ alert('取使用者資料失敗:' + e.message); }
       },
       error_callback: (err) => {
@@ -5921,6 +6029,7 @@ function loginWithGoogleOAuth(){
     }
     const user = { email: payload.email, name: payload.name, picture: payload.picture };
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    saveGoogleToken(idToken, 'id', 3000);
     sessionStorage.removeItem('gauth_state');
     sessionStorage.removeItem('gauth_nonce');
     // 清 URL hash
@@ -5958,6 +6067,7 @@ function continueAsGuest(){
 
 function signOut(){
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(GTOKEN_KEY);
   if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
   updateUserUI();
 }
@@ -6005,7 +6115,7 @@ function initGoogleSignIn(){
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: window.handleGoogleSignIn,
-      auto_select: false,
+      auto_select: true,
       use_fedcm_for_prompt: true,  // 用 FedCM(未來 Chrome 強制)
       itp_support: true,           // Safari ITP 支援
     });

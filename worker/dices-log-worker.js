@@ -27,6 +27,29 @@ export default {
     }
 
     // ── Telegram 傳 MD 檔(action:'telegram_doc') — 用 sendDocument,避免長文洗版 ──
+    // ── 登入使用者的雲端歷史(KV):token 由 Google 驗證出 email,以 email 為 key ──
+    if (rec && (rec.action === 'hist_put' || rec.action === 'hist_list')) {
+      if (!env.HISTORY) return json({ error: 'history store not configured' }, 500);
+      const email = await verifyGoogleEmail(rec.token, rec.tokenType);
+      if (!email) return json({ error: 'auth', detail: 'Google token 無效或已過期' }, 401);
+      const key = 'u:' + email;
+      let list = [];
+      try { list = JSON.parse((await env.HISTORY.get(key)) || '[]'); } catch (e) { list = []; }
+      if (rec.action === 'hist_put') {
+        const incoming = (Array.isArray(rec.records) ? rec.records : []).slice(0, 200);
+        const byId = new Map(list.map(r => [r.id, r]));
+        for (const r of incoming) {
+          if (!r || !r.id) continue;
+          r.user = email;   // 以驗證過的 email 為準,不信任前端
+          byId.set(r.id, r);
+        }
+        list = Array.from(byId.values()).sort((a, b) => String(b.ts).localeCompare(String(a.ts))).slice(0, 200);
+        await env.HISTORY.put(key, JSON.stringify(list));
+        return json({ ok: true, count: list.length });
+      }
+      return json({ ok: true, records: list });
+    }
+
     if (rec && rec.action === 'telegram_doc') {
       const tgToken = env.TG_BOT_TOKEN;
       const tgChat = env.TG_CHAT_ID;
@@ -160,6 +183,23 @@ export default {
     return json({ ok: true, id: data.id, url: data.url });
   },
 };
+
+// 用 Google 官方端點驗證 token → email(id_token 走 tokeninfo,access_token 走 userinfo)
+async function verifyGoogleEmail(token, type) {
+  if (!token) return null;
+  try {
+    if (type === 'access') {
+      const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + token } });
+      if (!r.ok) return null;
+      const u = await r.json();
+      return u.email && u.email_verified !== false ? String(u.email).toLowerCase() : null;
+    }
+    const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token));
+    if (!r.ok) return null;
+    const u = await r.json();
+    return u.email && String(u.email_verified) !== 'false' ? String(u.email).toLowerCase() : null;
+  } catch (e) { return null; }
+}
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {

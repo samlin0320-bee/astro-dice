@@ -11,3 +11,7 @@ compatibility_date = "2026-01-01"
 # [[routes]]
 # pattern = "logs.3minstest.com/*"
 # zone_name = "3minstest.com"
+
+[[kv_namespaces]]
+binding = "HISTORY"
+id = "88a8073ab3ee4042bed525aa12fc261f"

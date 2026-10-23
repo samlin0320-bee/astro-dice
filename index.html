@@ -748,6 +748,7 @@ html[data-theme="light"] .em-air{background:#d5e6f5} html[data-theme="light"] .e
 .sky-line{font-size:12px;line-height:1.5;}
 .sky-line.w{color:var(--western)}
 .sky-line.v{color:var(--vedic)}
+.sky-line.rx{color:#ffcf00;font-size:11px;}
 .sky-line.n{color:var(--gold-soft,#e8cf7a);font-size:11px;}
 .sky-p .w{color:var(--western)} .sky-p .v{color:var(--vedic)}
 html[data-theme="light"] .sky-p{background:#f4f0fb;}
@@ -2221,6 +2222,19 @@ function aspectsOf(pid, list){
   });
 }
 
+function findDirectSec(idx, pt){
+  const pts = EPHEM.points;
+  let lo = 0, hi = pts.length - 1;
+  while(lo < hi){ const mid = (lo + hi) >> 1; if(pts[mid].t < pt.t) lo = mid + 1; else hi = mid; }
+  for(let k = lo + 1; k < pts.length; k++){
+    if(pts[k].R && pts[k].R[idx] === 0) return pts[k].t;
+  }
+  return null;
+}
+function fmtDirectDate(sec){
+  const d = new Date(sec * 1000);
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+}
 function getSkyTimestamp(){
   const v = $('sky_time') && $('sky_time').value;
   if(!v) return Math.floor(Date.now()/1000);
@@ -2292,6 +2306,11 @@ function renderSkyNow(){
         }).join('');
         rows.push('<div class="sky-line asp-row">' + chips + '</div>');
       }
+    }
+    // 逆行 → 顯示何時轉順行(星曆往後找第一個 R 變 0 的點;羅睺計都恆逆行不算)
+    if(R && R[i] === 1 && pid !== 'rahu' && pid !== 'ketu'){
+      const dsec = findDirectSec(i, pt);
+      rows.push('<div class="sky-line rx">' + (dsec ? '↻ 順行 約 ' + fmtDirectDate(dsec) : '↻ 順行:星曆範圍內未轉') + '</div>');
     }
     return '<div class="sky-p' + aspCls + '">' +
       '<div class="pn">' + (pl ? pl.sym + ' ' + pl.zh : pid) + ' ' + retro + polTag + '</div>' +

@@ -3184,6 +3184,19 @@ function buildDirectionFacts(ctx){
   });
   return out.concat(evLines()).join(NL);
 }
+// 逆行資料:發問/行運時刻正在逆行的行星 + 何時轉順行(逆行與否與黃道系統無關,兩派共用)
+function buildRetroFacts(){
+  if(!EPHEM || !EPHEM.points || !EPHEM.points.length) return '(星曆未載入)';
+  const pt = findClosestPoint(getFactsRefSec());
+  if(!pt || !pt.R) return '(星曆無逆行資料)';
+  const order = EPHEM.planets_order, out = [];
+  ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'].forEach(function(pid){
+    const i = order.indexOf(pid); if(i < 0 || pt.R[i] !== 1) return;
+    const d = findDirectSec(i, pt);
+    out.push(findPlanet(pid).zh + ' 逆行中,' + (d ? '約 ' + fmtDirectDate(d) + ' 轉順行' : '星曆範圍內未轉順行'));
+  });
+  return out.length ? out.join(String.fromCharCode(10)) : '此刻七曜與外行星皆順行(無逆行)';
+}
 function fmtIngressTime(sec){
   var d = new Date(sec * 1000);
   return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
@@ -3232,6 +3245,7 @@ function renderAIQuickRead(ctx){
     reception: receptionText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB, house_b:ctx.house_b}),
     dirFacts: buildDirectionFacts(ctx),
     validityFacts: buildValidityFacts(),
+    retroFacts: buildRetroFacts(),
     horary: (typeof horaryRulesText === 'function' && ctx.ascSign) ? horaryRulesText({asc: ctx.ascSign.id, placements: ctx.placements || [], transits: ctx.transits || []}) : '',
   };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
@@ -3316,6 +3330,10 @@ ${payload.dirFacts || '(無)'}
 ${payload.validityFacts || '(無)'}
 ※ 西洋派用「西洋迴歸」那行、印度派用「印度恆星」那行的換座時間。
 
+【逆行與順行日期(系統已算好,請直接引用)】
+${payload.retroFacts || '(無)'}
+※ 逆行=該行星主題反覆、延遲、回頭修正、舊事重提;轉順行的日期=事情重新推進/可正式啟動的時間點。判讀時務必在『天上呼應』指出哪些行星逆行、何時轉順行;若逆行星是問題相關行星(命主星、主副骰行星、土星、火星),『效期』也要把它的順行日期納入考量(例如延遲到該日之後才會明朗)。
+
 【問題】
 ${payload.question || '(未特別提問,泛泛看今天/近期整體)'}
 
@@ -3355,6 +3373,7 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
 - 用「你」,不要用「客戶/命主/原盤/相位」等術語堆疊
 - 行運未帶入絕不瞎編,transit 那欄照實寫「未帶入…」
 - 每個欄位用純繁中,可以帶 emoji 但不要用 **粗體** 或 # 標題
+- 有逆行行星時,transit 欄必須寫出該行星與具體順行日期;日期只准用【逆行與順行日期】給的
 - direction / validity 兩欄兩派都「必填」且照強制格式輸出;方位與日期只准引用系統給的資料,沒有資料才寫「無資料」`;
 
   try{

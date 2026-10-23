@@ -2071,18 +2071,34 @@ async function loadEphemeris(){
 
 function findClosestPoint(targetTimestamp){
   if(!EPHEM || !EPHEM.points || !EPHEM.points.length) return null;
-  // 二分搜尋最近的時間點
-  let lo = 0, hi = EPHEM.points.length - 1;
+  const P = EPHEM.points;
+  let lo = 0, hi = P.length - 1;
   while(lo < hi){
     const mid = (lo + hi) >> 1;
-    if(EPHEM.points[mid].t < targetTimestamp) lo = mid + 1;
+    if(P[mid].t < targetTimestamp) lo = mid + 1;
     else hi = mid;
   }
-  // 比較 lo 跟 lo-1 哪個更接近
-  const p1 = EPHEM.points[lo];
-  const p0 = lo>0 ? EPHEM.points[lo-1] : null;
-  if(!p0) return p1;
-  return Math.abs(p1.t - targetTimestamp) < Math.abs(p0.t - targetTimestamp) ? p1 : p0;
+  const p1 = P[lo];
+  const p0 = lo > 0 ? P[lo - 1] : null;
+  if(!p0 || p1.t === targetTimestamp) return p1;
+  // 目標時刻在 p0~p1 之間 → 以黃經線性插值(6 小時內誤差 < 0.03°;月亮亦同),星座與度數皆為「該時刻」精確值
+  const f = (targetTimestamp - p0.t) / (p1.t - p0.t);
+  const near = (f < 0.5) ? p0 : p1;
+  if(!p0.D || !p1.D || !p0.DS || !p1.DS) return near;   // 舊版星曆無度數 → 退回最近點
+  const out = { t: targetTimestamp, R: near.R, T: [], S: [], D: [], DS: [] };
+  const n = p0.T.length;
+  const interp = function(signs0, deg0, signs1, deg1, i){
+    const l0 = signs0[i] * 30 + deg0[i] / 10, l1 = signs1[i] * 30 + deg1[i] / 10;
+    const d = ((l1 - l0 + 540) % 360) - 180;
+    return ((l0 + f * d) % 360 + 360) % 360;
+  };
+  for(let i = 0; i < n; i++){
+    const lt = interp(p0.T, p0.D, p1.T, p1.D, i);
+    const ls = interp(p0.S, p0.DS, p1.S, p1.DS, i);
+    out.T.push(Math.floor(lt / 30));  out.D.push(Math.min(299, Math.round((lt % 30) * 10)));
+    out.S.push(Math.floor(ls / 30));  out.DS.push(Math.min(299, Math.round((ls % 30) * 10)));
+  }
+  return out;
 }
 
 function resetTransitDate(){
@@ -3172,7 +3188,7 @@ function buildDirectionFacts(ctx){
   }
   var order = EPHEM.planets_order;
   [['T', '西洋迴歸'], ['S', '印度恆星']].forEach(function(sys){
-    out.push('【' + sys[1] + '(最近星曆點 ' + fmtIngressTime(pt.t) + ')】');
+    out.push('【' + sys[1] + '(' + fmtIngressTime(pt.t) + ')】');
     function f(pid){
       var i = order.indexOf(pid), pl = findPlanet(pid);
       if(i < 0 || !pl) return '  ' + pid + ':(無資料)';
@@ -3214,10 +3230,22 @@ function buildValidityFacts(){
     [['moon', '月亮'], ['sun', '太陽'], ['mercury', '水星'], ['venus', '金星'], ['mars', '火星'], ['jupiter', '木星'], ['saturn', '土星']].forEach(function(pl){
       var idx = order.indexOf(pl[0]); if(idx < 0) return;
       var key = sys[0];
-      var cur = pts[lo][key][idx];
-      for(var i = lo + 1; i < pts.length; i++){
+      var cur = (findClosestPoint(refSec) || pts[lo])[key][idx];
+      var dk = (key === 'T') ? 'D' : 'DS';
+      for(var i = Math.max(lo, 1); i < pts.length; i++){
         if(pts[i][key][idx] !== cur){
-          parts.push(pl[1] + ' 現在' + SIGNS[cur].zh + ',約 ' + fmtIngressTime(pts[i].t) + ' 進入' + SIGNS[pts[i][key][idx]].zh);
+          var tIng = pts[i].t;
+          var a0 = pts[i-1], a1 = pts[i];
+          if(a0[dk] && a1[dk]){
+            var l0 = a0[key][idx] * 30 + a0[dk][idx] / 10, l1 = a1[key][idx] * 30 + a1[dk][idx] / 10;
+            var dl = ((l1 - l0 + 540) % 360) - 180;
+            var fwd = dl >= 0;
+            var bnd = fwd ? ((cur + 1) % 12) * 30 : cur * 30;
+            var d0 = ((bnd - l0 + 540) % 360) - 180;
+            var ff = dl !== 0 ? d0 / dl : 0.5;
+            if(ff >= 0 && ff <= 1) tIng = Math.round(a0.t + ff * (a1.t - a0.t));
+          }
+          parts.push(pl[1] + ' 現在' + SIGNS[cur].zh + ',約 ' + fmtIngressTime(tIng) + ' 進入' + SIGNS[pts[i][key][idx]].zh);
           return;
         }
       }

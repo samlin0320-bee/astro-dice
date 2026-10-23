@@ -3163,8 +3163,24 @@ function aiDualHTML(parsed, usedModel, isHistory){
 const DIR_BY_HOUSE = {1:'東',2:'東北東',3:'北北東',4:'北',5:'北北西',6:'西北西',7:'西',8:'西南西',9:'南南西',10:'南',11:'南南東',12:'東南東'};
 function dirOfHouse(h){ return DIR_BY_HOUSE[h] || '?'; }
 // 星座方位(傳統):火象東、土象南、風象西、水象北 → 牡羊東、金牛南、雙子西、巨蟹北,每 4 個循環
-const DIR_BY_SIGN4 = ['東', '南', '西', '北'];
-function dirOfSign(signId){ return (signId == null || signId === '') ? '?' : DIR_BY_SIGN4[((parseInt(signId) % 4) + 4) % 4]; }
+// 先天方位(Sam 提供的對照表):火象 牡羊東/獅子東偏北/射手東偏南;土象 摩羯南/金牛南偏東/處女南偏西;風象 天秤西/水瓶西偏北/雙子西偏南;水象 巨蟹北/天蠍北偏東/雙魚北偏西
+const DIR_BY_SIGN4 = ['東', '南偏東', '西偏南', '北', '東偏北', '南偏西', '西', '北偏東', '東偏南', '南', '西偏北', '北偏西'];
+function dirOfSign(signId){ return (signId == null || signId === '') ? '?' : DIR_BY_SIGN4[((parseInt(signId) % 12) + 12) % 12]; }
+// 星座屬性與時間尺度:基本(始天/續星期/果月)、固定(始月/續年/果長久)、變動(始星期/續月/果年)
+const MODALITY = [
+  { n: '基本', t: '開始看「天」、持續看「星期」、結果看「月」' },
+  { n: '固定', t: '開始看「月」、持續看「年」、結果看「長久」' },
+  { n: '變動', t: '開始看「星期」、持續看「月」、結果看「年」' }
+];
+function modalityOfSign(signId){ return (signId == null || signId === '') ? null : MODALITY[((parseInt(signId) % 3) + 3) % 3]; }
+function buildModalityFacts(ctx){
+  var rows = [];
+  function add(label, sg){ var m = sg && modalityOfSign(sg.id); if(m) rows.push('  ' + label + ' ' + sg.zh + ' = ' + m.n + '星座:' + m.t); }
+  add('主骰', ctx.sA);
+  if(ctx.useSubdie && ctx.pB) add('副骰', ctx.sB);
+  if(ctx.ascSign) add('上升', ctx.ascSign);
+  return rows.length ? rows.join(String.fromCharCode(10)) : '(無)';
+}
 function getFactsRefSec(){
   var refStr = ($('ask_time') && $('ask_time').value) || ($('transit_date') && $('transit_date').value) || '';
   var refSec = refStr ? Math.floor(new Date(refStr).getTime() / 1000) : Math.floor(Date.now() / 1000);
@@ -3276,6 +3292,7 @@ function renderAIQuickRead(ctx){
     reception: receptionText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB, house_b:ctx.house_b}),
     dirFacts: buildDirectionFacts(ctx),
     validityFacts: buildValidityFacts(),
+    modalityFacts: buildModalityFacts(ctx),
     retroFacts: buildRetroFacts(),
     horary: (typeof horaryRulesText === 'function' && ctx.ascSign) ? horaryRulesText({asc: ctx.ascSign.id, placements: ctx.placements || [], transits: ctx.transits || []}) : '',
   };
@@ -3355,12 +3372,16 @@ ${payload.reception || '(單骰,無容納關係)'}
 ${payload.dirFacts || '(無)'}
 ※ 西洋派請用【西洋迴歸】那組、印度派請用【印度恆星】那組(兩派星座/宮位不同,不可混用)。
 ※ 宮位方位規則:1宮東、4宮北、7宮西、10宮南,每宮 30° 逆時針(2宮東北東、3宮北北東、5宮北北西、6宮西北西、8宮西南西、9宮南南西、11宮南南東、12宮東南東)。
-※ 星座方位規則(傳統):火象星座(牡羊/獅子/射手)=東、土象(金牛/處女/摩羯)=南、風象(雙子/天秤/水瓶)=西、水象(巨蟹/天蠍/雙魚)=北。每顆星有兩個方位:「宮位方位」(細,30°一格)與「星座方位」(粗,四正向);兩者一致時方位最確定,不一致時以宮位方位為主、星座方位為輔並說明。
+※ 星座方位規則(先天方位):牡羊東、獅子東偏北、射手東偏南;摩羯南、金牛南偏東、處女南偏西;天秤西、水瓶西偏北、雙子西偏南;巨蟹北、天蠍北偏東、雙魚北偏西。每顆星有兩個方位:「宮位方位」(細,30°一格)與「星座方位」(粗,四正向);兩者一致時方位最確定,不一致時以宮位方位為主、星座方位為輔並說明。
 ※ 吉方=木星、金星、月亮所在方位(貴人、正面助力);凶方=土星、火星所在方位(小人、負面阻礙)。
 
 【效期資料(系統已算好換座時間,請直接引用日期,不可自己編日期)】
 ${payload.validityFacts || '(無)'}
 ※ 西洋派用「西洋迴歸」那行、印度派用「印度恆星」那行的換座時間。
+
+【星座屬性時間尺度(Sam 的時間參考,必須用來估事情的時程)】
+${payload.modalityFacts || '(無)'}
+※ 基本星座:始=天、續=星期、果=月;固定星座:始=月、續=年、果=長久;變動星座:始=星期、續=月、果=年。『效期』第2行請依主骰(或問題相關)星座的屬性,明確寫出「多久開始/持續多久/多久見結果」,再配合換座日期給出具體區間。
 
 【逆行與順行日期(系統已算好,請直接引用)】
 ${payload.retroFacts || '(無)'}

@@ -3111,15 +3111,89 @@ function aiDualHTML(parsed, usedModel, isHistory){
     <div class="ai-two-col">
       <div class="ai-side ai-side-western">
         <div class="ai-side-title">🌐 西洋派 Western</div>
-        ${block('🎲 雙星互動', w.dice_interaction)}${block('⭐ 命主星關係', w.lord_relation)}${block('🌌 天上呼應', w.transit)}${block('💡 建議', w.advice)}
+        ${block('🎲 雙星互動', w.dice_interaction)}${block('⭐ 命主星關係', w.lord_relation)}${block('🌌 天上呼應', w.transit)}${block('💡 建議', w.advice)}${w.direction ? block('🧭 方位吉凶', w.direction) : ''}${w.validity ? block('⏳ 效期', w.validity) : ''}
       </div>
       <div class="ai-side ai-side-vedic">
         <div class="ai-side-title">🕉 印度派 Vedic</div>
-        ${block('🎲 雙星互動', v.dice_interaction)}${block('⭐ 命主星關係', v.lord_relation)}${block('🌌 天上呼應', v.transit)}${block('💡 建議', v.advice)}
+        ${block('🎲 雙星互動', v.dice_interaction)}${block('⭐ 命主星關係', v.lord_relation)}${block('🌌 天上呼應', v.transit)}${block('💡 建議', v.advice)}${v.direction ? block('🧭 方位吉凶', v.direction) : ''}${v.validity ? block('⏳ 效期', v.validity) : ''}
       </div>
     </div>
     ${consensusHTML}
     ${hint}`;
+}
+
+
+// ==== 方位吉凶 + 效期(確定性計算,餵給 AI;AI 不得自己亂編方位/日期)====
+// 宮位→方位:1宮=東、4宮=北、7宮=西、10宮=南,每宮 30°,逆時針排列
+const DIR_BY_HOUSE = {1:'東',2:'東北東',3:'北北東',4:'北',5:'北北西',6:'西北西',7:'西',8:'西南西',9:'南南西',10:'南',11:'南南東',12:'東南東'};
+function dirOfHouse(h){ return DIR_BY_HOUSE[h] || '?'; }
+function getFactsRefSec(){
+  var refStr = ($('ask_time') && $('ask_time').value) || ($('transit_date') && $('transit_date').value) || '';
+  var refSec = refStr ? Math.floor(new Date(refStr).getTime() / 1000) : Math.floor(Date.now() / 1000);
+  return isNaN(refSec) ? Math.floor(Date.now() / 1000) : refSec;
+}
+// 方位資料:西洋(迴歸)與印度(恆星)各算一組,直接用星曆在發問/行運時刻的位置,不依賴「帶入行運」
+function buildDirectionFacts(ctx){
+  var NL = String.fromCharCode(10), out = [];
+  var asc = ctx.ascSign ? ctx.ascSign.id : null;
+  var pt = (EPHEM && EPHEM.points && asc != null) ? findClosestPoint(getFactsRefSec()) : null;
+  function evLines(){
+    var l = ['事件宮位方位(問題發生地/對象所在):', '  主骰第' + ctx.house_a + '宮 → ' + dirOfHouse(ctx.house_a) + '方'];
+    if(ctx.useSubdie && ctx.pB) l.push('  副骰第' + ctx.house_b + '宮 → ' + dirOfHouse(ctx.house_b) + '方');
+    return l;
+  }
+  if(!pt){
+    // 星曆不可用:退回用已帶入的行運 + 骰面行星
+    var byPid = {};
+    (ctx.transits || []).forEach(function(t){ byPid[t.pid] = { sign: t.sign && t.sign.zh, house: t.house, retro: !!t.isRetro }; });
+    var f = function(pid){ var x = byPid[pid], pl = findPlanet(pid); return '  ' + pl.zh + (x ? (x.retro ? '(逆行)' : '') + ' 在' + x.sign + ' 第' + x.house + '宮 → ' + dirOfHouse(x.house) + '方' : ':(無資料)'); };
+    out.push('吉方(貴人/正面):'); ['jupiter', 'venus', 'moon'].forEach(function(k){ out.push(f(k)); });
+    out.push('凶方(小人/負面):'); ['saturn', 'mars'].forEach(function(k){ out.push(f(k)); });
+    return out.concat(evLines()).join(NL);
+  }
+  var order = EPHEM.planets_order;
+  [['T', '西洋迴歸'], ['S', '印度恆星']].forEach(function(sys){
+    out.push('【' + sys[1] + '(最近星曆點 ' + fmtIngressTime(pt.t) + ')】');
+    function f(pid){
+      var i = order.indexOf(pid), pl = findPlanet(pid);
+      if(i < 0 || !pl) return '  ' + pid + ':(無資料)';
+      var sg = pt[sys[0]][i], h = houseOfSign(sg, asc), retro = pt.R && pt.R[i] === 1;
+      return '  ' + pl.zh + (retro ? '(逆行)' : '') + ' 在' + SIGNS[sg].zh + ' 第' + h + '宮 → ' + dirOfHouse(h) + '方';
+    }
+    out.push('吉方(貴人/正面):'); ['jupiter', 'venus', 'moon'].forEach(function(k){ out.push(f(k)); });
+    out.push('凶方(小人/負面):'); ['saturn', 'mars'].forEach(function(k){ out.push(f(k)); });
+  });
+  return out.concat(evLines()).join(NL);
+}
+function fmtIngressTime(sec){
+  var d = new Date(sec * 1000);
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+// 從參考時間往後找各行星「下次換座」時間(星曆 6 小時解析度,時間為約略)
+function buildValidityFacts(){
+  if(!EPHEM || !EPHEM.points || !EPHEM.points.length) return '(星曆未載入,無法算換座時間)';
+  var refSec = getFactsRefSec();
+  var pts = EPHEM.points, order = EPHEM.planets_order;
+  var lo = 0, hi = pts.length - 1;
+  while(lo < hi){ var mid = (lo + hi) >> 1; if(pts[mid].t < refSec) lo = mid + 1; else hi = mid; }
+  var NL = String.fromCharCode(10), out = ['基準時間:' + fmtIngressTime(refSec) + '(發問/行運時刻)'];
+  [['T', '西洋迴歸'], ['S', '印度恆星']].forEach(function(sys){
+    var parts = [];
+    [['moon', '月亮'], ['sun', '太陽'], ['mercury', '水星'], ['venus', '金星'], ['mars', '火星'], ['jupiter', '木星'], ['saturn', '土星']].forEach(function(pl){
+      var idx = order.indexOf(pl[0]); if(idx < 0) return;
+      var key = sys[0];
+      var cur = pts[lo][key][idx];
+      for(var i = lo + 1; i < pts.length; i++){
+        if(pts[i][key][idx] !== cur){
+          parts.push(pl[1] + ' 現在' + SIGNS[cur].zh + ',約 ' + fmtIngressTime(pts[i].t) + ' 進入' + SIGNS[pts[i][key][idx]].zh);
+          return;
+        }
+      }
+      parts.push(pl[1] + ' 現在' + SIGNS[cur].zh + ',星曆範圍內不再換座');
+    });
+    out.push(sys[1] + ':' + parts.join(';'));
+  });
+  return out.join(NL);
 }
 
 function renderAIQuickRead(ctx){
@@ -3137,6 +3211,8 @@ function renderAIQuickRead(ctx){
     transits: (ctx.transits||[]).map(t=>({name:t.name, sign:t.sign.zh, house:t.house, isRetro: !!t.isRetro})),
     threeEngines: threeEnginesText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB}),
     reception: receptionText({pA:ctx.pA, sA:ctx.sA, house_a:ctx.house_a, useSubdie:ctx.useSubdie, pB:ctx.pB, sB:ctx.sB, house_b:ctx.house_b}),
+    dirFacts: buildDirectionFacts(ctx),
+    validityFacts: buildValidityFacts(),
     horary: (typeof horaryRulesText === 'function' && ctx.ascSign) ? horaryRulesText({asc: ctx.ascSign.id, placements: ctx.placements || [], transits: ctx.transits || []}) : '',
   };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
@@ -3211,6 +3287,16 @@ ${payload.horary || '(單骰,無主副骰關係可判)'}
 ${payload.reception || '(單骰,無容納關係)'}
 ※ 容納會使兩星關係增吉、即使凶相也減弱(像贈禮,主宰星給容納星好處)。互容/交換(印度 Parivartana 互垣)會讓原本弱陷狀態消失、轉為吉利;但凶凶互容若落 6/8/12 陷宮,能力有限、有時反而更糟。判讀吉凶時請把這層加權進去。
 
+【方位資料(系統已算好,請直接引用,不可自己改方位)】
+${payload.dirFacts || '(無)'}
+※ 西洋派請用【西洋迴歸】那組、印度派請用【印度恆星】那組(兩派星座/宮位不同,不可混用)。
+※ 宮位方位規則:1宮東、4宮北、7宮西、10宮南,每宮 30° 逆時針(2宮東北東、3宮北北東、5宮北北西、6宮西北西、8宮西南西、9宮南南西、11宮南南東、12宮東南東)。
+※ 吉方=木星、金星、月亮所在方位(貴人、正面助力);凶方=土星、火星所在方位(小人、負面阻礙)。
+
+【效期資料(系統已算好換座時間,請直接引用日期,不可自己編日期)】
+${payload.validityFacts || '(無)'}
+※ 西洋派用「西洋迴歸」那行、印度派用「印度恆星」那行的換座時間。
+
 【問題】
 ${payload.question || '(未特別提問,泛泛看今天/近期整體)'}
 
@@ -3226,13 +3312,17 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
     "dice_interaction": "1-3 句白話,西洋視角看${twoDiceLabel}這對雙星的能量組合(相合/互補/對立/加乘),點出各自宮位情境",
     "lord_relation": "1-2 句白話,命主星${pName(payload.lord)}(西洋現代守護觀)跟${pName(payload.pA)}${hasSubdie?'/'+pName(payload.pB):''}的關係,對『你』意味著什麼",
     "transit": "1-2 句白話,${transitAvailable ? '對照當前行運('+transitLine+')西洋視角(角度、心理面)的呼應與強化/矛盾' : '未帶入當前行運資料,無法對照天上真實星象'}",
-    "advice": "1-2 句白話,西洋派的具體可行動作(適合/不適合、什麼時候做、怎麼做),不模糊兩可"
+    "advice": "1-2 句白話,西洋派的具體可行動作(適合/不適合、什麼時候做、怎麼做),不模糊兩可",
+    "direction": "【強制標準格式,三行,用換行字元 \\n 分隔】第1行『吉方:』列出木星/金星/月亮各自的星座+宮位+方位,說明哪個是貴人方向;第2行『凶方:』列出土星/火星各自的星座+宮位+方位,說明是小人/阻礙方向;第3行『趨吉避凶:』明確寫出『先往哪個方位、避開哪個方位』,並點出問題事件所在宮位方位(若問題涉及地點/對象)該如何對應。方位一律照【方位資料】,不可改。",
+    "validity": "【強制標準格式,兩行,用換行字元 \\n 分隔】第1行『⏳ 避開至:』給出具體 年/月/日 時:分 與原因(凶方要避多久,日期取自【效期資料】的換座時間);第2行『📅 此卦有效至:』給出具體 年/月/日 時:分 與原因(這個卦管多久,通常取月亮離開目前星座的時間,或問題相關行星換座時間)。日期只能用【效期資料】給的,寫成 YYYY/M/D HH:mm。"
   },
   "vedic": {
     "dice_interaction": "1-3 句白話,印度視角看這對雙星的能量組合(強調 Kendra/Trikona/Dusthana、九曜性質),點出各自 Bhava 情境",
     "lord_relation": "1-2 句白話,命主星(Lagna Lord、傳統七曜守護)跟這對雙星的關係,對『你』意味著什麼",
     "transit": "1-2 句白話,${transitAvailable ? '對照當前行運印度視角(Gochara、行星映射)的呼應' : '未帶入當前行運資料,無法對照天上真實星象'}",
-    "advice": "1-2 句白話,印度派的具體可行動作,不模糊兩可"
+    "advice": "1-2 句白話,印度派的具體可行動作,不模糊兩可",
+    "direction": "【強制標準格式,三行,用換行字元 \\n 分隔】第1行『吉方:』列出木星(Guru)/金星(Shukra)/月亮(Chandra)各自的星座+宮位+方位;第2行『凶方:』列出土星(Shani)/火星(Kuja)各自的星座+宮位+方位;第3行『趨吉避凶:』明確寫出先往哪個方位、避開哪個方位,並點出問題事件宮位的方位。方位一律照【方位資料】。",
+    "validity": "【強制標準格式,兩行,用換行字元 \\n 分隔】第1行『⏳ 避開至:』具體 年/月/日 時:分 與原因;第2行『📅 此卦有效至:』具體 年/月/日 時:分 與原因。日期只能用【效期資料】印度恆星那行給的換座時間,寫成 YYYY/M/D HH:mm。"
   },
   "consensus": {
     "intersection": ["1-3 句白話陣列,列出西洋派與印度派『真正指向同一件事』的共通點,每項獨立一句(若兩派幾乎沒重疊就給空陣列 [])"],
@@ -3245,7 +3335,8 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
 - 只回 JSON,不要 markdown code block、不要前後說明
 - 用「你」,不要用「客戶/命主/原盤/相位」等術語堆疊
 - 行運未帶入絕不瞎編,transit 那欄照實寫「未帶入…」
-- 每個欄位用純繁中,可以帶 emoji 但不要用 **粗體** 或 # 標題`;
+- 每個欄位用純繁中,可以帶 emoji 但不要用 **粗體** 或 # 標題
+- direction / validity 兩欄兩派都「必填」且照強制格式輸出;方位與日期只准引用系統給的資料,沒有資料才寫「無資料」`;
 
   try{
     let text = '', usedModel = '';
@@ -3256,7 +3347,7 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
         body: JSON.stringify({
           contents:[{role:'user', parts:[{text: prompt}]}],
           generationConfig:{
-            temperature:0.75, maxOutputTokens:1800,
+            temperature:0.75, maxOutputTokens:4000,
             responseMimeType:'application/json',
             thinkingConfig:{thinkingBudget:0}
           }

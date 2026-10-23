@@ -3187,6 +3187,16 @@ function getFactsRefSec(){
   return isNaN(refSec) ? Math.floor(Date.now() / 1000) : refSec;
 }
 // 方位資料:西洋(迴歸)與印度(恆星)各算一組,直接用星曆在發問/行運時刻的位置,不依賴「帶入行運」
+// 吉凶分類(Sam):吉=木星金星月亮北交點;凶=土星火星南交點;中性=天王星;吉凶參半=海王星;凶中帶吉=冥王星
+function pushGroups(out, f){
+  [['吉方(貴人/正面):', ['jupiter', 'venus', 'moon', 'rahu']],
+   ['凶方(小人/負面):', ['saturn', 'mars', 'ketu']],
+   ['中性(視情況):', ['uranus']],
+   ['吉凶參半(有助也有擾):', ['neptune']],
+   ['凶中帶吉(壓力中藏轉機):', ['pluto']]].forEach(function(g){
+    out.push(g[0]); g[1].forEach(function(k){ out.push(f(k)); });
+  });
+}
 function buildDirectionFacts(ctx){
   var NL = String.fromCharCode(10), out = [];
   var asc = ctx.ascSign ? ctx.ascSign.id : null;
@@ -3201,8 +3211,7 @@ function buildDirectionFacts(ctx){
     var byPid = {};
     (ctx.transits || []).forEach(function(t){ byPid[t.pid] = { sign: t.sign && t.sign.zh, house: t.house, retro: !!t.isRetro }; });
     var f = function(pid){ var x = byPid[pid], pl = findPlanet(pid); return '  ' + pl.zh + (x ? (x.retro ? '(逆行)' : '') + ' 在' + x.sign + ' 第' + x.house + '宮 → 宮位方位 ' + dirOfHouse(x.house) + '方' : ':(無資料)'); };
-    out.push('吉方(貴人/正面):'); ['jupiter', 'venus', 'moon'].forEach(function(k){ out.push(f(k)); });
-    out.push('凶方(小人/負面):'); ['saturn', 'mars'].forEach(function(k){ out.push(f(k)); });
+    pushGroups(out, f);
     return out.concat(evLines()).join(NL);
   }
   var order = EPHEM.planets_order;
@@ -3214,8 +3223,7 @@ function buildDirectionFacts(ctx){
       var sg = pt[sys[0]][i], h = houseOfSign(sg, asc), retro = pt.R && pt.R[i] === 1;
       return '  ' + pl.zh + (retro ? '(逆行)' : '') + ' 在' + SIGNS[sg].zh + ' 第' + h + '宮 → 宮位方位 ' + dirOfHouse(h) + '方 / 星座方位 ' + dirOfSign(sg) + '方';
     }
-    out.push('吉方(貴人/正面):'); ['jupiter', 'venus', 'moon'].forEach(function(k){ out.push(f(k)); });
-    out.push('凶方(小人/負面):'); ['saturn', 'mars'].forEach(function(k){ out.push(f(k)); });
+    pushGroups(out, f);
   });
   return out.concat(evLines()).join(NL);
 }
@@ -3373,7 +3381,7 @@ ${payload.dirFacts || '(無)'}
 ※ 西洋派請用【西洋迴歸】那組、印度派請用【印度恆星】那組(兩派星座/宮位不同,不可混用)。
 ※ 宮位方位規則:1宮東、4宮北、7宮西、10宮南,每宮 30° 逆時針(2宮東北東、3宮北北東、5宮北北西、6宮西北西、8宮西南西、9宮南南西、11宮南南東、12宮東南東)。
 ※ 星座方位規則(先天方位):牡羊東、獅子東偏北、射手東偏南;摩羯南、金牛南偏東、處女南偏西;天秤西、水瓶西偏北、雙子西偏南;巨蟹北、天蠍北偏東、雙魚北偏西。每顆星有兩個方位:「宮位方位」(細,30°一格)與「星座方位」(粗,四正向);兩者一致時方位最確定,不一致時以宮位方位為主、星座方位為輔並說明。
-※ 吉方=木星、金星、月亮所在方位(貴人、正面助力);凶方=土星、火星所在方位(小人、負面阻礙)。
+※ 吉凶分類(固定,不可改):吉=木星、金星、月亮、北交點(羅睺);凶=土星、火星、南交點(計都);中性=天王星;吉凶參半=海王星;凶中帶吉=冥王星。吉方=貴人、正面助力所在方位;凶方=小人、負面阻礙所在方位;中性/參半/凶中帶吉的星要在方位吉凶裡另外點名,說明該方位『看情況、可用但要留意』。
 
 【效期資料(系統已算好換座時間,請直接引用日期,不可自己編日期)】
 ${payload.validityFacts || '(無)'}
@@ -3403,7 +3411,7 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
     "lord_relation": "1-2 句白話,命主星${pName(payload.lord)}(西洋現代守護觀)跟${pName(payload.pA)}${hasSubdie?'/'+pName(payload.pB):''}的關係,對『你』意味著什麼",
     "transit": "1-2 句白話,${transitAvailable ? '對照當前行運('+transitLine+')西洋視角(角度、心理面)的呼應與強化/矛盾' : '未帶入當前行運資料,無法對照天上真實星象'}",
     "advice": "1-2 句白話,西洋派的具體可行動作(適合/不適合、什麼時候做、怎麼做),不模糊兩可",
-    "direction": "【強制標準格式,三行,用換行字元 \\n 分隔】第1行『吉方:』列出木星/金星/月亮各自的星座+宮位+宮位方位+星座方位,說明哪個是貴人方向;第2行『凶方:』列出土星/火星各自的星座+宮位+宮位方位+星座方位,說明是小人/阻礙方向;第3行『趨吉避凶:』明確寫出『先往哪個方位、避開哪個方位』,並點出問題事件所在宮位方位(若問題涉及地點/對象)該如何對應。方位一律照【方位資料】,不可改。",
+    "direction": "【強制標準格式,四行,用換行字元 \\n 分隔】第1行『吉方:』列出木星/金星/月亮/北交點各自的星座+宮位+宮位方位+星座方位,說明哪個是貴人方向;第2行『凶方:』列出土星/火星/南交點各自的星座+宮位+宮位方位+星座方位,說明是小人/阻礙方向;第3行『看情況:』列出天王星(中性)、海王星(吉凶參半)、冥王星(凶中帶吉)的星座+宮位+方位並各用一句話說明如何對待;第4行『趨吉避凶:』明確寫出『先往哪個方位、避開哪個方位』,並點出問題事件所在宮位方位(若問題涉及地點/對象)該如何對應。方位一律照【方位資料】,不可改。",
     "validity": "【強制標準格式,兩行,用換行字元 \\n 分隔】第1行『⏳ 避開至:』給出具體 年/月/日 時:分 與原因(凶方要避多久,日期取自【效期資料】的換座時間);第2行『📅 此卦有效至:』給出具體 年/月/日 時:分 與原因(這個卦管多久,通常取月亮離開目前星座的時間,或問題相關行星換座時間)。日期只能用【效期資料】給的,寫成 YYYY/M/D HH:mm。"
   },
   "vedic": {
@@ -3411,7 +3419,7 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
     "lord_relation": "1-2 句白話,命主星(Lagna Lord、傳統七曜守護)跟這對雙星的關係,對『你』意味著什麼",
     "transit": "1-2 句白話,${transitAvailable ? '對照當前行運印度視角(Gochara、行星映射)的呼應' : '未帶入當前行運資料,無法對照天上真實星象'}",
     "advice": "1-2 句白話,印度派的具體可行動作,不模糊兩可",
-    "direction": "【強制標準格式,三行,用換行字元 \\n 分隔】第1行『吉方:』列出木星(Guru)/金星(Shukra)/月亮(Chandra)各自的星座+宮位+宮位方位+星座方位;第2行『凶方:』列出土星(Shani)/火星(Kuja)各自的星座+宮位+宮位方位+星座方位;第3行『趨吉避凶:』明確寫出先往哪個方位、避開哪個方位,並點出問題事件宮位的方位。方位一律照【方位資料】。",
+    "direction": "【強制標準格式,四行,用換行字元 \\n 分隔】第1行『吉方:』列出木星(Guru)/金星(Shukra)/月亮(Chandra)/北交點(Rahu)各自的星座+宮位+宮位方位+星座方位;第2行『凶方:』列出土星(Shani)/火星(Kuja)/南交點(Ketu)各自的星座+宮位+宮位方位+星座方位;第3行『看情況:』列出天王星(中性)、海王星(吉凶參半)、冥王星(凶中帶吉)的星座+宮位+方位並各一句說明;第4行『趨吉避凶:』明確寫出先往哪個方位、避開哪個方位,並點出問題事件宮位的方位。方位一律照【方位資料】。",
     "validity": "【強制標準格式,兩行,用換行字元 \\n 分隔】第1行『⏳ 避開至:』具體 年/月/日 時:分 與原因;第2行『📅 此卦有效至:』具體 年/月/日 時:分 與原因。日期只能用【效期資料】印度恆星那行給的換座時間,寫成 YYYY/M/D HH:mm。"
   },
   "consensus": {

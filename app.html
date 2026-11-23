@@ -4995,11 +4995,11 @@ async function mxCopySnapshot(btn){ return _mxSnapshot(btn, 'copy', false); }
 async function mxSaveSnapshotSimple(btn){ return _mxSnapshot(btn, 'download', true); }
 async function mxCopySnapshotSimple(btn){ return _mxSnapshot(btn, 'copy', true); }
 
-async function _mxSnapshot(btn, mode, simple){
+async function _mxSnapshot(btn, mode, simple, nodesOverride){
   mxFlash(btn, '📸 產生截圖中...');
   try{
     var NL = String.fromCharCode(10);
-    var picked = _snapshotCollectNodes(simple);
+    var picked = nodesOverride || _snapshotCollectNodes(simple);
     if(!picked.length){ mxFlash(btn, '❌ 沒有結果可截'); return; }
 
     var W = 1080, M = 28;                 // 畫布寬、外距
@@ -5336,6 +5336,7 @@ async function _mxSnapshot(btn, mode, simple){
 
     var name = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('png') : '占星骰子結果.png';
     if(simple) name = name.replace(/\.png$/, '_簡短.png');
+    if(mode === 'blob'){ return await new Promise(function(r){ cv.toBlob(r, 'image/png'); }); }
     if(mode === 'copy'){
       var pngBlob = await new Promise(function(r){ cv.toBlob(r, 'image/png'); });
       if(navigator.clipboard && window.ClipboardItem){
@@ -5359,6 +5360,7 @@ async function _mxSnapshot(btn, mode, simple){
   }catch(e){
     console.error('[dices] snapshot fail:', e);
     mxFlash(btn, '❌ ' + String(e.message).slice(0, 40));
+    if(mode === 'blob') return null;
   }
 }
 
@@ -5735,6 +5737,59 @@ async function patchNotionWithAI(){
     else console.warn('[dices] Notion update 失敗', res.status, d && (d.detail || d.error));
   }catch(e){ console.warn('[dices] patchNotionWithAI failed:', e && e.message); }
 }
+
+// ==== 每筆判讀把「結果截圖」+「宮位圖(南印度方格盤)」附到 Notion 那一筆 ====
+// Notion 免費方案單檔上限 5MB;超過 1.5MB 就轉 JPEG 壓縮(家用上傳頻寬慢,避免卡住)
+async function _blobToNotionImage(blob, baseName){
+  if(!blob) return null;
+  var type = 'image/png', name = baseName + '.png';
+  if(blob.size > 1.5 * 1024 * 1024){
+    var bmp = await createImageBitmap(blob);
+    var sc = Math.min(1, Math.sqrt((1.2 * 1024 * 1024) / blob.size) * 1.6);
+    var cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    for(var q = 0.85; q >= 0.4; q -= 0.15){
+      blob = await new Promise(function(r){ cv.toBlob(r, 'image/jpeg', q); });
+      if(blob && blob.size <= 1.5 * 1024 * 1024) break;
+    }
+    type = 'image/jpeg'; name = baseName + '.jpg';
+  }
+  var buf = new Uint8Array(await blob.arrayBuffer()), bin = '';
+  for(var i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  return { name: name, type: type, b64: btoa(bin) };
+}
+function _rashiCardNode(){
+  var nodes = [].slice.call(document.querySelectorAll('#output > *'));
+  for(var i = 0; i < nodes.length; i++){
+    var el = nodes[i];
+    if((el.classList && el.classList.contains('rashi-chart')) || (el.querySelector && el.querySelector('.rashi-chart'))) return el;
+  }
+  return null;
+}
+window.__notionImgSent = {};
+async function sendNotionImages(){
+  try{
+    var pageId = await window.__notionPagePromise;
+    if(!pageId || window.__notionImgSent[pageId]) return;
+    window.__notionImgSent[pageId] = 'sending';
+    var stamp = (typeof makeQuestionFileName === 'function') ? makeQuestionFileName('png').replace(/\.png$/, '') : '占星骰子';
+    var images = [];
+    var full = await _blobToNotionImage(await _mxSnapshot(null, 'blob', true), stamp + '_結果截圖');
+    if(full){ full.caption = '🎲 骰出結果截圖'; images.push(full); }
+    var rn = _rashiCardNode();
+    if(rn){
+      var ra = await _blobToNotionImage(await _mxSnapshot(null, 'blob', false, [rn]), stamp + '_宮位圖');
+      if(ra){ ra.caption = '🕉 宮位圖(南印度方格盤)'; images.push(ra); }
+    }
+    if(!images.length){ delete window.__notionImgSent[pageId]; console.warn('[dices] Notion 圖片:沒有可截的結果'); return; }
+    var res = await fetch(getWorkerUrl(), { method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'notion_images', pageId: pageId, images: images }) });
+    var d = await res.json().catch(function(){ return {}; });
+    if(res.ok && d.ok){ window.__notionImgSent[pageId] = true; console.log('[dices] Notion 已附上圖片', d.count, pageId); }
+    else { delete window.__notionImgSent[pageId]; console.warn('[dices] Notion 圖片上傳失敗', res.status, d && (d.detail || d.error)); }
+  }catch(e){ console.warn('[dices] sendNotionImages failed:', e && e.message); }
+}
 // 產生判讀當下:立刻存 localStorage(本機備份)並記住 id,供 AI 完成後回填
 
 // ==== 登入 Gmail 的雲端自動存檔(Worker KV,以 Google 驗證後的 email 為 key)====
@@ -5855,6 +5910,8 @@ function scheduleReadingLog(){
   window.__logTimer = setTimeout(function(){
     if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('產生判讀'); }
   }, 15000);
+  clearTimeout(window.__imgFallbackTimer);
+  window.__imgFallbackTimer = setTimeout(sendNotionImages, 180000);   // AI 沒完成也照樣附圖
 }
 // AI 深解完成後呼叫:回填本機備份的 AI + 取消延遲、記完整含 AI 的一筆到 Notion
 function logReadingWithAI(){
@@ -5862,6 +5919,8 @@ function logReadingWithAI(){
   clearTimeout(window.__logTimer);
   if(!window.__readingLogged){ window.__readingLogged = true; autoLogIfDefaultKey('AI-quick'); }
   else { patchNotionWithAI(); }   // 15 秒前置紀錄已建 → 補 AI 到同一筆
+  clearTimeout(window.__imgFallbackTimer);
+  setTimeout(sendNotionImages, 800);   // 等 AI 卡片畫完再截(截圖含 AI)
 }
 
 // ==== Notion Sync via Cloudflare Worker(可選) ====

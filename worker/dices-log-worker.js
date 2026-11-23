@@ -130,6 +130,39 @@ export default {
       return json({ error: 'server not configured (NOTION_TOKEN / NOTION_DATABASE_ID missing)' }, 500);
     }
 
+    // ── 附圖到既有紀錄(action:'notion_images') — 結果截圖 + 宮位圖,用 Notion File Upload API ──
+    if (rec && rec.action === 'notion_images' && rec.pageId && Array.isArray(rec.images)) {
+      const H = { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION };
+      const children = [];
+      for (const im of rec.images.slice(0, 4)) {
+        const type = im.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+        const name = String(im.name || 'dices.png').slice(0, 120);
+        let bytes;
+        try { bytes = Uint8Array.from(atob(String(im.b64 || '')), c => c.charCodeAt(0)); }
+        catch (e) { return json({ error: 'bad base64', name }, 400); }
+        if (!bytes.length || bytes.length > 5 * 1024 * 1024) return json({ error: 'image size', name, size: bytes.length }, 413);
+        const cr = await fetch('https://api.notion.com/v1/file_uploads', {
+          method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: name, content_type: type }),
+        });
+        const cj = await cr.json().catch(() => ({}));
+        if (!cr.ok || !cj.id) return json({ error: 'notion file_upload create', status: cr.status, detail: JSON.stringify(cj).slice(0, 300) }, 502);
+        const fd = new FormData();
+        fd.append('file', new Blob([bytes], { type }), name);
+        const sr = await fetch(`https://api.notion.com/v1/file_uploads/${cj.id}/send`, { method: 'POST', headers: H, body: fd });
+        if (!sr.ok) return json({ error: 'notion file_upload send', status: sr.status, detail: (await sr.text()).slice(0, 300) }, 502);
+        const cap = im.caption ? [{ type: 'text', text: { content: String(im.caption).slice(0, 200) } }] : [];
+        children.push({ object: 'block', type: 'image', image: { type: 'file_upload', file_upload: { id: cj.id }, caption: cap } });
+      }
+      if (!children.length) return json({ error: 'no images' }, 400);
+      const ar = await fetch(`https://api.notion.com/v1/blocks/${rec.pageId}/children`, {
+        method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ children }),
+      });
+      if (!ar.ok) return json({ error: 'notion append', status: ar.status, detail: (await ar.text()).slice(0, 300) }, 502);
+      return json({ ok: true, count: children.length });
+    }
+
     // ── 更新既有紀錄(action:'update') — AI 深解完成後補上 AI 三段到同一筆 ──
     if (rec && rec.action === 'update' && rec.pageId) {
       const up = {};

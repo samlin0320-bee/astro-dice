@@ -132,35 +132,50 @@ export default {
 
     // ── 附圖到既有紀錄(action:'notion_images') — 結果截圖 + 宮位圖,用 Notion File Upload API ──
     if (rec && rec.action === 'notion_images' && rec.pageId && Array.isArray(rec.images)) {
-      const H = { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION };
       const children = [];
-      for (const im of rec.images.slice(0, 4)) {
-        const type = im.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
-        const name = String(im.name || 'dices.png').slice(0, 120);
+      for (const im of rec.images.slice(0, 5)) {
         let bytes;
         try { bytes = Uint8Array.from(atob(String(im.b64 || '')), c => c.charCodeAt(0)); }
-        catch (e) { return json({ error: 'bad base64', name }, 400); }
-        if (!bytes.length || bytes.length > 5 * 1024 * 1024) return json({ error: 'image size', name, size: bytes.length }, 413);
-        const cr = await fetch('https://api.notion.com/v1/file_uploads', {
-          method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: name, content_type: type }),
-        });
-        const cj = await cr.json().catch(() => ({}));
-        if (!cr.ok || !cj.id) return json({ error: 'notion file_upload create', status: cr.status, detail: JSON.stringify(cj).slice(0, 300) }, 502);
-        const fd = new FormData();
-        fd.append('file', new Blob([bytes], { type }), name);
-        const sr = await fetch(`https://api.notion.com/v1/file_uploads/${cj.id}/send`, { method: 'POST', headers: H, body: fd });
-        if (!sr.ok) return json({ error: 'notion file_upload send', status: sr.status, detail: (await sr.text()).slice(0, 300) }, 502);
-        const cap = im.caption ? [{ type: 'text', text: { content: String(im.caption).slice(0, 200) } }] : [];
-        children.push({ object: 'block', type: 'image', image: { type: 'file_upload', file_upload: { id: cj.id }, caption: cap } });
+        catch (e) { return json({ error: 'bad base64', name: im.name }, 400); }
+        if (!bytes.length || bytes.length > 5 * 1024 * 1024) return json({ error: 'file size', name: im.name, size: bytes.length }, 413);
+        const isFile = im.kind === 'file';
+        const type = isFile ? 'text/markdown' : (im.type === 'image/jpeg' ? 'image/jpeg' : 'image/png');
+        const r = await notionUpload(token, bytes, type, String(im.name || (isFile ? 'dices.md' : 'dices.png')).slice(0, 120));
+        if (r.error) return json(r, 502);
+        children.push(fileBlock(r.id, isFile ? 'file' : 'image', im.caption));
       }
       if (!children.length) return json({ error: 'no images' }, 400);
-      const ar = await fetch(`https://api.notion.com/v1/blocks/${rec.pageId}/children`, {
-        method: 'PATCH', headers: { ...H, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ children }),
-      });
-      if (!ar.ok) return json({ error: 'notion append', status: ar.status, detail: (await ar.text()).slice(0, 300) }, 502);
+      const ar = await notionAppend(token, rec.pageId, children);
+      if (ar.error) return json(ar, 502);
       return json({ ok: true, count: children.length });
+    }
+
+    // ── 補舊紀錄 MD 檔(action:'backfill_md') — 由 Notion 屬性組 MD 附到沒有 MD 的頁;需 BACKFILL_KEY ──
+    if (rec && rec.action === 'backfill_md') {
+      if (!env.BACKFILL_KEY || rec.key !== env.BACKFILL_KEY) return json({ error: 'forbidden' }, 403);
+      const H = { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION, 'Content-Type': 'application/json' };
+      const qr = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
+        method: 'POST', headers: H,
+        body: JSON.stringify({ page_size: Math.min(8, rec.pageSize || 8), start_cursor: rec.cursor || undefined,
+          sorts: [{ timestamp: 'created_time', direction: 'ascending' }] }),
+      });
+      const qj = await qr.json().catch(() => ({}));
+      if (!qr.ok) return json({ error: 'notion query', status: qr.status, detail: JSON.stringify(qj).slice(0, 300) }, 502);
+      const done = [];
+      for (const pg of qj.results || []) {
+        const kr = await fetch(`https://api.notion.com/v1/blocks/${pg.id}/children?page_size=100`, { headers: H });
+        const kj = await kr.json().catch(() => ({}));
+        const hasMd = (kj.results || []).some(b => b.type === 'file' && (/\.md$/i.test((b.file && b.file.name) || '') ||
+          ((b.file && b.file.caption) || []).some(c => /MD/.test(c.plain_text || ''))));
+        if (hasMd) { done.push({ id: pg.id, skip: 'has md' }); continue; }
+        if (rec.dryRun) { done.push({ id: pg.id, wouldAdd: true }); continue; }
+        const { md, name } = mdFromPage(pg);
+        const up = await notionUpload(token, new TextEncoder().encode('\uFEFF' + md), 'text/markdown', name);
+        if (up.error) { done.push({ id: pg.id, error: up }); continue; }
+        const ar = await notionAppend(token, pg.id, [fileBlock(up.id, 'file', '📄 判讀 MD 檔(由 Notion 紀錄補建)')]);
+        done.push(ar.error ? { id: pg.id, error: ar } : { id: pg.id, added: name });
+      }
+      return json({ ok: true, next: qj.has_more ? qj.next_cursor : null, done });
     }
 
     // ── 更新既有紀錄(action:'update') — AI 深解完成後補上 AI 三段到同一筆 ──
@@ -216,6 +231,78 @@ export default {
     return json({ ok: true, id: data.id, url: data.url });
   },
 };
+
+
+// ── Notion File Upload 共用:建立 → 手動 multipart 傳送(保留中文檔名,FormData 會亂碼) ──
+async function notionUpload(token, bytes, type, name) {
+  const H = { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION };
+  const cr = await fetch('https://api.notion.com/v1/file_uploads', {
+    method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: name, content_type: type }),
+  });
+  const cj = await cr.json().catch(() => ({}));
+  if (!cr.ok || !cj.id) return { error: 'notion file_upload create', status: cr.status, detail: JSON.stringify(cj).slice(0, 300) };
+  const enc = new TextEncoder();
+  const boundary = '----AstroDice' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const asciiName = name.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+  const head = enc.encode('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + asciiName +
+    '"; filename*=UTF-8\'\'' + encodeURIComponent(name) + '\r\nContent-Type: ' + type + '\r\n\r\n');
+  const tail = enc.encode('\r\n--' + boundary + '--\r\n');
+  const body = new Uint8Array(head.length + bytes.length + tail.length);
+  body.set(head, 0); body.set(bytes, head.length); body.set(tail, head.length + bytes.length);
+  const sr = await fetch(`https://api.notion.com/v1/file_uploads/${cj.id}/send`, {
+    method: 'POST', headers: { ...H, 'Content-Type': 'multipart/form-data; boundary=' + boundary }, body,
+  });
+  if (!sr.ok) return { error: 'notion file_upload send', status: sr.status, detail: (await sr.text()).slice(0, 300) };
+  return { id: cj.id };
+}
+function fileBlock(id, kind, caption) {
+  const cap = caption ? [{ type: 'text', text: { content: String(caption).slice(0, 200) } }] : [];
+  return { object: 'block', type: kind, [kind]: { type: 'file_upload', file_upload: { id }, caption: cap } };
+}
+async function notionAppend(token, pageId, children) {
+  const ar = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+    method: 'PATCH', headers: { 'Authorization': `Bearer ${token}`, 'Notion-Version': NOTION_VERSION, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ children }),
+  });
+  if (!ar.ok) return { error: 'notion append', status: ar.status, detail: (await ar.text()).slice(0, 300) };
+  return { ok: true };
+}
+// 舊紀錄:用 Notion 屬性重組一份 MD(前端匯出的格式精簡版)
+function mdFromPage(pg) {
+  const P = pg.properties || {};
+  const txt = k => { const v = P[k]; if (!v) return '';
+    if (v.type === 'title') return v.title.map(x => x.plain_text).join('');
+    if (v.type === 'rich_text') return v.rich_text.map(x => x.plain_text).join('');
+    if (v.type === 'select') return v.select ? v.select.name : '';
+    if (v.type === 'multi_select') return v.multi_select.map(x => x.name).join('、');
+    if (v.type === 'number') return v.number == null ? '' : String(v.number);
+    if (v.type === 'date') return v.date ? v.date.start : '';
+    if (v.type === 'url') return v.url || '';
+    if (v.type === 'unique_id') return v.unique_id ? (v.unique_id.prefix ? v.unique_id.prefix + '-' : '') + v.unique_id.number : '';
+    return ''; };
+  const tw = s => { if (!s) return ''; const d = new Date(s); if (isNaN(d)) return s;
+    return new Date(d.getTime() + 8 * 3600e3).toISOString().slice(0, 16).replace('T', ' '); };
+  const q = txt('問題') || '(未提問)';
+  let uid = '';
+  for (const k in P) if (P[k].type === 'unique_id') uid = txt(k);
+  const dice = [txt('主骰行星'), txt('主骰星座'), txt('主骰宮位') ? txt('主骰宮位') + '宮' : ''].filter(Boolean).join(' · ');
+  const sub = [txt('副骰行星'), txt('副骰星座')].filter(Boolean).join(' · ');
+  const L = ['# 🎲 占星骰子判讀', '', '## ❓ 問題', '', q, '', '## 📋 基本資料', ''];
+  const row = (k, v) => { if (v) L.push('- **' + k + '**:' + v); };
+  row('紀錄編號', uid); row('擲骰時間', tw(txt('時間'))); row('發問時刻', tw(txt('發問時刻')));
+  row('議題', txt('議題')); row('其他議題', txt('其他議題'));
+  row('主骰', dice); row('副骰', sub); row('推算上升', txt('推算上升')); row('命主星', txt('命主星'));
+  row('行運日期', (txt('行運日期') || '').slice(0, 10));
+  L.push('');
+  const sec = (h, k) => { const v = txt(k); if (v) { L.push('## ' + h, '', v, ''); } };
+  sec('🌍 AI 西洋建議', 'AI 西洋建議'); sec('🕉 AI 印度建議', 'AI 印度建議'); sec('🤝 AI 兩派共識建議', 'AI 兩派共識建議');
+  L.push('---', '', '> 本檔由 Notion 紀錄屬性補建(舊紀錄當時未存 MD 檔)。來源:https://dices.3minstest.com/');
+  const safe = s => String(s || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/[\s\-]+/g, '_').slice(0, 30);
+  const d = tw(txt('時間') || pg.created_time).slice(2, 10).replace(/-/g, '');
+  const name = [d, safe(q) || '未提問', safe([txt('主骰行星'), txt('主骰星座'), txt('主骰宮位') ? txt('主骰宮位') + '宮' : ''].filter(Boolean).join('-')) || '未擲骰'].join('-') + '.md';
+  return { md: L.join('\n'), name };
+}
 
 // 用 Google 官方端點驗證 token → email(id_token 走 tokeninfo,access_token 走 userinfo)
 async function verifyGoogleEmail(token, type) {

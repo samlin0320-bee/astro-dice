@@ -5782,6 +5782,14 @@ async function sendNotionImages(){
       var ra = await _blobToNotionImage(await _mxSnapshot(null, 'blob', false, [rn]), stamp + '_宮位圖');
       if(ra){ ra.caption = '🕉 宮位圖(南印度方格盤)'; images.push(ra); }
     }
+    try{
+      var md = (typeof exportMarkdown === 'function') ? exportMarkdown(false) : '';
+      if(md && md.trim()){
+        var mb = new TextEncoder().encode('\uFEFF' + md), mbin = '';
+        for(var mi = 0; mi < mb.length; mi += 0x8000) mbin += String.fromCharCode.apply(null, mb.subarray(mi, mi + 0x8000));
+        images.push({ kind: 'file', name: stamp + '.md', type: 'text/markdown', caption: '📄 判讀 MD 檔(完整版)', b64: btoa(mbin) });
+      }
+    }catch(e){ console.warn('[dices] Notion MD 檔組裝失敗:', e && e.message); }
     if(!images.length){ delete window.__notionImgSent[pageId]; console.warn('[dices] Notion 圖片:沒有可截的結果'); return; }
     var res = await fetch(getWorkerUrl(), { method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ action: 'notion_images', pageId: pageId, images: images }) });

@@ -50,6 +50,29 @@ export default {
       return json({ ok: true, records: list });
     }
 
+    // ── Gemini 備援通道(action:'gemini_proxy') — 瀏覽器直連 Google 失敗(Failed to fetch)時改由 Worker 轉送 ──
+    if (rec && rec.action === 'gemini_proxy') {
+      const model = String(rec.model || '');
+      if (!/^[a-z0-9.\-]{3,60}$/.test(model) || !rec.key || !rec.body) return json({ error: 'bad proxy request' }, 400);
+      const gr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(rec.key)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec.body),
+      });
+      return new Response(await gr.text(), { status: gr.status, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+    }
+
+    // ── 前端錯誤回報(action:'client_error') — AI 判讀失敗時通知 Telegram,錯誤不再靜默 ──
+    if (rec && rec.action === 'client_error') {
+      if (env.TG_BOT_TOKEN && env.TG_CHAT_ID) {
+        const n = rec.net || {};
+        const text = `⚠️ dices 前端錯誤\n📍 ${truncate(rec.where, 40)}\n❌ ${truncate(rec.msg, 300)}\n❓ ${truncate(rec.q, 80) || '(未提問)'}\n🌐 online=${rec.online} 直連=${n.direct || 0} 重試=${n.retry || 0} 備援=${n.proxy || 0}\n🖥 ${truncate(rec.ua, 120)}`;
+        await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text, disable_web_page_preview: true }),
+        }).catch(() => {});
+      }
+      return json({ ok: true });
+    }
+
     if (rec && rec.action === 'telegram_doc') {
       const tgToken = env.TG_BOT_TOKEN;
       const tgChat = env.TG_CHAT_ID;

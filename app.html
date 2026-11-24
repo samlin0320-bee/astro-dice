@@ -1675,6 +1675,60 @@ function setupImageInput(){
   }
 }
 
+// ==== Gemini 連線防護:離線等待 → 直連(逾時 70 秒,失敗再試 1 次)→ Worker 備援通道 ====
+// 「Failed to fetch」= 瀏覽器根本沒連上 Google(網路切換/手機背景/擋廣告外掛/公司網路擋網域)。
+// 直連兩次都斷線就改走 dices-log Worker 轉送,使用者不用按重試。
+function _isNetErr(e){ return e && (e.name === 'TypeError' || e.name === 'AbortError' || /fetch|network|Load failed|timed? ?out/i.test(e.message || '')); }
+function _waitOnline(ms){
+  if(navigator.onLine !== false) return Promise.resolve();
+  return new Promise(function(r){ var t = setTimeout(r, ms); window.addEventListener('online', function(){ clearTimeout(t); r(); }, {once:true}); });
+}
+async function _fetchTimeout(url, opt, ms){
+  var ac = new AbortController(), t = setTimeout(function(){ ac.abort(); }, ms);
+  try{ return await fetch(url, Object.assign({}, opt, {signal: ac.signal})); }
+  finally{ clearTimeout(t); }
+}
+window.__geminiNet = { direct: 0, retry: 0, proxy: 0, lastErr: '' };
+async function geminiPost(model, key, bodyObj){
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key);
+  var opt = { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(bodyObj) };
+  var lastErr = null;
+  for(var attempt = 0; attempt < 2; attempt++){
+    await _waitOnline(30000);
+    try{ var r = await _fetchTimeout(url, opt, 70000); window.__geminiNet.direct++; return r; }
+    catch(e){
+      if(!_isNetErr(e)) throw e;
+      lastErr = e; window.__geminiNet.retry++; window.__geminiNet.lastErr = e.name + ': ' + e.message;
+      console.warn('[dices] Gemini 直連失敗(第' + (attempt + 1) + '次):', e.message);
+      if(attempt === 0) await new Promise(function(r){ setTimeout(r, 2500); });
+    }
+  }
+  // 備援:經 Worker 轉送
+  var wu = (typeof getWorkerUrl === 'function') ? getWorkerUrl() : '';
+  if(wu){
+    try{
+      var pr = await _fetchTimeout(wu, { method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'gemini_proxy', model: model, key: key, body: bodyObj }) }, 90000);
+      window.__geminiNet.proxy++;
+      console.log('[dices] Gemini 改走 Worker 備援通道', pr.status);
+      return pr;
+    }catch(e2){ lastErr = e2; }
+  }
+  var err = new Error('網路連不上 Gemini(已自動重試 2 次並改走備援通道仍失敗):' + (lastErr && lastErr.message || ''));
+  err.isNet = true;
+  throw err;
+}
+function reportClientError(where, msg){
+  try{
+    var wu = (typeof getWorkerUrl === 'function') ? getWorkerUrl() : '';
+    if(!wu) return;
+    var q = ($('question') && $('question').value || '').trim().slice(0, 80);
+    fetch(wu, { method: 'POST', headers: {'Content-Type': 'application/json'}, keepalive: true,
+      body: JSON.stringify({ action: 'client_error', where: where, msg: String(msg).slice(0, 300), q: q,
+        online: navigator.onLine, ua: navigator.userAgent.slice(0, 120), net: window.__geminiNet }) }).catch(function(){});
+  }catch(e){}
+}
+
 // Gemini 呼叫共用 helper：依序嘗試 GEMINI_MODELS 內的 model；遇 503/429/UNAVAILABLE 自動切
 async function callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens=800, responseJson=false}){
   const errs = [];
@@ -1692,9 +1746,10 @@ async function callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens=80
     };
     let res;
     try{
-      res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      res = await geminiPost(model, key, body);
     }catch(e){
       errs.push(model + ': network - ' + e.message);
+      if(e.isNet) break;   // 直連+備援都不通,換 model 也沒用
       continue;
     }
     if(res.status === 503 || res.status === 429 || res.status === 404){
@@ -3440,18 +3495,14 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
   try{
     let text = '', usedModel = '';
     for(const model of GEMINI_MODELS){
-      const u = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
-      const res = await fetch(u, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
+      const res = await geminiPost(model, key, {
           contents:[{role:'user', parts:[{text: prompt}]}],
           generationConfig:{
             temperature:0.75, maxOutputTokens:4000,
             responseMimeType:'application/json',
             thinkingConfig:{thinkingBudget:0}
           }
-        })
-      });
+        });
       if(res.status===503 || res.status===429 || res.status===404) continue;
       if(!res.ok){ throw new Error('Gemini ' + res.status + ': ' + (await res.text()).slice(0,180)); }
       const d = await res.json();
@@ -3487,13 +3538,23 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
         <div class="ai-quick-hint">${usedModel} · JSON 解析失敗,原文顯示 · <a href="#" class="ai-quick-regen" style="color:var(--muted)">重新生成</a></div>`;
     }
     // AI 深解成功渲染 → 取消延遲、記「含 AI 完整一筆」到 Notion(每次判讀剛好一筆)
+    window.__aiAutoRetry = 0;
     logReadingWithAI();
     const regen = body.querySelector('.ai-quick-regen');
     if(regen) regen.onclick = (ev)=>{ ev.preventDefault();
     body.innerHTML = `<button class="ai-quick-btn" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">👉 再問一次</button>`; };
   }catch(e){
-    body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ ${e.message}</div>
+    reportClientError('AI雙派白話深解', e.message);
+    // 網路類錯誤:自動再跑一次(只自動 1 次,避免無限迴圈)
+    const net = e.isNet || _isNetErr(e);
+    const autoN = (window.__aiAutoRetry = (window.__aiAutoRetry || 0) + 1);
+    const tip = net ? '<div class="muted" style="margin-top:4px">網路暫時連不上 Google(手機切換網路/背景、擋廣告外掛、公司網路都可能)。' + (autoN <= 1 ? '10 秒後自動重試…' : '請確認網路後按重試。') + '</div>' : '';
+    body.innerHTML = `<div class="muted" style="color:var(--warn)">❌ ${e.message}</div>${tip}
       <button class="ai-quick-btn" style="margin-top:8px" onclick="runAIQuick(this)" data-ctx="${btn.dataset.ctx}">重試</button>`;
+    if(net && autoN <= 1){
+      const rb = body.querySelector('.ai-quick-btn');
+      setTimeout(()=>{ if(rb && rb.isConnected) runAIQuick(rb); }, 10000);
+    }
   }
 }
 

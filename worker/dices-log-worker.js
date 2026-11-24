@@ -269,14 +269,21 @@ async function notionUpload(token, bytes, type, name) {
   const boundary = '----AstroDice' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   const asciiName = name.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
   const head = enc.encode('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + asciiName +
-    '"; filename*=UTF-8\'\'' + encodeURIComponent(name) + '\r\nContent-Type: ' + type + '\r\n\r\n');
+    '"; filename*=UTF-8\'\'' + encodeURIComponent(name).replace(/['()*!]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()) +
+    '\r\nContent-Type: ' + type + '\r\n\r\n');
   const tail = enc.encode('\r\n--' + boundary + '--\r\n');
   const body = new Uint8Array(head.length + bytes.length + tail.length);
   body.set(head, 0); body.set(bytes, head.length); body.set(tail, head.length + bytes.length);
   const sr = await fetch(`https://api.notion.com/v1/file_uploads/${cj.id}/send`, {
     method: 'POST', headers: { ...H, 'Content-Type': 'multipart/form-data; boundary=' + boundary }, body,
   });
-  if (!sr.ok) return { error: 'notion file_upload send', status: sr.status, detail: (await sr.text()).slice(0, 300) };
+  if (!sr.ok) {
+    // 備援:標準 FormData + ASCII 檔名(Notion 顯示名以 create 時的 filename 為準)
+    const fd = new FormData();
+    fd.append('file', new Blob([bytes], { type }), (asciiName || 'dices').slice(-80));
+    const sr2 = await fetch(`https://api.notion.com/v1/file_uploads/${cj.id}/send`, { method: 'POST', headers: H, body: fd });
+    if (!sr2.ok) return { error: 'notion file_upload send', status: sr2.status, detail: (await sr2.text()).slice(0, 300) };
+  }
   return { id: cj.id };
 }
 function fileBlock(id, kind, caption) {

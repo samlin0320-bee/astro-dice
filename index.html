@@ -1572,7 +1572,13 @@ function switchTab(tab){
 // Sam 授權硬編他自己的 Gemini Key(拆片段避開 GitHub secret scanner)。
 // 訪客不填 key 也能直接用;若額度用完/被撤銷,使用者可在圖片輸入分頁填自己的覆蓋。
 // URL ?k=xxx 或 localStorage 自填 key 會覆蓋這個 default。
-const DEFAULT_GEMINI_KEY = ['AQ.', 'Ab8RN6KtXKGb', 'hlYkT_b7aOzud', 'bsXqgZjJyh7gd', 'LveiSdGGSQHQ'].join('');
+// 內建 key 池:第 1 把為主,後面是備用。遇 401/402/403/429(額度用完/預付金耗盡/失效/限流)自動換下一把。
+// 要加備用 key:照同樣拆片段格式往陣列後面加一行即可。
+const DEFAULT_GEMINI_KEYS = [
+  ['AQ.', 'Ab8RN6LByW40', 'raa_bUDUDrd6X', 'z7-uuVt0c9W8-', 're6m5ou6swFg'].join(''),   // 2026-11-26 換上(主)
+  ['AQ.', 'Ab8RN6JOevze', '3GP8BVC54JuNa', 'rsvuds7AOKGgz', '_UAML7AeFL2g'].join(''),   // 2026-11-26 備用
+];
+const DEFAULT_GEMINI_KEY = DEFAULT_GEMINI_KEYS[0];
 const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-flash-latest', 'gemini-3.5-flash'];
 const GEMINI_MODEL = GEMINI_MODELS[0];
 
@@ -1689,7 +1695,7 @@ async function _fetchTimeout(url, opt, ms){
   finally{ clearTimeout(t); }
 }
 window.__geminiNet = { direct: 0, retry: 0, proxy: 0, lastErr: '' };
-async function geminiPost(model, key, bodyObj){
+async function _geminiPostOnce(model, key, bodyObj){
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key);
   var opt = { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(bodyObj) };
   var lastErr = null;
@@ -1717,6 +1723,43 @@ async function geminiPost(model, key, bodyObj){
   var err = new Error('網路連不上 Gemini(已自動重試 2 次並改走備援通道仍失敗):' + (lastErr && lastErr.message || ''));
   err.isNet = true;
   throw err;
+}
+// ==== key 輪替:這把 key 額度用完/失效就自動換內建 key 池的下一把(含使用者自存的舊 key 失效的情況) ====
+window.__geminiDeadKeys = {};
+async function _geminiKeyBad(r){
+  if([401, 402, 403, 429].indexOf(r.status) >= 0) return true;
+  if(r.status === 400){ try{ return /API key/i.test(await r.clone().text()); }catch(e){} }
+  return false;
+}
+async function geminiPost(model, key, bodyObj){
+  var pool = [key].concat(DEFAULT_GEMINI_KEYS.filter(function(k){ return k && k !== key; }));
+  pool = pool.filter(function(k){ return !window.__geminiDeadKeys[k]; }).concat(pool.filter(function(k){ return window.__geminiDeadKeys[k]; }));
+  var first = null, firstStatus = 0, firstBuiltin = false;
+  for(var i = 0; i < pool.length; i++){
+    var r = await _geminiPostOnce(model, pool[i], bodyObj);
+    if(!(await _geminiKeyBad(r))){
+      // 只有「內建 key」失效才通報站長;訪客自己存的 key 失效不通報(靜靜改用內建 key)
+      if(firstStatus && firstBuiltin && !window.__geminiRotateReported){
+        window.__geminiRotateReported = true;
+        reportClientError('Gemini key 輪替', '前一把 key 回 HTTP ' + firstStatus + '(額度用完或失效),已自動改用備用 key …' + String(pool[i]).slice(-4) + ',使用者無感。請補額度或換 key。');
+      }
+      return r;
+    }
+    window.__geminiDeadKeys[pool[i]] = r.status;
+    console.warn('[dices] Gemini key …' + String(pool[i]).slice(-4) + ' 回 HTTP ' + r.status + ',換下一把');
+    if(DEFAULT_GEMINI_KEYS.indexOf(pool[i]) >= 0) firstBuiltin = true;
+    if(!first){ first = r; firstStatus = r.status; }
+  }
+  return first;
+}
+// 把 Gemini 的英文錯誤轉成看得懂的話
+function geminiFriendlyErr(status, text){
+  text = String(text || '');
+  if(status === 402 || /credits are depleted|RESOURCE_EXHAUSTED/i.test(text))
+    return 'AI 額度已用完(內建 Gemini key 的額度耗盡),已自動通知站長補充。也可以到「📷 圖片輸入」分頁貼上自己的 Gemini Key 立即使用。';
+  if(status === 401 || status === 403 || /API key not valid|API_KEY_INVALID/i.test(text))
+    return 'AI 金鑰失效,已自動通知站長更換。也可以到「📷 圖片輸入」分頁貼上自己的 Gemini Key 立即使用。';
+  return 'Gemini ' + status + ': ' + text.slice(0, 180);
 }
 function reportClientError(where, msg){
   try{
@@ -1759,7 +1802,7 @@ async function callGeminiVision({key, mediaType, b64, prompt, maxOutputTokens=80
     }
     if(!res.ok){
       const etxt = await res.text();
-      throw new Error(`Gemini ${res.status} (${model}): ${etxt.slice(0,240)}`);
+      throw new Error(geminiFriendlyErr(res.status, etxt) + ` (${model})`);
     }
     const data = await res.json();
     const cand = data.candidates && data.candidates[0];
@@ -3504,7 +3547,7 @@ ${(payload.topics && payload.topics.length) ? payload.topics.join(' / ') + '（�
           }
         });
       if(res.status===503 || res.status===429 || res.status===404) continue;
-      if(!res.ok){ throw new Error('Gemini ' + res.status + ': ' + (await res.text()).slice(0,180)); }
+      if(!res.ok){ throw new Error(geminiFriendlyErr(res.status, await res.text())); }
       const d = await res.json();
       const c = d.candidates && d.candidates[0];
       if(!c) continue;
